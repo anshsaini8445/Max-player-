@@ -1,4 +1,4 @@
-name: Ultimate MaxPlayer AI V6
+name: Turbo AI Agent (NVIDIA DeepSeek)
 
 on:
   issues:
@@ -9,87 +9,49 @@ permissions:
   issues: write
 
 concurrency:
-  group: ai-agent-${{ github.event.issue.number }}
+  group: ai-agent-${{ github.repository }}-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
-  auto-coder:
+  turbo-coder:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
+          java-version: "17"
+          distribution: "temurin"
+          cache: "gradle"
 
-      - name: 2026 Latest Android Base Setup
+      - name: Fast Android Base Setup
         run: |
-          echo "Setting up perfect Android base project..."
           mkdir -p app/src/main/java/com/app/mediaplayer
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
           
           cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
           rootProject.name = 'MaxPlayer'
           include ':app'
           EOF
           
           cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.2.2' apply false
-              id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
-          }
+          plugins { id 'com.android.application' version '8.2.2' apply false; id 'org.jetbrains.kotlin.android' version '1.9.22' apply false }
           EOF
           
           cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-          }
-          android {
-              namespace 'com.app.mediaplayer'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.app.mediaplayer"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions { jvmTarget = '17' }
-          }
-          dependencies {
-              implementation 'androidx.core:core-ktx:1.12.0'
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
-              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-          }
+          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+          android { namespace 'com.app.mediaplayer'; compileSdk 34; defaultConfig { applicationId "com.app.mediaplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" } compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } kotlinOptions { jvmTarget = '17' } }
+          dependencies { implementation 'androidx.core:core-ktx:1.12.0'; implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.11.0'; implementation 'androidx.constraintlayout:constraintlayout:2.1.4' }
           EOF
           
           cat << 'EOF' > app/src/main/AndroidManifest.xml
@@ -112,174 +74,115 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Secure Packages
         run: pip install --quiet openai httpx
 
-      - name: Run Auto-Switch AI
+      - name: Run Turbo NVIDIA DeepSeek
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          cat << 'PYEOF' > run_ai.py
-          import os, sys, json, re, subprocess, time
+          cat << 'PYTHON_EOF' > run_ai.py
+          import json, os, subprocess, sys, time, re
           from pathlib import Path
           from openai import OpenAI
           import httpx
 
-          api_key = os.environ.get("NVIDIA_API_KEY", "").strip()
-          title = os.environ.get("ISSUE_TITLE", "").strip()
-          body = os.environ.get("ISSUE_BODY", "") or ""
-          issue_no = os.environ.get("ISSUE_NUMBER", "")
+          API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
+          if not API_KEY: sys.exit("FATAL: NVIDIA_API_KEY is missing.")
 
-          if not api_key:
-              print("FATAL: NVIDIA_API_KEY missing!")
-              sys.exit(1)
-
+          # FAST TIMEOUT: Strict 45-second limit. Disconnects immediately if the server hangs.
           client = OpenAI(
               base_url="https://integrate.api.nvidia.com/v1",
-              api_key=api_key,
-              http_client=httpx.Client(timeout=300.0)
+              api_key=API_KEY,
+              http_client=httpx.Client(timeout=45.0)
           )
 
-          # Auto-Switch Models: DeepSeek pehle, Nemotron backup
-          ai_models = [
-              "deepseek-ai/deepseek-v4.1-flash",
-              "meta/llama-3.1-70b-instruct",
-              "nvidia/llama-3.1-nemotron-70b-instruct"
-          ]
-
-          all_files = []
-          for root, dirs, files in os.walk("."):
-              dirs[:] = [d for d in dirs if d not in {".git", "build", ".gradle", "node_modules", ".idea", ".github"}]
-              for f in files:
-                  if f.endswith((".kt", ".java", ".xml", ".gradle", ".kts", ".properties")):
-                      all_files.append(os.path.relpath(os.path.join(root, f), "."))
-
-          file_list_str = "\n".join(sorted(all_files)[:150])
-
-          base_prompt = f"""You are an elite autonomous Android engineer.
-          Project Files:
-          {file_list_str}
-
-          Issue #{issue_no}: {title}
-          Details: {body}
-
-          RULES:
-          1. Return fully compilable Kotlin/XML.
-          2. STRICT JSON format only: {{"summary": "info", "files": [{{"filepath": "path/file.kt", "content": "CODE"}}]}}
+          PROJECT_DIR = Path(".").resolve()
+          allowed = {".kt", ".java", ".xml", ".gradle", ".kts"}
+          blocked = {".git", ".github", "build", "gradle"}
+          
+          files = [p.relative_to(PROJECT_DIR).as_posix() for p in PROJECT_DIR.rglob("*") if p.is_file() and not set(p.relative_to(PROJECT_DIR).parts).intersection(blocked) and p.suffix.lower() in allowed]
+          
+          prompt = f"""
+          Resolve Issue #{os.environ.get('ISSUE_NUMBER')}: {os.environ.get('ISSUE_TITLE')}
+          Details: {os.environ.get('ISSUE_BODY')}
+          Files: {", ".join(files[:150])}
+          Rule: Return ONLY valid JSON format with keys "summary" and "files" (filepath, content).
           """
-
-          current_prompt = base_prompt
-          build_success = False
-
-          for attempt in range(1, 4):
-              print(f"\n--- AI ATTEMPT {attempt} ---")
+          
+          success = False
+          model_name = "deepseek-ai/deepseek-v4.1-flash"
+          
+          for attempt in range(2):
+              print(f"\n--- Turbo DeepSeek Attempt {attempt+1}/2 ---")
               response_text = None
               
-              for model_name in ai_models:
-                  for retry in range(2): 
-                      try:
-                          print(f"Connecting to {model_name}...")
-                          completion = client.chat.completions.create(
-                              model=model_name,
-                              messages=[{"role": "user", "content": current_prompt}],
-                              temperature=0.1
-                          )
-                          if completion and completion.choices:
-                              response_text = completion.choices[0].message.content
-                              print(f"✅ {model_name} Responded!")
-                              break
-                      except Exception as e:
-                          print(f"✗ Failed: {e}")
-                          print("Retrying in 10s...")
-                          time.sleep(10)
-                  if response_text:
+              for retry in range(2):
+                  try:
+                      print(f"Connecting to {model_name} (Max wait 45s)...")
+                      completion = client.chat.completions.create(
+                          model=model_name,
+                          messages=[{"role": "user", "content": prompt}],
+                          temperature=0.1
+                      )
+                      response_text = completion.choices[0].message.content
+                      print("✅ Fast response received!")
                       break
-              
+                  except Exception as e:
+                          print(f"✗ Server hang or error: {e}")
+                          print("Retrying instantly in 3s...")
+                          time.sleep(3)
+                          
               if not response_text:
-                  print("FATAL: All AI servers down or quota exhausted.")
-                  sys.exit(1)
-
-              raw_text = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', response_text.strip())
-              
+                  sys.exit("FATAL: NVIDIA server is completely down right now. Try again later.")
+                  
               try:
+                  raw_text = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', response_text.strip())
                   match = re.search(r"\{[\s\S]*\}", raw_text)
-                  data = json.loads(match.group(0)) if match else json.loads(raw_text)
-              except:
-                  print("FATAL: Invalid JSON.")
-                  sys.exit(1)
-
-              for item in data.get("files", []):
-                  fp = item.get("filepath", "").strip().replace("\\", "/")
-                  if fp.startswith("./"): fp = fp[2:]
-                  if ".." in fp or fp.startswith("/"): continue
-                  Path(fp).parent.mkdir(parents=True, exist_ok=True)
-                  with open(fp, "w", encoding="utf-8") as f:
-                      f.write(item.get("content", ""))
-                  print(f"📝 Wrote: {fp}")
-
-              with open("agent_summary.txt", "w", encoding="utf-8") as f:
-                  f.write(data.get("summary", f"AI Fix attempt {attempt}"))
-
-              print("\n🔨 Compiling (assembleDebug)...")
-              build_process = subprocess.run(
-                  ["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], 
-                  capture_output=True, text=True
-              )
-              
-              if build_process.returncode == 0:
-                  print("✅ BUILD SUCCESSFUL!")
-                  build_success = True
-                  break
-              else:
-                  print("❌ BUILD FAILED — self-healing...")
-                  error_log = build_process.stderr + build_process.stdout
-                  short_error = error_log[-2000:]
-                  current_prompt = base_prompt + f"\n\nCRITICAL FIX NEEDED: Compilation failed. Error log:\n```\n{short_error}\n```\nProvide corrected FULL JSON."
-
-          if not build_success:
-              print("❌ FATAL: Self-healing failed.")
-              sys.exit(1)
-          PYEOF
+                  data = json.loads(match.group(0) if match else raw_text)
+                  
+                  for item in data.get("files", []):
+                      target = (PROJECT_DIR / item["filepath"]).resolve()
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_text(item["content"], encoding="utf-8")
+                      
+                  Path("agent_summary.txt").write_text(data.get("summary", "Turbo NVIDIA Fix"), encoding="utf-8")
+                  
+                  print("Compiling...")
+                  build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
+                  
+                  if build.returncode == 0:
+                      print("✅ SUCCESS!")
+                      success = True
+                      break
+                  else:
+                      print("❌ BUILD FAILED. Requesting quick fix...")
+                      prompt += f"\nBuild failed. Error:\n{build.stderr[-2000:]}"
+              except Exception as e:
+                  print(f"Error parsing JSON: {e}")
+                  
+          if not success: sys.exit(1)
+          PYTHON_EOF
           
           python run_ai.py
 
-      - name: Save Code to Main Branch
+      - name: Save Code
+        if: success()
         run: |
-          git config --global user.name "AI-Agent[bot]"
-          git config --global user.email "ai-agent@google.com"
+          git config user.name "AI-Agent"
+          git config user.email "ai@example.com"
           git add -A
-          if git diff --staged --quiet; then
-            echo "No changes."
-          else
-            SUMMARY=$(cat agent_summary.txt 2>/dev/null || echo "AI Magic Update")
-            git commit -m "Auto-Fix: Issue #${{ github.event.issue.number }} - $SUMMARY"
-            git push origin HEAD:main
-          fi
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-Fix: Issue #${{ github.event.issue.number }}" && git push origin HEAD:main)
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: MaxPlayer-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           retention-days: 7
-
-      - name: Comment on Issue
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const status = '${{ job.status }}';
-            const body = status === 'success'
-              ? '✅ **Done!** AI Agent successfully generated and built the APK. Download it from Artifacts.'
-              : '❌ **Failed.** AI hit a snag. Check action logs.';
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
