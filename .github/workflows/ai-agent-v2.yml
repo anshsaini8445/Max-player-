@@ -68,9 +68,11 @@ jobs:
               id 'com.android.application'
               id 'org.jetbrains.kotlin.android'
           }
+          
           android {
               namespace 'com.app.mediaplayer'
               compileSdk 34
+              
               defaultConfig {
                   applicationId "com.app.mediaplayer"
                   minSdk 24
@@ -78,12 +80,17 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
+              
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
-              kotlinOptions { jvmTarget = '17' }
+              
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
           }
+          
           dependencies {
               implementation 'androidx.core:core-ktx:1.12.0'
               implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -171,9 +178,9 @@ jobs:
                       print("✅ Fast response received!")
                       break
                   except Exception as e:
-                          print(f"✗ Server hang or error: {e}")
-                          print("Retrying instantly in 3s...")
-                          time.sleep(3)
+                      print(f"✗ Server hang or error: {e}")
+                      print("Retrying instantly in 3s...")
+                      time.sleep(3)
                           
               if not response_text:
                   sys.exit("FATAL: NVIDIA server is completely down right now. Try again later.")
