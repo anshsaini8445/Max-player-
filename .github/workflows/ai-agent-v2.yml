@@ -21,7 +21,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - name: Setup Java 17
@@ -31,8 +30,9 @@ jobs:
           distribution: "temurin"
           cache: "gradle"
 
-      - name: Bulletproof Android Base Setup
+      - name: Max Player Android Setup
         run: |
+          echo "Setting up Max Player..."
           mkdir -p app/src/main/java/com/app/mediaplayer
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
@@ -52,32 +52,22 @@ jobs:
                   mavenCentral()
               }
           }
-          rootProject.name = 'MaxPlayer'
+          rootProject.name = "MaxPlayer"
           include ':app'
           EOF
           
           cat << 'EOF' > build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.1'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+          plugins {
+              id 'com.android.application' version '8.2.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
           }
           EOF
           
           cat << 'EOF' > app/build.gradle
-          apply plugin: 'com.android.application'
-          apply plugin: 'org.jetbrains.kotlin.android'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
 
           android {
               namespace 'com.app.mediaplayer'
@@ -100,7 +90,7 @@ jobs:
                   jvmTarget = '17'
               }
           }
-          
+
           dependencies {
               implementation 'androidx.core:core-ktx:1.12.0'
               implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -123,7 +113,7 @@ jobs:
           </manifest>
           EOF
           
-          gradle wrapper --gradle-version 8.0
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
       - name: Setup Python
@@ -163,7 +153,7 @@ jobs:
           files = [p.relative_to(PROJECT_DIR).as_posix() for p in PROJECT_DIR.rglob("*") if p.is_file() and not set(p.relative_to(PROJECT_DIR).parts).intersection(blocked) and p.suffix.lower() in allowed]
           
           prompt = f"""
-          Resolve Issue #{os.environ.get('ISSUE_NUMBER')}: {os.environ.get('ISSUE_TITLE')}
+          Resolve Issue #{os.environ.get('ISSUE_NUMBER')} for Max Player: {os.environ.get('ISSUE_TITLE')}
           Details: {os.environ.get('ISSUE_BODY')}
           Files: {", ".join(files[:150])}
           Rule: Return ONLY valid JSON format with keys "summary" and "files" (filepath, content).
@@ -205,9 +195,9 @@ jobs:
                       target.parent.mkdir(parents=True, exist_ok=True)
                       target.write_text(item["content"], encoding="utf-8")
                       
-                  Path("agent_summary.txt").write_text(data.get("summary", "Turbo NVIDIA Fix"), encoding="utf-8")
+                  Path("agent_summary.txt").write_text(data.get("summary", "Max Player Fix"), encoding="utf-8")
                   
-                  print("Compiling...")
+                  print("Compiling Max Player...")
                   build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
                   
                   if build.returncode == 0:
