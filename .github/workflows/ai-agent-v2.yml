@@ -140,10 +140,11 @@ jobs:
           API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
           if not API_KEY: sys.exit("FATAL: NVIDIA_API_KEY is missing.")
 
+          # Timeout badha kar 180 seconds (3 minute) kar diya gaya hai
           client = OpenAI(
               base_url="https://integrate.api.nvidia.com/v1",
               api_key=API_KEY,
-              http_client=httpx.Client(timeout=45.0)
+              http_client=httpx.Client(timeout=180.0)
           )
 
           PROJECT_DIR = Path(".").resolve()
@@ -166,24 +167,25 @@ jobs:
               print(f"\n--- Turbo DeepSeek Attempt {attempt+1}/2 ---")
               response_text = None
               
-              for retry in range(2):
+              # Retries 2 se badhakar 4 kar diye gaye hain
+              for retry in range(4):
                   try:
-                      print(f"Connecting to {model_name} (Max wait 45s)...")
+                      print(f"Connecting to {model_name} (Max wait 3 mins)...")
                       completion = client.chat.completions.create(
                           model=model_name,
                           messages=[{"role": "user", "content": prompt}],
                           temperature=0.1
                       )
                       response_text = completion.choices[0].message.content
-                      print("✅ Fast response received!")
+                      print("✅ Response received successfully!")
                       break
                   except Exception as e:
-                      print(f"✗ Server hang or error: {e}")
-                      print("Retrying instantly in 3s...")
-                      time.sleep(3)
+                      print(f"✗ Server timeout or error: {e}")
+                      print("Retrying in 10s...")
+                      time.sleep(10)
                           
               if not response_text:
-                  sys.exit("FATAL: NVIDIA server is completely down right now. Try again later.")
+                  sys.exit("FATAL: NVIDIA DeepSeek server is completely down right now. Try again later.")
                   
               try:
                   raw_text = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', response_text.strip())
