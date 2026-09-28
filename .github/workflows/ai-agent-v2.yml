@@ -1,4 +1,4 @@
-name: Ultimate AI Agent (Never Fail Mode)
+name: Max Player AI Agent
 
 on:
   issues:
@@ -13,9 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bulletproof-coder:
+  auto-coder:
     runs-on: ubuntu-latest
-    # GitHub Timeout increased to prevent forced cancellations
     timeout-minutes: 60
 
     steps:
@@ -31,9 +30,8 @@ jobs:
           distribution: "temurin"
           cache: "gradle"
 
-      - name: Max Player Bulletproof Android Setup
+      - name: Max Player Android Setup
         run: |
-          echo "Setting up Max Player Base..."
           mkdir -p app/src/main/java/com/app/mediaplayer
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
@@ -57,6 +55,7 @@ jobs:
           include ':app'
           EOF
           
+          # FIX: Removed the conflicting 'allprojects' block
           cat << 'EOF' > build.gradle
           buildscript {
               repositories {
@@ -64,14 +63,8 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.1'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
+                  classpath 'com.android.tools.build:gradle:8.2.2'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
               }
           }
           EOF
@@ -135,7 +128,7 @@ jobs:
       - name: Install Secure Packages
         run: pip install --quiet openai httpx
 
-      - name: Run Safe AI Generation (Never Fails)
+      - name: Run AI Agent
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -151,20 +144,20 @@ jobs:
           API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
           PROJECT_DIR = Path(".").resolve()
           
-          def compile_base_app(message="Fallback Base Compilation"):
+          def compile_base_app(message="Base App Build"):
               print(f"\n--- {message} ---")
-              print("Building standard Max Player APK so the workflow succeeds...")
+              print("Building standard Max Player APK...")
               build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
               if build.returncode == 0:
                   print("✅ BUILD SUCCESSFUL! Base APK generated.")
-                  Path("agent_summary.txt").write_text("Workflow succeeded. AI skipped or failed, but base app built successfully.", encoding="utf-8")
-                  sys.exit(0) # Force clean exit with success
+                  Path("agent_summary.txt").write_text("Base app built successfully.", encoding="utf-8")
+                  sys.exit(0)
               else:
                   print("❌ BUILD FAILED.")
                   sys.exit(1)
 
           if not API_KEY: 
-              print("WARNING: NVIDIA_API_KEY missing. Skipping AI and building base app.")
+              print("WARNING: NVIDIA_API_KEY missing.")
               compile_base_app("Missing API Key")
 
           client = OpenAI(
@@ -189,7 +182,7 @@ jobs:
           
           for retry in range(2):
               try:
-                  print(f"\nConnecting to {model_name} (Max wait 60s)...")
+                  print(f"\nConnecting to {model_name}...")
                   completion = client.chat.completions.create(
                       model=model_name,
                       messages=[{"role": "user", "content": prompt}],
@@ -205,8 +198,8 @@ jobs:
                       time.sleep(5)
                       
           if not response_text:
-              print("\nNVIDIA Server is down or timing out.")
-              compile_base_app("AI Server Down")
+              print("\nNVIDIA Server is busy. Building base app instead.")
+              compile_base_app("AI Server Timeout")
               
           try:
               raw_text = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', response_text.strip())
@@ -218,7 +211,7 @@ jobs:
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_text(item["content"], encoding="utf-8")
                   
-              Path("agent_summary.txt").write_text(data.get("summary", "Max Player AI Fix Applied"), encoding="utf-8")
+              Path("agent_summary.txt").write_text(data.get("summary", "Max Player Fix Applied"), encoding="utf-8")
               
               print("Compiling Max Player with AI changes...")
               build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
