@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1E1E24"
+    android:orientation="vertical"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp">
+
+    <!-- Top Header Info -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="16dp">
+        <ImageView
+            android:id="@+id/imgMenuThumb"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="#333333"
+            android:scaleType="centerCrop"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+            <TextView
+                android:id="@+id/tvMenuTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Media Name"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
+            <TextView
+                android:id="@+id/tvMenuSize"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Size / Duration"
+                android:textColor="#AAAAAA"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#2A2A30" android:layout_marginBottom="8dp"/>
+
+    <!-- Menu Options -->
+    <TextView android:id="@+id/optPlayNext" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="⏭️  Play Next" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optPlaylist" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="📋  Add To Playlist" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optVault" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🔒  Lock in Private Vault" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optMp3" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🎧  Convert to MP3" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optShare" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="↗️  Share" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optRename" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✏️  Rename" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optCut" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✂️  Cut" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <TextView android:id="@+id/optProperties" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ℹ️  Properties" android:textColor="#E0E0E0" android:textSize="15sp" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground"/>
+    
+    <!-- Red Delete Button -->
+    <TextView android:id="@+id/optDelete" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🗑️  Delete" android:textColor="#FF3B30" android:textSize="15sp" android:textStyle="bold" android:paddingVertical="12dp" android:paddingHorizontal="20dp" android:background="?attr/selectableItemBackground" android:layout_marginTop="4dp"/>
+
+</LinearLayout>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1E1E1E"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sort by"
+        android:textColor="#00C853"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <RadioGroup
+        android:id="@+id/groupSortCriteria"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <RadioButton android:id="@+id/sortDate" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Date" android:textColor="#FFFFFF" android:checked="true" android:buttonTint="#00C853" />
+        <RadioButton android:id="@+id/sortName" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Name" android:textColor="#FFFFFF" android:buttonTint="#00C853" />
+        <RadioButton android:id="@+id/sortSize" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Size" android:textColor="#FFFFFF" android:buttonTint="#00C853" />
+        <RadioButton android:id="@+id/sortLength" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Length" android:textColor="#FFFFFF" android:buttonTint="#00C853" />
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#333333"
+        android:layout_marginVertical="12dp" />
+
+    <RadioGroup
+        android:id="@+id/groupSortOrder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <RadioButton android:id="@+id/orderNewToOld" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="From new to old" android:textColor="#FFFFFF" android:checked="true" android:buttonTint="#00C853" />
+        <RadioButton android:id="@+id/orderOldToNew" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="From old to new" android:textColor="#FFFFFF" android:buttonTint="#00C853" />
+    </RadioGroup>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal"
+        android:layout_marginTop="20dp">
+        <TextView
+            android:id="@+id/btnSortCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:textColor="#00C853"
+            android:padding="8dp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/btnSortOk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OK"
+            android:textColor="#00C853"
+            android:padding="8dp"
+            android:layout_marginStart="16dp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

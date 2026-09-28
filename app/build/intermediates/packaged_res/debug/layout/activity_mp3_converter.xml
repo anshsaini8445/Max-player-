@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D1A"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <ImageView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@android:drawable/ic_media_play"
+        android:tint="#00E5FF"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Video to MP3 Converter"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvSelectedFile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No video selected"
+        android:textColor="#AAAAAA"
+        android:textSize="16sp"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btnSelectVideo"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Select Video"
+        android:backgroundTint="#333333"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnConvertMp3"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="CONVERT TO MP3"
+        android:backgroundTint="#FF671F"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"/>
+</LinearLayout>

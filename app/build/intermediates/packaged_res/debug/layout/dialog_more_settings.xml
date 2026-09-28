@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#191919">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Top Row 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="4"
+            android:layout_marginBottom="16dp">
+            <LinearLayout android:id="@+id/btnAudioTrackMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🎵" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Audio track" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnEqualizerMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🎛️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Equalizer" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnCastMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="📺" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cast" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnShareMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="↗️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Share" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Top Row 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="4"
+            android:layout_marginBottom="24dp">
+            <LinearLayout android:id="@+id/btnCutMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="✂️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cut" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnFavMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="⭐" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Favorite" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnBookmarkMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🔖" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bookmark" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnVRMenu" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🕶️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VR" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333333" android:layout_marginBottom="16dp"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Play settings" android:textColor="#AAAAAA" android:textSize="14sp" android:layout_marginBottom="16dp"/>
+
+        <!-- Settings Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="4"
+            android:layout_marginBottom="24dp">
+            <LinearLayout android:id="@+id/btnABRepeat" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🔁" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AB Repeat" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnNightMode" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="🌙" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Night mode" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnMirrorMode" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="◨◧" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mirror mode" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnTimer" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="⏱️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333333" android:layout_marginBottom="16dp"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Decoder" android:textColor="#AAAAAA" android:textSize="14sp" android:layout_marginBottom="16dp"/>
+        
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="24dp">
+            <TextView android:id="@+id/btnHW" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HW Decoder" android:textColor="#00E676" android:textSize="16sp" android:textStyle="bold" android:layout_marginEnd="24dp"/>
+            <TextView android:id="@+id/btnSW" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SW Decoder" android:textColor="#FFFFFF" android:textSize="16sp"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333333" android:layout_marginBottom="16dp"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="More" android:textColor="#AAAAAA" android:textSize="14sp" android:layout_marginBottom="16dp"/>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="4"
+            android:layout_marginBottom="16dp">
+            <LinearLayout android:id="@+id/btnEditInfo" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="📝" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit info" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnTutorial" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="📖" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tutorials" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnFileInfo" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="ℹ️" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File info" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/btnFeedback" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                <TextView android:layout_width="50dp" android:layout_height="50dp" android:text="💬" android:textSize="24sp" android:gravity="center" android:background="#2C2C2C"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Feedback" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

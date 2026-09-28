@@ -1,0 +1,729 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0C0D14">
+
+    <!-- TOP BAR & TABS -->
+    <LinearLayout
+        android:id="@+id/topContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical">
+
+        <!-- Top Header -->
+        <RelativeLayout
+            android:id="@+id/topBar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#151722"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:text="MAX"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnRewardTop"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/btn_star"
+                app:tint="#FFD700" />
+        </RelativeLayout>
+
+        <!-- Dynamic History Section With Real Photos/Thumbnails -->
+        <LinearLayout
+            android:id="@+id/historyBlock"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#151722"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:text="History"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- History Card 1 (Video Preview Photo) -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/cardHistory1"
+                        android:layout_width="160dp"
+                        android:layout_height="88dp"
+                        android:layout_marginEnd="12dp"
+                        app:cardBackgroundColor="#222436"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="2dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent">
+
+                            <ImageView
+                                android:id="@+id/imgHistory1Thumb"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:src="@android:drawable/ic_media_play" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:layout_alignParentBottom="true"
+                                android:background="#99000000" />
+
+                            <TextView
+                                android:id="@+id/tvHistory1Title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentBottom="true"
+                                android:padding="6dp"
+                                android:ellipsize="end"
+                                android:singleLine="true"
+                                android:text="Recent Video"
+                                android:textColor="#FFFFFF"
+                                android:textSize="12sp" />
+                        </RelativeLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- History Card 2 (Audio Album Art) -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/cardHistory2"
+                        android:layout_width="160dp"
+                        android:layout_height="88dp"
+                        app:cardBackgroundColor="#222436"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="2dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent">
+
+                            <ImageView
+                                android:id="@+id/imgHistory2Thumb"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:src="@android:drawable/ic_media_ff" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:layout_alignParentBottom="true"
+                                android:background="#99000000" />
+
+                            <TextView
+                                android:id="@+id/tvHistory2Title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentBottom="true"
+                                android:padding="6dp"
+                                android:ellipsize="end"
+                                android:singleLine="true"
+                                android:text="Recent Audio"
+                                android:textColor="#FFFFFF"
+                                android:textSize="12sp" />
+                        </RelativeLayout>
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <!-- Sub Tabs -->
+        <LinearLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0C0D14"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp">
+
+            <TextView
+                android:id="@+id/tabVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="22dp"
+                android:text="Video"
+                android:textColor="#00E5FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tabFolder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="22dp"
+                android:text="Folder"
+                android:textColor="#8E8E9F"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tabPlaylist"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Playlist"
+                android:textColor="#8E8E9F"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnSort"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                app:tint="#8E8E9F" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- MEDIA RECYCLERVIEW -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottomSearchContainer"
+        android:layout_below="@id/topContainer"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+
+    <!-- PLAYIT ME SCREEN -->
+    <ScrollView
+        android:id="@+id/meLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottomSearchContainer"
+        android:layout_below="@id/topContainer"
+        android:background="#0C0D14"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="30dp">
+
+            <!-- Gold Coin Header Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                app:cardBackgroundColor="#F9A825"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:weightSum="3">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textColor="#261C02"
+                                android:textSize="22sp"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="My coin ▸"
+                                android:textColor="#4E342E"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/btnMeGetCoin"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="📋"
+                                android:textSize="20sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Get Coin ▸"
+                                android:textColor="#4E342E"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/btnMeRedeem"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🎁"
+                                android:textSize="20sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Redeem Gift ▸"
+                                android:textColor="#4E342E"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- VIP Trial Banner -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/cardVipTrial"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        app:cardBackgroundColor="#1A1C2B"
+                        app:cardCornerRadius="12dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="14dp">
+
+                            <TextView
+                                android:id="@+id/tvVipHeader"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="👑 3-Day Free Trial"
+                                android:textColor="#FFD700"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <androidx.appcompat.widget.AppCompatButton
+                                android:id="@+id/btnGetVipTrial"
+                                android:layout_width="72dp"
+                                android:layout_height="32dp"
+                                android:layout_alignParentEnd="true"
+                                android:background="#F5A623"
+                                android:text="Get"
+                                android:textColor="#0C0D14"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@id/tvVipHeader"
+                                android:layout_marginTop="6dp"
+                                android:layout_toStartOf="@id/btnGetVipTrial"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="✔ No ads   ✔ Transfer to MP3"
+                                    android:textColor="#CCCCCC"
+                                    android:textSize="11sp" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="✔ Unlimited HDR   ✔ Unlimited Privacy Box"
+                                    android:textColor="#CCCCCC"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </RelativeLayout>
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 9 Grid Icons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="10dp"
+                    android:orientation="horizontal"
+                    android:weightSum="3">
+
+                    <LinearLayout
+                        android:id="@+id/btnGridDownloads"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/stat_sys_download_done" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Downloads" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridMp3Converter"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_media_ff" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="MP3 Converter" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridPrivacy"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_secure" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Privacy" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="10dp"
+                    android:orientation="horizontal"
+                    android:weightSum="3">
+
+                    <LinearLayout
+                        android:id="@+id/btnGridTransfer"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_share" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="File Transfer" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridMediaManage"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_agenda" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Media Manage" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridTheme"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_gallery" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Theme" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="10dp"
+                    android:orientation="horizontal"
+                    android:weightSum="3">
+
+                    <LinearLayout
+                        android:id="@+id/btnGridHistory"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_recent_history" app:tint="#00E676" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="History" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridAdFreeGift"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/star_on" app:tint="#FF9100" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:text="24h Ad-free" android:textColor="#FFFFFF" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnGridClean"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_delete" app:tint="#FF5252" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Clean (70%)" android:textColor="#FFFFFF" android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="#1E2030" />
+
+            <!-- Vertical Settings List -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp">
+
+                <TextView
+                    android:id="@+id/btnMeSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="14dp"
+                    android:text="⚙️  Settings"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/btnMeBin"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="14dp"
+                    android:text="🗑️  Recycle Bin"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/btnMeHelp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="14dp"
+                    android:text="💬  Help &amp; Feedback"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/btnMeRate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="14dp"
+                    android:text="👍  Rate us"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/btnMeAbout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="14dp"
+                    android:text="ℹ️  About"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- SEARCH CONTAINER WITH STORIES / RECENT SEARCH CHIPS -->
+    <LinearLayout
+        android:id="@+id/bottomSearchContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/customBottomBar"
+        android:background="#151722"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Recent:"
+                android:textColor="#888899"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/searchHistoryChipsLayout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="#222436"
+            android:hint="🔍 Search any Video or Music..."
+            android:paddingHorizontal="16dp"
+            android:singleLine="true"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#7A7B90"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 4 TABS BOTTOM NAVIGATION -->
+    <LinearLayout
+        android:id="@+id/customBottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_alignParentBottom="true"
+        android:background="#12131D"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:weightSum="4">
+
+        <LinearLayout
+            android:id="@+id/navVideoTab"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/navVideoIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_media_play"
+                app:tint="#00E5FF" />
+            <TextView
+                android:id="@+id/navVideoText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Video"
+                android:textColor="#00E5FF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navMusicTab"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/navMusicIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_media_ff"
+                app:tint="#8E8E9F" />
+            <TextView
+                android:id="@+id/navMusicText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Music"
+                android:textColor="#8E8E9F"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navSearchTab"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/navSearchIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_search"
+                app:tint="#8E8E9F" />
+            <TextView
+                android:id="@+id/navSearchText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Search"
+                android:textColor="#8E8E9F"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navMeTab"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/navMeIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_preferences"
+                app:tint="#8E8E9F" />
+            <TextView
+                android:id="@+id/navMeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Me"
+                android:textColor="#8E8E9F"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>

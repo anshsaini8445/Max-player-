@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#DD111111"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Row 1 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4"
+        android:layout_marginBottom="24dp">
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_btn_speak_now" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Audio track" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_sort_by_size" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Equalizer" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_share" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cast" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_send" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Share" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Row 2 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4"
+        android:layout_marginBottom="24dp">
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_edit" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cut" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/star_off" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Favorite" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_agenda" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bookmark" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_view" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VR" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#33FFFFFF" android:layout_marginBottom="16dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Play settings" android:textColor="#AAAAAA" android:textSize="14sp" android:layout_marginBottom="16dp"/>
+    
+    <!-- Row 3 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4">
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_revert" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AB Repeat" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_day" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Night mode" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_always_landscape_portrait" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mirror" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+        
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <ImageView android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_circle_outline" android:src="@android:drawable/ic_menu_recent_history" android:padding="14dp" android:tint="#FFFFFF"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer" android:textColor="#E0E0E0" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

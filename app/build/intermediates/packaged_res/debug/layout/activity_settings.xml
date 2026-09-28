@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0C0D14"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingHorizontal="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBackSettings"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Settings"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <RelativeLayout
+                android:id="@+id/itemGeneral"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconGeneral"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_menu_agenda"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconGeneral"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="General"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Language, History"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/itemVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconVideo"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_play"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconVideo"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Video"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Pop-up play, screen orientation, gestures..."
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/itemAudio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconAudio"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_ff"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconAudio"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Audio"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Audio format, audio duration, nomedia folder"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/itemDownloads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconDownloads"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/stat_sys_download_done"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconDownloads"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Downloads"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Path, max download tasks"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/itemSubscription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconSubscription"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/btn_star"
+                    app:tint="#FFD700" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconSubscription"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Subscription"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Manage or Cancel subscription"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconGame"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_menu_manage"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_toStartOf="@id/switchGame"
+                    android:layout_toEndOf="@id/iconGame"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Game Center"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Block game center and do not display content"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchGame"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="#00E5FF"
+                    app:trackTint="#2E334D" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/itemAbout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:id="@+id/iconAbout"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    app:tint="#FFFFFF" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toEndOf="@id/iconAbout"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="About us"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Fans group, official website, pages &amp; channel"
+                        android:textColor="#7A7C8E"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#7A7C8E" />
+            </RelativeLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

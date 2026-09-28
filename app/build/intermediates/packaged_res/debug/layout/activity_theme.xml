@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D1A"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Premium Themes"
+        android:textColor="#FF671F"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="3"
+            android:alignmentMode="alignMargins"
+            android:useDefaultMargins="true">
+
+            <!-- Saffron Theme -->
+            <androidx.cardview.widget.CardView android:id="@+id/themeSaffron" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FF671F">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Saffron" android:layout_gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Dark Night Theme -->
+            <androidx.cardview.widget.CardView android:id="@+id/themeDark" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#1A1A24">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dark Night" android:layout_gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Neon Blue -->
+            <androidx.cardview.widget.CardView android:id="@+id/themeNeon" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#00E5FF">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Neon Blue" android:layout_gravity="center" android:textColor="#000000" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Deep Purple -->
+            <androidx.cardview.widget.CardView android:id="@+id/themePurple" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#6200EA">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Deep Purple" android:layout_gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Blood Red -->
+            <androidx.cardview.widget.CardView android:id="@+id/themeRed" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#D50000">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Blood Red" android:layout_gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Forest Green -->
+            <androidx.cardview.widget.CardView android:id="@+id/themeGreen" android:layout_width="0dp" android:layout_height="120dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#00C853">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Forest Green" android:layout_gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </androidx.cardview.widget.CardView>
+
+        </GridLayout>
+    </ScrollView>
+</LinearLayout>

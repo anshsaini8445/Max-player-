@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Jab button Select hoga (Neon Blue / PLAYit style) -->
+    <item android:color="#00E5FF" android:state_checked="true" />
+    
+    <!-- Jab button Unselect hoga (Halka Grey) -->
+    <item android:color="#888888" />
+</selector>

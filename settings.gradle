@@ -12,6 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
-rootProject.name = "MediaPlayerApp"
+rootProject.name = "MaxPlayer"
 include ':app'

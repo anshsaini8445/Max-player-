@@ -1,64 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Basic & Network Permissions -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <!-- Storage Permissions for Android 13+ -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- Legacy Storage Permissions for Android 12 and below -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29"
-        tools:ignore="ScopedStorage" />
-
-    <!-- Media Playback Foreground Service -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-
-    <application
-        android:allowBackup="true"
-        android:icon="@android:drawable/sym_def_app_icon"
-        android:label="MAX Player"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
-        android:requestLegacyExternalStorage="true"
-        tools:targetApi="34">
-
-        <!-- Main Launcher Activity -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.app.mediaplayer">
+    <application android:allowBackup="true" android:label="Max Player" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Video Player Activity -->
-        <activity
-            android:name=".PlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:resizeableActivity="true"
-            android:supportsPictureInPicture="true" />
-
-        <!-- Encrypted Private Vault Activity -->
-        <activity
-            android:name=".VaultActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize" />
-
     </application>
-
 </manifest>
