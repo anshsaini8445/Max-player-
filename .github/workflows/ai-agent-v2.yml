@@ -165,11 +165,11 @@ jobs:
           python-version: "3.11"
 
       - name: Install Packages
-        run: pip install --quiet "google-genai>=1.0.0"
+        run: pip install --quiet openai httpx
 
-      - name: Run Gemini 3.5 Flash
+      - name: Run NVIDIA DeepSeek AI
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -177,10 +177,10 @@ jobs:
           cat << 'PYTHON_EOF' > run_ai.py
           import json, os, subprocess, sys, time, re
           from pathlib import Path
-          from google import genai
-          from google.genai import types
+          from openai import OpenAI
+          import httpx
 
-          API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+          API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
           PROJECT_DIR = Path(".").resolve()
           
           def compile_base_app(message="Base App Build"):
@@ -196,7 +196,12 @@ jobs:
 
           if not API_KEY: compile_base_app("Missing API Key")
 
-          client = genai.Client(api_key=API_KEY)
+          client = OpenAI(
+              base_url="https://integrate.api.nvidia.com/v1",
+              api_key=API_KEY,
+              http_client=httpx.Client(timeout=120.0)
+          )
+          
           allowed = {".kt", ".java", ".xml", ".gradle", ".kts"}
           blocked = {".git", ".github", "build", "gradle"}
           files = [p.relative_to(PROJECT_DIR).as_posix() for p in PROJECT_DIR.rglob("*") if p.is_file() and not set(p.relative_to(PROJECT_DIR).parts).intersection(blocked) and p.suffix.lower() in allowed]
@@ -208,24 +213,24 @@ jobs:
           Rule: Return ONLY valid JSON format with keys "summary" and "files".
           """
           
-          model_name = "gemini-3.5-flash"
+          model_name = "deepseek-ai/deepseek-v4.1-flash"
           response_text = None
           
           for retry in range(2):
               try:
                   print(f"Connecting to {model_name}...")
-                  response = client.models.generate_content(
+                  completion = client.chat.completions.create(
                       model=model_name,
-                      contents=prompt,
-                      config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1)
+                      messages=[{"role": "user", "content": prompt}],
+                      temperature=0.1
                   )
-                  response_text = response.text.strip()
+                  response_text = completion.choices[0].message.content
                   break
               except Exception as e:
                   if retry == 0: time.sleep(5)
                       
           if not response_text:
-              compile_base_app("Gemini Server Timeout")
+              compile_base_app("NVIDIA Server Timeout")
               
           try:
               raw_text = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', response_text.strip())
