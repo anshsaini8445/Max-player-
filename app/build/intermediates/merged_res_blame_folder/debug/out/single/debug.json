@@ -1,15 +1,31 @@
 [
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/menu_bottom_nav_menu.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/menu/bottom_nav_menu.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/color_nav_item_color.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/color/nav_item_color.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_item_video.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/item_video.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_player.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/activity_player.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_app_icon.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_app_icon.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_max.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_max.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-35:/menu_bottom_nav_menu.xml.flat",
-        "source": "com.app.mediaplayer.app-main-37:/menu/bottom_nav_menu.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_full.xml.flat",
@@ -20,20 +36,12 @@
         "source": "com.app.mediaplayer.app-main-37:/drawable/bg_circle_outline.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_foreground.xml"
-    },
-    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_background.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_background.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-35:/color_nav_item_color.xml.flat",
-        "source": "com.app.mediaplayer.app-main-37:/color/nav_item_color.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_main.xml.flat",

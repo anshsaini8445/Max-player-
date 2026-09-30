@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-14:12
-INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-14:12
-INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-14:12
-INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-14:12
+ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-15:12
+INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-15:12
+INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-15:12
+INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:1-15:12
 MERGED from [com.google.android.material:material:1.11.0] /home/runner/.gradle/caches/transforms-4/aca6f50aaadf3c644acad7d529236800/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/runner/.gradle/caches/transforms-4/6e099b6c49494dd39b8d97ee03be7d92/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/runner/.gradle/caches/transforms-4/c24e0f43e5791a40772d4b1fff3ed1ac/transformed/jetified-appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
@@ -57,7 +57,6 @@ MERGED from [androidx.documentfile:documentfile:1.0.0] /home/runner/.gradle/cach
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/runner/.gradle/caches/transforms-4/936a51dbdbd9b9409e0cb19a4e340e10/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.print:print:1.0.0] /home/runner/.gradle/caches/transforms-4/f15f6fae5c6aab38da08ad1039b14aba/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
 	package
-		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:2:70-99
 		INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml
 	android:versionName
 		INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml
@@ -78,8 +77,8 @@ ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifes
 	android:name
 		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:5:22-77
 application
-ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:6:5-13:19
-INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:6:5-13:19
+ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:6:5-14:19
+INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:6:5-14:19
 MERGED from [com.google.android.material:material:1.11.0] /home/runner/.gradle/caches/transforms-4/aca6f50aaadf3c644acad7d529236800/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /home/runner/.gradle/caches/transforms-4/aca6f50aaadf3c644acad7d529236800/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/runner/.gradle/caches/transforms-4/6e099b6c49494dd39b8d97ee03be7d92/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -122,6 +121,16 @@ category#android.intent.category.LAUNCHER
 ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:10:17-77
 	android:name
 		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:10:27-74
+activity#com.app.mediaplayer.PlayerActivity
+ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:13:9-178
+	android:screenOrientation
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:13:137-175
+	android:exported
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:13:50-74
+	android:configChanges
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:13:75-136
+	android:name
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:13:19-49
 uses-sdk
 INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml

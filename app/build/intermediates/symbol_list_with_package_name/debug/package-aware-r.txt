@@ -3665,6 +3665,7 @@ id pathRelative
 id peekHeight
 id percent
 id pin
+id playerView
 id pooling_container_listener_holder_tag
 id position
 id postLayout
@@ -3674,6 +3675,7 @@ id progress_horizontal
 id radio
 id ratio
 id rectangles
+id recyclerView
 id report_drawn
 id reverseSawtooth
 id right
@@ -3793,6 +3795,8 @@ id transition_position
 id transition_scene_layoutid_cache
 id transition_transform
 id triangle
+id tvDuration
+id tvTitle
 id unchecked
 id uniform
 id unlabeled
@@ -3936,6 +3940,7 @@ layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_main
+layout activity_player
 layout custom_dialog
 layout design_bottom_navigation_item
 layout design_bottom_sheet_dialog
@@ -3964,6 +3969,7 @@ layout exo_styled_sub_settings_list_item
 layout exo_track_selection_dialog
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
+layout item_video
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title

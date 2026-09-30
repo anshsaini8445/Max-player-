@@ -18,6 +18,12 @@ drawable ic_launcher_max
 id nav_music
 id nav_settings
 id nav_video
+id playerView
+id recyclerView
+id tvDuration
+id tvTitle
 layout activity_main
+layout activity_player
+layout item_video
 menu bottom_nav_menu
 style Theme.MediaPlayer
