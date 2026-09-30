@@ -1,126 +1,42 @@
 [
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_vault.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_vault.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_app_icon.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_app_icon.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_player.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_player.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_max.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_max.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_more_settings.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_more_settings.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/menu_bottom_nav_menu.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/menu/bottom_nav_menu.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_sort.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_sort.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_full.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_full.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/menu_bottom_nav_menu.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/menu/bottom_nav_menu.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_bg_circle_outline.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/bg_circle_outline.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_recycle_bin.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_recycle_bin.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_foreground.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_item_folder.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/item_folder.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_background.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_mp3_converter.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_mp3_converter.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_item_media_grid.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/item_media_grid.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/color_nav_item_color.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/color/nav_item_color.xml"
     },
     {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_item_media.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/item_media.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_media_options.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_media_options.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_main.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_main.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_transfer.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_transfer.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_subscription.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_subscription.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_bg_circle_outline.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/bg_circle_outline.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_list_menu.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_list_menu.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_dialog_video_settings.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/dialog_video_settings.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_launcher.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_launcher.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_audio_player.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_audio_player.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_app_icon.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_app_icon.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_premium.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_premium.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/color_nav_item_color.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/color/nav_item_color.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_theme.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_theme.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_equalizer.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_equalizer.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_launcher_full.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_launcher_full.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_settings.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_settings.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_custom_playback_controls.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/custom_playback_controls.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_launcher_max.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_launcher_max.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/layout_activity_splash.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/layout/activity_splash.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_launcher_foreground.xml"
-    },
-    {
-        "merged": "com.app.mediaplayer.app-merged_res-36:/drawable_ic_launcher_background.xml.flat",
-        "source": "com.app.mediaplayer.app-main-38:/drawable/ic_launcher_background.xml"
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_main.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/activity_main.xml"
     }
 ]

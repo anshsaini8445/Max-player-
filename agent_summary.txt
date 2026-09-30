@@ -1,1 +1,1 @@
-Max Player App Built Successfully.
+Clean Base App Built successfully.
