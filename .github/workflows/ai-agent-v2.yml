@@ -58,8 +58,8 @@ jobs:
               print("❌ Missing NVIDIA_API_KEY")
               sys.exit(1)
 
-          # High timeout for heavy and smart code generation
-          client = OpenAI(base_url="[https://integrate.api.nvidia.com/v1](https://integrate.api.nvidia.com/v1)", api_key=API_KEY, http_client=httpx.Client(timeout=300.0))
+          # Clean URL without any markdown brackets
+          client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=API_KEY, http_client=httpx.Client(timeout=300.0))
           
           allowed = {".kt", ".java", ".xml", ".gradle", ".kts"}
           blocked = {".git", ".github", "build", "gradle", ".idea"}
@@ -78,7 +78,7 @@ jobs:
           Resolve Issue #{os.environ.get('ISSUE_NUMBER')}: {os.environ.get('ISSUE_TITLE')}
           Details: {os.environ.get('ISSUE_BODY')}
           
-          Current Codebase Context (CRITICAL: Do not break existing features like the ExoPlayer or Video List):
+          Current Codebase Context:
           {get_project_files()}
           
           CRITICAL RULES:
@@ -104,7 +104,7 @@ jobs:
                   print("✅ AI response received!")
                   break
               except Exception as e:
-                  print(f"⚠️ Server busy, retrying in 15s... Error: {e}")
+                  print(f"⚠️ Connection error, retrying in 15s... Error: {e}")
                   time.sleep(15)
                       
           if not response_text:
@@ -112,7 +112,6 @@ jobs:
               sys.exit(1)
               
           try:
-              # Aggressive JSON extraction (Fixes all markdown errors)
               clean_text = response_text.strip()
               if clean_text.startswith("```json"): clean_text = clean_text[7:]
               if clean_text.startswith("```"): clean_text = clean_text[3:]
@@ -123,7 +122,6 @@ jobs:
               if not match: raise ValueError("No JSON object found in AI response")
               
               data = json.loads(match.group(0))
-              
               print(f"📝 AI Summary: {data.get('summary', 'Applying updates...')}")
               
               for item in data.get("files", []):
@@ -139,16 +137,13 @@ jobs:
                   print("🟢 BUILD SUCCESSFUL! AI code is perfect.")
                   sys.exit(0)
               else:
-                  print("🔴 BUILD FAILED! AI made a mistake.")
-                  print("⏪ REVERTING REPOSITORY TO PREVIOUS SAFE STATE...")
+                  print("🔴 BUILD FAILED! AI made a mistake. Reverting repository...")
                   subprocess.run(["git", "reset", "--hard"], cwd=PROJECT_DIR)
                   subprocess.run(["git", "clean", "-fd"], cwd=PROJECT_DIR)
-                  print("🛡️ Repository saved from breaking. The issue needs to be refined.")
                   sys.exit(1)
                   
           except Exception as e:
-              print(f"❌ JSON Formatting Error: {e}")
-              print("⏪ Reverting partial changes...")
+              print(f"❌ Error: {e}")
               subprocess.run(["git", "reset", "--hard"], cwd=PROJECT_DIR)
               subprocess.run(["git", "clean", "-fd"], cwd=PROJECT_DIR)
               sys.exit(1)
