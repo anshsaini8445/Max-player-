@@ -1,4 +1,4 @@
-name: Max Player God-Mode AI
+name: Max Player NVIDIA God-Mode
 
 on:
   issues:
@@ -38,9 +38,9 @@ jobs:
       - name: Install Packages
         run: pip install --quiet openai httpx
 
-      - name: The Unbreakable Gemini AI Engine (Self-Healing)
+      - name: The NVIDIA AI Engine (Self-Healing)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -51,24 +51,25 @@ jobs:
           from openai import OpenAI
           import httpx
 
-          API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+          API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
           PROJECT_DIR = Path(".").resolve()
           
           if not API_KEY: 
-              print("❌ Missing GEMINI_API_KEY in GitHub Secrets")
+              print("❌ Missing NVIDIA_API_KEY in GitHub Secrets")
               sys.exit(1)
 
-          # Using Google's massive infrastructure, NO 404/410 errors guaranteed!
+          # NVIDIA API URL
           client = OpenAI(
-              base_url="https://generativelanguage.googleapis.com/v1beta/openai/", 
+              base_url="https://integrate.api.nvidia.com/v1", 
               api_key=API_KEY, 
               http_client=httpx.Client(timeout=240.0)
           )
           
-          # Google's Best Coding Models
+          # 100% Active NVIDIA Models (No 404 Errors)
           top_models = [
-              "gemini-1.5-pro",
-              "gemini-1.5-flash"
+              "meta/llama-3.1-8b-instruct",
+              "google/gemma-2-9b-it",
+              "ibm/granite-34b-code-instruct"
           ]
           
           allowed = {".kt", ".java", ".xml", ".gradle", ".kts"}
@@ -101,7 +102,7 @@ jobs:
           for model_name in top_models:
               if success: break
               print(f"\n==================================================")
-              print(f"🧠 ACTIVATING GEMINI GOD-MODE: {model_name}")
+              print(f"🧠 ACTIVATING NVIDIA GOD-MODE: {model_name}")
               print(f"==================================================")
               
               current_prompt = base_prompt
