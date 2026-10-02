@@ -44,7 +44,15 @@
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher.xml"
     },
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_fragment_music.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/fragment_music.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_main.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_item_audio.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/item_audio.xml"
     }
 ]

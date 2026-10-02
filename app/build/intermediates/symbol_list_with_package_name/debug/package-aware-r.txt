@@ -3537,6 +3537,7 @@ id inward
 id is_pooling_container_tag
 id italic
 id item_touch_helper_previous_elevation
+id ivAlbumArt
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3684,6 +3685,7 @@ id right_icon
 id right_side
 id rounded
 id row_index_key
+id rvMusic
 id save_non_transition_alpha
 id save_overlay_view
 id sawtooth
@@ -3795,6 +3797,7 @@ id transition_position
 id transition_scene_layoutid_cache
 id transition_transform
 id triangle
+id tvArtist
 id tvDuration
 id tvTitle
 id unchecked
@@ -3967,8 +3970,10 @@ layout exo_styled_settings_list
 layout exo_styled_settings_list_item
 layout exo_styled_sub_settings_list_item
 layout exo_track_selection_dialog
+layout fragment_music
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
+layout item_audio
 layout item_video
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
