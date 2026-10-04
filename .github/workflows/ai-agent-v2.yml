@@ -1,4 +1,4 @@
-name: Max Player Multi-Model AI
+name: Max Player Auto-Scanner AI
 
 on:
   issues:
@@ -38,7 +38,7 @@ jobs:
       - name: Install Packages
         run: pip install --quiet openai httpx
 
-      - name: Multi-Model AI Engine (DeepSeek -> Nemotron -> Mistral)
+      - name: Dynamic Auto-Scanner AI Engine
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -58,20 +58,37 @@ jobs:
               print("❌ Missing NVIDIA_API_KEY")
               sys.exit(1)
 
-          # 90 SECONDS TIMEOUT ONLY: No more hanging for 40 minutes!
           client = OpenAI(
               base_url="https://integrate.api.nvidia.com/v1", 
               api_key=API_KEY, 
-              http_client=httpx.Client(timeout=90.0)
+              http_client=httpx.Client(timeout=120.0)
           )
           
-          # Jaisa aapne kaha: Ek fail to dusra, dusra fail to teesra
-          ai_models_relay = [
-              "deepseek-ai/deepseek-v4.1-flash",   # Pehli pasand
-              "nvidia/nemotron-4-340b-instruct",   # Dusra (NVIDIA ka apna)
-              "mistralai/mistral-large-2-instruct",# Teesra (Mistral AI)
-              "meta/llama-3.1-70b-instruct"        # Chautha (Backup)
-          ]
+          # HACKER MODE: Scan NVIDIA for LIVE models available to YOUR new key
+          print("🔍 Scanning NVIDIA Server for active models...")
+          try:
+              headers = {"Authorization": f"Bearer {API_KEY}"}
+              resp = httpx.get("https://integrate.api.nvidia.com/v1/models", headers=headers, timeout=15.0)
+              resp.raise_for_status()
+              models_data = resp.json().get("data", [])
+              
+              # Find all live models that end with 'instruct' or 'chat'
+              live_models = [m["id"] for m in models_data if "instruct" in m["id"].lower() or "chat" in m["id"].lower()]
+              
+              if not live_models:
+                  raise ValueError("No instruct models found.")
+          except Exception as e:
+              print(f"⚠️ Dynamic scan failed ({e}). Using ultra-safe fallback models.")
+              live_models = [
+                  "nvidia/llama-3.1-nemotron-70b-instruct",
+                  "meta/llama-3.2-90b-vision-instruct",
+                  "mistralai/mistral-large-2-instruct",
+                  "deepseek-ai/deepseek-v4.1-flash"
+              ]
+
+          # Limit to top 4 models to save time in the relay
+          ai_models_relay = live_models[:4]
+          print(f"✅ Found Active Models for your Key! Relay Order: {ai_models_relay}")
           
           allowed = {".kt", ".java", ".xml", ".gradle", ".kts"}
           blocked = {".git", ".github", "build", "gradle", ".idea"}
@@ -80,7 +97,7 @@ jobs:
               files = []
               for p in PROJECT_DIR.rglob("*"):
                   if p.is_file() and not set(p.relative_to(PROJECT_DIR).parts).intersection(blocked) and p.suffix.lower() in allowed:
-                      try: files.append(f"File: {p.relative_to(PROJECT_DIR).as_posix()}\nContent:\n{p.read_text(encoding='utf-8')[:3000]}")
+                      try: files.append(f"File: {p.relative_to(PROJECT_DIR).as_posix()}\nContent:\n{p.read_text(encoding='utf-8')[:3500]}")
                       except: pass
               return "\n---\n".join(files[:50])
 
@@ -100,7 +117,6 @@ jobs:
 
           success = False
           
-          # LOOP 1: Iterate through models
           for model_name in ai_models_relay:
               if success: break
               print(f"\n==================================================")
@@ -109,10 +125,9 @@ jobs:
               
               current_prompt = base_prompt
               
-              # LOOP 2: 3 chances for the current model to get it right
-              for attempt in range(3):
+              for attempt in range(2): # 2 chances per model
                   try:
-                      print(f"🔄 Attempt {attempt+1}/3 with {model_name}...")
+                      print(f"🔄 Attempt {attempt+1}/2 with {model_name}...")
                       completion = client.chat.completions.create(
                           model=model_name, 
                           messages=[{"role": "user", "content": current_prompt}], 
@@ -149,13 +164,13 @@ jobs:
                           current_prompt = base_prompt + f"\n\n🚨 FIX THIS COMPILE ERROR:\n{build.stderr[-1500:]}"
                           
                   except Exception as e:
-                      print(f"⚠️ {model_name} FAILED or TIMED OUT: {e}")
-                      print(f"⏭️️ Skipping {model_name} and moving to the next model...")
+                      print(f"⚠️ {model_name} FAILED: {e}")
+                      print(f"⏭ Skipping moving to the next model...")
                       subprocess.run(["git", "reset", "--hard"], cwd=PROJECT_DIR, capture_output=True)
-                      break # Break the attempt loop to move to the NEXT MODEL in the outer loop
+                      break 
                       
           if not success:
-              print("❌ ALL MODELS (DeepSeek, Nemotron, Mistral, Llama) FAILED.")
+              print("❌ ALL MODELS FAILED.")
               sys.exit(1)
           PYTHON_EOF
           
@@ -164,7 +179,7 @@ jobs:
       - name: Save & Push Code
         if: success()
         run: |
-          git config user.name "Multi-Model-AI"
+          git config user.name "Auto-Scanner-AI"
           git config user.email "ai@maxplayer.com"
           git add -A
           git diff --quiet && git diff --staged --quiet || (git commit -m "AI Built Issue #${{ github.event.issue.number }}" && git push origin HEAD:main)
