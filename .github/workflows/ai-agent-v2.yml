@@ -62,7 +62,7 @@ jobs:
           
           client = genai.Client(api_key=API_KEY)
           
-          # STRICTLY MEMORIZED 2026 MODELS AS PER INSTRUCTIONS
+          # STRICTLY MEMORIZED 2026 MODELS - AS REQUESTED
           models_pool = [
               "gemini-3.1-pro",
               "gemini-3.8-flash",
@@ -100,6 +100,9 @@ jobs:
           max_iterations = 12
           success = False
           
+          # API SAFETY SYSTEM: To prevent 429 and 403 errors
+          base_wait_time = 15 # Start with a 15-second wait if we hit an error
+          
           for attempt in range(1, max_iterations + 1):
               if not models_pool:
                   print("FATAL ERROR: All AI models were rejected.")
@@ -108,6 +111,10 @@ jobs:
               current_model = models_pool[0]
               print(f"\n==================================================")
               print(f"[ATTEMPT {attempt}/{max_iterations}] Using Model: {current_model}")
+              
+              # Add a mandatory small delay between requests to avoid hitting rate limits too fast
+              if attempt > 1:
+                 time.sleep(5)
               
               try:
                   res = client.models.generate_content(
@@ -164,7 +171,8 @@ jobs:
                       current_prompt = f"Your code caused this Gradle Error. FIX IT and return full files:\n{error_log}"
                       subprocess.run(["git", "checkout", "--", "."])
                       subprocess.run(["git", "clean", "-fd"])
-                      time.sleep(5)
+                      # Wait before retrying after a bad compile
+                      time.sleep(10)
                       
               except Exception as e:
                   err_str = str(e)
@@ -172,18 +180,26 @@ jobs:
                   subprocess.run(["git", "checkout", "--", "."])
                   subprocess.run(["git", "clean", "-fd"])
                   
-                  # Auto-Ban system to bypass failing models instantly
+                  # SMART ERROR HANDLING & BAN SYSTEM
                   if "404" in err_str or "400" in err_str or "not found" in err_str.lower() or "invalid" in err_str.lower():
-                      print(f"BANNING MODEL DUE TO ERROR: {current_model}")
+                      print(f"BANNING MODEL DUE TO PERMANENT ERROR: {current_model}")
                       models_pool.pop(0)
                       time.sleep(2)
                   elif "429" in err_str or "503" in err_str or "Quota" in err_str:
-                      print("Quota Limit Hit. Moving model to the back of the queue...")
+                      print(f"Quota Limit Hit. Sleeping for {base_wait_time} seconds to protect API key...")
+                      time.sleep(base_wait_time)
+                      # Increase wait time exponentially for the next potential error (15s -> 30s -> 60s -> 120s)
+                      base_wait_time = min(base_wait_time * 2, 120) 
+                      # Move the model to the back of the queue
                       models_pool.append(models_pool.pop(0))
-                      time.sleep(15)
+                  elif "403" in err_str:
+                      print("PERMISSION DENIED. The API Key might be blocked or missing permissions.")
+                      # If 403 happens, waiting usually doesn't fix it immediately, but we wait to avoid spamming
+                      time.sleep(30)
+                      models_pool.append(models_pool.pop(0))
                   else:
                       current_prompt = "JSON format error. Return EXACTLY valid JSON."
-                      time.sleep(3)
+                      time.sleep(5)
                       
           if success:
               print("BUILD SAVED SUCCESSFULLY.")
