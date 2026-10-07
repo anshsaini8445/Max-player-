@@ -1,4 +1,4 @@
-name: Max Player Ultimate AI
+name: Strict Terminator AI Developer
 
 on:
   issues:
@@ -13,9 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  god-mode-coder:
+  ai-developer:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout Code
@@ -28,311 +28,180 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
-
-      - name: BUILD THE REAL LOCAL MEDIA SCANNER ENGINE
+          
+      - name: Setup Gradle Wrapper
         run: |
-          rm -rf app/src/main/java/*
-          rm -rf app/src/main/res/layout/*
-          rm -rf app/src/main/res/menu/*
-          mkdir -p app/src/main/java/com/app/mediaplayer
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/menu
-          
-          cat << 'EOF' > gradle.properties
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          android.useAndroidX=true
-          android.enableJetifier=true
-          android.nonTransitiveRClass=true
-          EOF
-          
-          # 1. MENU
-          cat << 'EOF' > app/src/main/res/menu/bottom_nav_menu.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <menu xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:id="@+id/nav_video" android:title="Video" android:icon="@android:drawable/ic_media_play" />
-              <item android:id="@+id/nav_audio" android:title="Audio" android:icon="@android:drawable/ic_media_pause" />
-              <item android:id="@+id/nav_settings" android:title="Settings" android:icon="@android:drawable/ic_menu_preferences" />
-          </menu>
-          EOF
-
-          # 2. MAIN LAYOUT (WITH RECYCLER VIEW FOR LOCAL VIDEOS)
-          cat << 'EOF' > app/src/main/res/layout/activity_main.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="#0F0F0F">
-              <com.google.android.material.appbar.AppBarLayout
-                  android:id="@+id/appbar"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:background="#1A1A1A">
-                  <com.google.android.material.appbar.MaterialToolbar
-                      android:id="@+id/toolbar"
-                      android:layout_width="match_parent"
-                      android:layout_height="?attr/actionBarSize"
-                      app:title="Max Player (Local Videos)"
-                      app:titleTextColor="#00FFCC" />
-              </com.google.android.material.appbar.AppBarLayout>
-              
-              <FrameLayout
-                  android:id="@+id/content_frame"
-                  android:layout_width="match_parent"
-                  android:layout_height="match_parent"
-                  android:layout_below="@id/appbar"
-                  android:layout_above="@id/bottom_nav">
-                  
-                  <androidx.recyclerview.widget.RecyclerView
-                      android:id="@+id/video_recycler"
-                      android:layout_width="match_parent"
-                      android:layout_height="match_parent"
-                      android:padding="8dp"/>
-                      
-                  <androidx.media3.ui.PlayerView
-                      android:id="@+id/player_view"
-                      android:layout_width="match_parent"
-                      android:layout_height="match_parent"
-                      android:visibility="gone"
-                      app:use_controller="true" />
-              </FrameLayout>
-              
-              <com.google.android.material.bottomnavigation.BottomNavigationView
-                  android:id="@+id/bottom_nav"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:layout_alignParentBottom="true"
-                  android:background="#1A1A1A"
-                  app:itemIconTint="#00FFCC"
-                  app:itemTextColor="#00FFCC"
-                  app:menu="@menu/bottom_nav_menu" />
-          </RelativeLayout>
-          EOF
-
-          # 3. LIST ITEM LAYOUT
-          cat << 'EOF' > app/src/main/res/layout/item_video.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="wrap_content"
-              android:orientation="vertical"
-              android:padding="16dp"
-              android:layout_margin="4dp"
-              android:background="#1A1A1A">
-              <TextView
-                  android:id="@+id/video_title"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:textColor="#00FFCC"
-                  android:textSize="18sp"
-                  android:textStyle="bold"
-                  android:ellipsize="end"
-                  android:maxLines="2" />
-          </LinearLayout>
-          EOF
-          
-          # 4. THE MASTER KOTLIN CODE (Permissions + Scanner + ExoPlayer)
-          cat << 'EOF' > app/src/main/java/com/app/mediaplayer/MainActivity.kt
-          package com.app.mediaplayer
-          import android.Manifest
-          import android.content.pm.PackageManager
-          import android.net.Uri
-          import android.os.Build
-          import android.os.Bundle
-          import android.provider.MediaStore
-          import android.view.LayoutInflater
-          import android.view.View
-          import android.view.ViewGroup
-          import android.widget.TextView
-          import android.widget.Toast
-          import androidx.appcompat.app.AppCompatActivity
-          import androidx.core.app.ActivityCompat
-          import androidx.core.content.ContextCompat
-          import androidx.media3.common.MediaItem
-          import androidx.media3.exoplayer.ExoPlayer
-          import androidx.media3.ui.PlayerView
-          import androidx.recyclerview.widget.LinearLayoutManager
-          import androidx.recyclerview.widget.RecyclerView
-          import com.google.android.material.bottomnavigation.BottomNavigationView
-
-          class MainActivity : AppCompatActivity() {
-              private var player: ExoPlayer? = null
-              private lateinit var playerView: PlayerView
-              private lateinit var videoRecycler: RecyclerView
-              private val videoList = mutableListOf<Pair<String, Uri>>()
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContentView(R.layout.activity_main)
-
-                  playerView = findViewById(R.id.player_view)
-                  videoRecycler = findViewById(R.id.video_recycler)
-                  videoRecycler.layoutManager = LinearLayoutManager(this)
-                  
-                  player = ExoPlayer.Builder(this).build()
-                  playerView.player = player
-
-                  val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
-                  bottomNav.setOnItemSelectedListener { item ->
-                      when (item.itemId) {
-                          R.id.nav_video -> {
-                              playerView.visibility = View.GONE
-                              videoRecycler.visibility = View.VISIBLE
-                              player?.pause()
-                          }
-                          R.id.nav_audio -> Toast.makeText(this, "Audio Section", Toast.LENGTH_SHORT).show()
-                          R.id.nav_settings -> Toast.makeText(this, "Settings Panel", Toast.LENGTH_SHORT).show()
-                      }
-                      true
-                  }
-
-                  checkPermissionsAndLoadVideos()
-              }
-
-              private fun checkPermissionsAndLoadVideos() {
-                  val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                      Manifest.permission.READ_MEDIA_VIDEO
-                  } else {
-                      Manifest.permission.READ_EXTERNAL_STORAGE
-                  }
-                  
-                  if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
-                      loadLocalVideos()
-                  } else {
-                      ActivityCompat.requestPermissions(this, arrayOf(permission), 101)
-                  }
-              }
-
-              override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-                  super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-                  if (requestCode == 101 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                      loadLocalVideos()
-                  } else {
-                      Toast.makeText(this, "Permission Denied! Cannot scan local videos.", Toast.LENGTH_LONG).show()
-                  }
-              }
-
-              private fun loadLocalVideos() {
-                  videoList.clear()
-                  val projection = arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME)
-                  val cursor = contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, null, null, null)
-                  
-                  cursor?.use {
-                      val idColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                      val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-                      while (it.moveToNext()) {
-                          val id = it.getLong(idColumn)
-                          val name = it.getString(nameColumn)
-                          val contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString())
-                          videoList.add(Pair(name, contentUri))
-                      }
-                  }
-                  
-                  if (videoList.isEmpty()) {
-                      Toast.makeText(this, "No videos found on device", Toast.LENGTH_LONG).show()
-                  } else {
-                      videoRecycler.adapter = VideoAdapter(videoList) { uri ->
-                          playVideo(uri)
-                      }
-                  }
-              }
-
-              private fun playVideo(uri: Uri) {
-                  videoRecycler.visibility = View.GONE
-                  playerView.visibility = View.VISIBLE
-                  val mediaItem = MediaItem.fromUri(uri)
-                  player?.setMediaItem(mediaItem)
-                  player?.prepare()
-                  player?.playWhenReady = true
-              }
-
-              override fun onBackPressed() {
-                  if (playerView.visibility == View.VISIBLE) {
-                      player?.pause()
-                      playerView.visibility = View.GONE
-                      videoRecycler.visibility = View.VISIBLE
-                  } else {
-                      super.onBackPressed()
-                  }
-              }
-
-              override fun onStop() { super.onStop(); player?.pause() }
-              override fun onDestroy() { super.onDestroy(); player?.release() }
-          }
-
-          class VideoAdapter(
-              private val videos: List<Pair<String, Uri>>,
-              private val onClick: (Uri) -> Unit
-          ) : RecyclerView.Adapter<VideoAdapter.ViewHolder>() {
-              class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-                  val title: TextView = view.findViewById(R.id.video_title)
-              }
-              override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-                  val view = LayoutInflater.from(parent.context).inflate(R.layout.item_video, parent, false)
-                  return ViewHolder(view)
-              }
-              override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-                  holder.title.text = videos[position].first
-                  holder.itemView.setOnClickListener { onClick(videos[position].second) }
-              }
-              override fun getItemCount() = videos.size
-          }
-          EOF
-          
-          cat << 'EOF' > settings.gradle
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
-          rootProject.name = "MaxPlayer"
-          include ':app'
-          EOF
-          
-          cat << 'EOF' > build.gradle
-          plugins { id 'com.android.application' version '8.2.2' apply false; id 'org.jetbrains.kotlin.android' version '1.9.22' apply false }
-          EOF
-          
-          # ADDED RECYCLER VIEW DEPENDENCY
-          cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-          android { namespace 'com.app.mediaplayer'; compileSdk 34; defaultConfig { applicationId "com.app.mediaplayer"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = '17' } }
-          dependencies { 
-              implementation 'androidx.core:core-ktx:1.12.0'
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
-              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-              implementation 'androidx.media3:media3-exoplayer:1.3.0'
-              implementation 'androidx.media3:media3-ui:1.3.0'
-              implementation 'androidx.recyclerview:recyclerview:1.3.2'
-          }
-          EOF
-          
-          # ADDED PERMISSIONS
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-              <application android:allowBackup="true" android:label="Max Player" android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-          
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-      # Removed AI temporarily to force the Local Media Base to build successfully first.
-      - name: Build and Package APK
-        run: ./gradlew assembleDebug --no-daemon -x test
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Google GenAI
+        run: pip install --quiet google-genai
+
+      - name: RUN STRICT TERMINATOR AI AGENT
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          cat << 'PYTHON_EOF' > run_ai.py
+          import json, os, subprocess, sys, time, re
+          from pathlib import Path
+          from google import genai
+          from google.genai import types
+
+          API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+          PROJECT_DIR = Path(".").resolve()
+          if not API_KEY: 
+              print("ERROR: Missing API KEY")
+              sys.exit(1)
+          
+          client = genai.Client(api_key=API_KEY)
+          
+          # Updated Memory: Pro (3.1), Flash (3.8), Flash-Lite (3.5), and Extended/Thinking Model
+          models_pool = [
+              "gemini-3.1-pro",
+              "gemini-3.8-flash",
+              "gemini-2.0-flash-thinking-exp", # The Extended/Thinking model
+              "gemini-3.5-flash-lite"
+          ]
+          model_idx = 0
+          
+          allowed_exts = {".kt", ".xml", ".gradle"}
+          blocked_dirs = {".git", ".github", "build", "gradle"}
+          
+          def get_current_files():
+              files_data = []
+              for p in PROJECT_DIR.rglob("*"):
+                  if p.is_file() and not set(p.relative_to(PROJECT_DIR).parts).intersection(blocked_dirs) and p.suffix.lower() in allowed_exts:
+                      try: 
+                          content = p.read_text(encoding='utf-8')
+                          files_data.append(f"--- FILE: {p.relative_to(PROJECT_DIR).as_posix()} ---\n{content}")
+                      except: pass
+              return "\n".join(files_data)
+
+          initial_prompt = f"""
+          Task: {os.environ.get('ISSUE_TITLE')}
+          Details: {os.environ.get('ISSUE_BODY')}
+          
+          Current Project Files (Context):
+          {get_current_files()}
+          
+          CRITICAL DIRECTIVES FOR AI:
+          1. Return ONLY valid JSON in this exact format: {{"files": [{{"filepath": "...", "content": "..."}}]}}
+          2. ALL CODE MUST BE IN ENGLISH. Do not use Hindi or any other language in the code, comments, or XML files.
+          3. NEVER USE PLACEHOLDERS (e.g., "// existing code here"). You MUST return the ENTIRE updated file content.
+          4. PRESERVE EXISTING LOGIC. If you delete existing features, the build will fail.
+          """
+          
+          current_prompt = initial_prompt
+          max_iterations = 10
+          success = False
+          
+          for attempt in range(1, max_iterations + 1):
+              current_model = models_pool[model_idx % len(models_pool)]
+              print(f"\n==================================================")
+              print(f"[ATTEMPT {attempt}/{max_iterations}] Using Model: {current_model}")
+              
+              try:
+                  res = client.models.generate_content(
+                      model=current_model,
+                      contents=current_prompt,
+                      config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1)
+                  )
+                  
+                  clean_text = res.text.strip()
+                  if clean_text.startswith("```json"): clean_text = clean_text[7:]
+                  if clean_text.startswith("```"): clean_text = clean_text[3:]
+                  if clean_text.endswith("```"): clean_text = clean_text[:-3]
+                  
+                  data = json.loads(clean_text.strip())
+                  files_to_process = data if isinstance(data, list) else data.get("files", [])
+                  
+                  if not files_to_process:
+                      raise ValueError("Empty file list returned by AI.")
+
+                  valid_writes = 0
+                  for item in files_to_process:
+                      if isinstance(item, dict) and item.get("filepath") and item.get("content"):
+                          fp = item["filepath"]
+                          if "dummy" in fp.lower() or "example" in fp.lower(): continue
+                          
+                          target = (PROJECT_DIR / fp).resolve()
+                          target.parent.mkdir(parents=True, exist_ok=True)
+                          target.write_text(item["content"], encoding="utf-8")
+                          print(f"File modified by AI: {fp}")
+                          valid_writes += 1
+                  
+                  if valid_writes == 0:
+                      raise ValueError("No valid files were written.")
+
+                  # STRICT CHECK: Verify if AI actually changed or added any code
+                  git_status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+                  if not git_status_check.stdout.strip():
+                      print("WARNING: AI returned the exact same code. No changes detected.")
+                      current_prompt = "You returned the exact same code. You MUST implement the requested features and modify the code appropriately. Ensure valid JSON output."
+                      time.sleep(5)
+                      continue
+                      
+                  # Compile check
+                  print("Compiling the new AI code...")
+                  build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
+                  
+                  if build.returncode == 0:
+                      print("SUCCESS: Code compiled without errors.")
+                      success = True
+                      break
+                  else:
+                      error_log = build.stderr[:2500]
+                      print("BUILD FAILED: AI made a syntax error.")
+                      
+                      current_prompt = f"""
+                      Your previous code caused this Gradle Error. FIX IT and return the full corrected files.
+                      ERROR LOG:
+                      {error_log}
+                      """
+                      subprocess.run(["git", "checkout", "--", "."])
+                      subprocess.run(["git", "clean", "-fd"])
+                      time.sleep(10)
+                      
+              except Exception as e:
+                  print(f"SYSTEM ERROR: {str(e)}")
+                  subprocess.run(["git", "checkout", "--", "."])
+                  subprocess.run(["git", "clean", "-fd"])
+                  
+                  if "429" in str(e) or "503" in str(e) or "Quota" in str(e):
+                      print("Switching model due to Quota/Traffic limit...")
+                      model_idx += 1
+                      time.sleep(15)
+                  else:
+                      current_prompt = "Invalid JSON format. Return EXACTLY valid JSON format without truncation."
+                      time.sleep(5)
+                      
+          if success:
+              print("ALL CHECKS PASSED. Saving to repository.")
+              sys.exit(0)
+          else:
+              print("FATAL ERROR: AI failed after 10 attempts. Aborting workflow.")
+              sys.exit(1)
+          PYTHON_EOF
+          
+          python run_ai.py
+
+      - name: Save and Commit AI Code
+        if: success()
+        run: |
+          git config user.name "Strict AI Developer"
+          git config user.email "ai@maxplayer.dev"
+          git add -A
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Feature properly integrated by AI" && git push origin HEAD:main)
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: MaxPlayer-APK
