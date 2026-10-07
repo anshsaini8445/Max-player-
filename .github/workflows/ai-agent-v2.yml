@@ -1,4 +1,4 @@
-name: Strict Terminator AI Developer
+name: Ultimate God-Mode AI Developer
 
 on:
   issues:
@@ -42,14 +42,14 @@ jobs:
       - name: Install Google GenAI
         run: pip install --quiet google-genai
 
-      - name: RUN STRICT TERMINATOR AI AGENT
+      - name: RUN GOD-MODE AI AGENT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           cat << 'PYTHON_EOF' > run_ai.py
-          import json, os, subprocess, sys, time, re
+          import json, os, subprocess, sys, time
           from pathlib import Path
           from google import genai
           from google.genai import types
@@ -62,14 +62,12 @@ jobs:
           
           client = genai.Client(api_key=API_KEY)
           
-          # 2026 MODELS - AS REQUESTED BY USER
+          # STRICTLY MEMORIZED 2026 MODELS AS PER INSTRUCTIONS
           models_pool = [
-              "gemini-3.8-live-extended-thinking", # Extended Thinking for hard logic
-              "gemini-3.1-pro",                    # Heavy Reasoning
-              "gemini-3.8-flash",                  # Current Workhorse
-              "gemini-3.5-flash-lite"              # Fast & Light fallback
+              "gemini-3.1-pro",
+              "gemini-3.8-flash",
+              "gemini-3.5-flash-lite"
           ]
-          model_idx = 0
           
           allowed_exts = {".kt", ".xml", ".gradle"}
           blocked_dirs = {".git", ".github", "build", "gradle"}
@@ -92,18 +90,22 @@ jobs:
           {get_current_files()}
           
           CRITICAL DIRECTIVES FOR AI:
-          1. Return ONLY valid JSON in this exact format: {{"files": [{{"filepath": "...", "content": "..."}}]}}
-          2. ALL CODE MUST BE IN ENGLISH. Do not use any other language in the code, comments, or XML files.
-          3. NEVER USE PLACEHOLDERS (e.g., "// existing code here"). You MUST return the ENTIRE updated file content.
-          4. PRESERVE EXISTING LOGIC. If you delete existing features, the build will fail.
+          1. Return ONLY valid JSON: {{"files": [{{"filepath": "...", "content": "..."}}]}}
+          2. ALL CODE MUST BE IN PURE ENGLISH. No other languages allowed.
+          3. NEVER USE PLACEHOLDERS. Return the ENTIRE updated file content.
+          4. DO NOT DELETE EXISTING FEATURES. Append your code carefully.
           """
           
           current_prompt = initial_prompt
-          max_iterations = 10
+          max_iterations = 12
           success = False
           
           for attempt in range(1, max_iterations + 1):
-              current_model = models_pool[model_idx % len(models_pool)]
+              if not models_pool:
+                  print("FATAL ERROR: All AI models were rejected.")
+                  break
+                  
+              current_model = models_pool[0]
               print(f"\n==================================================")
               print(f"[ATTEMPT {attempt}/{max_iterations}] Using Model: {current_model}")
               
@@ -123,7 +125,7 @@ jobs:
                   files_to_process = data if isinstance(data, list) else data.get("files", [])
                   
                   if not files_to_process:
-                      raise ValueError("Empty file list returned by AI.")
+                      raise ValueError("Empty file list returned.")
 
                   valid_writes = 0
                   for item in files_to_process:
@@ -134,71 +136,72 @@ jobs:
                           target = (PROJECT_DIR / fp).resolve()
                           target.parent.mkdir(parents=True, exist_ok=True)
                           target.write_text(item["content"], encoding="utf-8")
-                          print(f"File modified by AI: {fp}")
+                          print(f"File Edited Successfully: {fp}")
                           valid_writes += 1
                   
                   if valid_writes == 0:
-                      raise ValueError("No valid files were written.")
+                      raise ValueError("No valid files written.")
 
-                  # STRICT CHECK: Verify if AI actually changed or added any code
+                  # Check if AI actually changed code
                   git_status_check = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
                   if not git_status_check.stdout.strip():
-                      print("WARNING: AI returned the exact same code. No changes detected.")
-                      current_prompt = "You returned the exact same code. You MUST implement the requested features and modify the code appropriately. Ensure valid JSON output."
-                      time.sleep(5)
+                      print("WARNING: AI returned the exact same code.")
+                      current_prompt = "You returned the exact same code. You MUST modify the code to implement the features. Return valid JSON."
+                      time.sleep(3)
                       continue
                       
                   # Compile check
-                  print("Compiling the new AI code...")
+                  print("Compiling code to check for errors...")
                   build = subprocess.run(["./gradlew", "assembleDebug", "--no-daemon", "-x", "test"], capture_output=True, text=True)
                   
                   if build.returncode == 0:
-                      print("SUCCESS: Code compiled without errors.")
+                      print("SUCCESS: App compiled perfectly!")
                       success = True
                       break
                   else:
-                      error_log = build.stderr[:2500]
-                      print("BUILD FAILED: AI made a syntax error.")
-                      
-                      current_prompt = f"""
-                      Your previous code caused this Gradle Error. FIX IT and return the full corrected files.
-                      ERROR LOG:
-                      {error_log}
-                      """
+                      error_log = build.stderr[:2000]
+                      print("BUILD FAILED: Syntax/Logic Error.")
+                      current_prompt = f"Your code caused this Gradle Error. FIX IT and return full files:\n{error_log}"
                       subprocess.run(["git", "checkout", "--", "."])
                       subprocess.run(["git", "clean", "-fd"])
-                      time.sleep(10)
+                      time.sleep(5)
                       
               except Exception as e:
-                  print(f"SYSTEM ERROR: {str(e)}")
+                  err_str = str(e)
+                  print(f"API ERROR: {err_str}")
                   subprocess.run(["git", "checkout", "--", "."])
                   subprocess.run(["git", "clean", "-fd"])
                   
-                  if "429" in str(e) or "503" in str(e) or "Quota" in str(e):
-                      print("Switching model due to Quota/Traffic limit...")
-                      model_idx += 1
+                  # Auto-Ban system to bypass failing models instantly
+                  if "404" in err_str or "400" in err_str or "not found" in err_str.lower() or "invalid" in err_str.lower():
+                      print(f"BANNING MODEL DUE TO ERROR: {current_model}")
+                      models_pool.pop(0)
+                      time.sleep(2)
+                  elif "429" in err_str or "503" in err_str or "Quota" in err_str:
+                      print("Quota Limit Hit. Moving model to the back of the queue...")
+                      models_pool.append(models_pool.pop(0))
                       time.sleep(15)
                   else:
-                      current_prompt = "Invalid JSON format. Return EXACTLY valid JSON format without truncation."
-                      time.sleep(5)
+                      current_prompt = "JSON format error. Return EXACTLY valid JSON."
+                      time.sleep(3)
                       
           if success:
-              print("ALL CHECKS PASSED. Saving to repository.")
+              print("BUILD SAVED SUCCESSFULLY.")
               sys.exit(0)
           else:
-              print("FATAL ERROR: AI failed after 10 attempts. Aborting workflow.")
+              print("AI FAILED COMPLETELY. ABORTING.")
               sys.exit(1)
           PYTHON_EOF
           
           python run_ai.py
 
-      - name: Save and Commit AI Code
+      - name: Save and Commit
         if: success()
         run: |
-          git config user.name "Strict AI Developer"
+          git config user.name "God-Mode Developer"
           git config user.email "ai@maxplayer.dev"
           git add -A
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Feature properly integrated by AI" && git push origin HEAD:main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Solid Feature Integration" && git push origin HEAD:main)
 
       - name: Upload APK
         if: success()
