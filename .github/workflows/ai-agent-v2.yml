@@ -62,12 +62,12 @@ jobs:
           
           client = genai.Client(api_key=API_KEY)
           
-          # Updated Memory: Pro (3.1), Flash (3.8), Flash-Lite (3.5), and Extended/Thinking Model
+          # 2026 MODELS - AS REQUESTED BY USER
           models_pool = [
-              "gemini-3.1-pro",
-              "gemini-3.8-flash",
-              "gemini-2.0-flash-thinking-exp", # The Extended/Thinking model
-              "gemini-3.5-flash-lite"
+              "gemini-3.8-live-extended-thinking", # Extended Thinking for hard logic
+              "gemini-3.1-pro",                    # Heavy Reasoning
+              "gemini-3.8-flash",                  # Current Workhorse
+              "gemini-3.5-flash-lite"              # Fast & Light fallback
           ]
           model_idx = 0
           
@@ -93,7 +93,7 @@ jobs:
           
           CRITICAL DIRECTIVES FOR AI:
           1. Return ONLY valid JSON in this exact format: {{"files": [{{"filepath": "...", "content": "..."}}]}}
-          2. ALL CODE MUST BE IN ENGLISH. Do not use Hindi or any other language in the code, comments, or XML files.
+          2. ALL CODE MUST BE IN ENGLISH. Do not use any other language in the code, comments, or XML files.
           3. NEVER USE PLACEHOLDERS (e.g., "// existing code here"). You MUST return the ENTIRE updated file content.
           4. PRESERVE EXISTING LOGIC. If you delete existing features, the build will fail.
           """
