@@ -7,6 +7,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -23,8 +25,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var playerView: PlayerView
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var layoutMe: View
+    private lateinit var layoutMusic: View
+    private lateinit var musicRecycler: RecyclerView
+    private lateinit var tvMiniTitle: TextView
+    private lateinit var tvMiniArtist: TextView
+    private lateinit var btnMiniPlayPause: ImageView
+    private lateinit var ivMiniVinyl: ImageView
+
     private val videoList = mutableListOf<Video>()
+    private val audioList = mutableListOf<Audio>()
     private var player: ExoPlayer? = null
+    private var currentAudio: Audio? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,8 +45,28 @@ class MainActivity : AppCompatActivity() {
         playerView = findViewById(R.id.playerView)
         bottomNav = findViewById(R.id.bottomNav)
         layoutMe = findViewById(R.id.layoutMe)
+        layoutMusic = findViewById(R.id.layoutMusic)
+
+        musicRecycler = layoutMusic.findViewById(R.id.music_recycler)
+        tvMiniTitle = layoutMusic.findViewById(R.id.tvMiniTitle)
+        tvMiniArtist = layoutMusic.findViewById(R.id.tvMiniArtist)
+        btnMiniPlayPause = layoutMusic.findViewById(R.id.btnMiniPlayPause)
+        ivMiniVinyl = layoutMusic.findViewById(R.id.ivMiniVinyl)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
+        musicRecycler.layoutManager = LinearLayoutManager(this)
+
+        btnMiniPlayPause.setOnClickListener {
+            player?.let {
+                if (it.isPlaying) {
+                    it.pause()
+                    btnMiniPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                } else {
+                    it.play()
+                    btnMiniPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                }
+            }
+        }
 
         setupBottomNav()
         checkPermissions()
@@ -46,18 +77,29 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_video -> {
                     layoutMe.visibility = View.GONE
+                    layoutMusic.visibility = View.GONE
                     playerView.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
                     true
                 }
+                R.id.nav_music -> {
+                    layoutMe.visibility = View.GONE
+                    recyclerView.visibility = View.GONE
+                    playerView.visibility = View.GONE
+                    layoutMusic.visibility = View.VISIBLE
+                    loadLocalAudio()
+                    true
+                }
                 R.id.nav_me -> {
                     recyclerView.visibility = View.GONE
+                    layoutMusic.visibility = View.GONE
                     playerView.visibility = View.GONE
                     layoutMe.visibility = View.VISIBLE
                     true
                 }
-                R.id.nav_music, R.id.nav_effects, R.id.nav_game -> {
+                R.id.nav_effects, R.id.nav_game -> {
                     layoutMe.visibility = View.GONE
+                    layoutMusic.visibility = View.GONE
                     recyclerView.visibility = View.GONE
                     playerView.visibility = View.GONE
                     Toast.makeText(this, "Coming Soon", Toast.LENGTH_SHORT).show()
@@ -69,16 +111,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissions() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_VIDEO
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
         } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission), 100)
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), 100)
         } else {
             loadLocalVideos()
+            loadLocalAudio()
         }
     }
 
@@ -90,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             loadLocalVideos()
+            loadLocalAudio()
         } else {
             Toast.makeText(this, "Permission Denied!", Toast.LENGTH_LONG).show()
         }
@@ -137,8 +185,51 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadLocalAudio() {
+        audioList.clear()
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.DATA,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.DURATION
+        )
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+
+        val cursor = contentResolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            null,
+            "${MediaStore.Audio.Media.TITLE} ASC"
+        )
+
+        cursor?.use {
+            val idCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val titleCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val pathCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+            val artistCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val durationCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+
+            while (it.moveToNext()) {
+                val id = it.getLong(idCol)
+                val title = it.getString(titleCol) ?: "Unknown Title"
+                val path = it.getString(pathCol) ?: ""
+                val artist = it.getString(artistCol) ?: "Unknown Artist"
+                val duration = it.getLong(durationCol)
+
+                audioList.add(Audio(id, title, path, artist, duration))
+            }
+        }
+
+        musicRecycler.adapter = AudioAdapter(audioList) { audio ->
+            playAudio(audio)
+        }
+    }
+
     private fun playVideo(video: Video) {
         layoutMe.visibility = View.GONE
+        layoutMusic.visibility = View.GONE
         recyclerView.visibility = View.GONE
         playerView.visibility = View.VISIBLE
 
@@ -146,6 +237,21 @@ class MainActivity : AppCompatActivity() {
         player = ExoPlayer.Builder(this).build().apply {
             playerView.player = this
             setMediaItem(MediaItem.fromUri(video.uri))
+            prepare()
+            play()
+        }
+    }
+
+    private fun playAudio(audio: Audio) {
+        currentAudio = audio
+        tvMiniTitle.text = audio.title
+        tvMiniArtist.text = audio.artist
+        btnMiniPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+
+        val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, audio.id)
+        player?.release()
+        player = ExoPlayer.Builder(this).build().apply {
+            setMediaItem(MediaItem.fromUri(uri))
             prepare()
             play()
         }

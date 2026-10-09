@@ -26,6 +26,11 @@
             android:layout_height="match_parent"
             android:visibility="visible" />
 
+        <include
+            android:id="@+id/layoutMusic"
+            layout="@layout/layout_music"
+            android:visibility="gone" />
+
         <androidx.media3.ui.PlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"

@@ -3353,6 +3353,7 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btnMiniPlayPause
 id btnReceive
 id btnSend
 id buttonPanel
@@ -3543,12 +3544,15 @@ id is_pooling_container_tag
 id italic
 id item_touch_helper_previous_elevation
 id ivAlbumArt
+id ivMiniVinyl
 id ivThumbnail
 id jumpToEnd
 id jumpToStart
 id labeled
 id layout
 id layoutMe
+id layoutMiniPlayer
+id layoutMusic
 id left
 id leftToRight
 id legacy
@@ -3619,6 +3623,8 @@ id mtrl_picker_text_input_range_start
 id mtrl_picker_title_text
 id mtrl_view_tag_bottom_padding
 id multiply
+id musicTabBar
+id music_recycler
 id nav_effects
 id nav_game
 id nav_me
@@ -3759,7 +3765,10 @@ id submenuarrow
 id submit_area
 id supportScrollUp
 id surface_view
+id tabAllSongs
+id tabFolder
 id tabMode
+id tabPlaylist
 id tag_accessibility_actions
 id tag_accessibility_clickable_spans
 id tag_accessibility_heading
@@ -3808,6 +3817,8 @@ id transition_transform
 id triangle
 id tvArtist
 id tvDuration
+id tvMiniArtist
+id tvMiniTitle
 id tvSize
 id tvTitle
 id unchecked
@@ -3988,6 +3999,7 @@ layout item_video
 layout layout_file_transfer
 layout layout_me
 layout layout_mp3_converter
+layout layout_music
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title

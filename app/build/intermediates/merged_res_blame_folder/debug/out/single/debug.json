@@ -32,6 +32,10 @@
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_max.xml"
     },
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_layout_music.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/layout_music.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_launcher_full.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher_full.xml"
     },
