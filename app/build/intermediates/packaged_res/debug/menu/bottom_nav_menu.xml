@@ -9,7 +9,15 @@
         android:icon="@android:drawable/ic_media_ff"
         android:title="Music" />
     <item
-        android:id="@+id/nav_settings"
-        android:icon="@android:drawable/ic_menu_preferences"
+        android:id="@+id/nav_effects"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="Effects" />
+    <item
+        android:id="@+id/nav_game"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Game" />
+    <item
+        android:id="@+id/nav_me"
+        android:icon="@android:drawable/ic_menu_myplaces"
         android:title="Me" />
 </menu>
