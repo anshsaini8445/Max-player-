@@ -3356,6 +3356,11 @@ id bounceStart
 id btnMiniPlayPause
 id btnReceive
 id btnSend
+id btn_back
+id btn_cut
+id btn_lock
+id btn_mute
+id btn_pip
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3487,6 +3492,7 @@ id exo_subtitle
 id exo_subtitles
 id exo_text
 id exo_time
+id exo_title
 id exo_track_selection_view
 id exo_vr
 id expand_activities_button
@@ -3553,6 +3559,7 @@ id layout
 id layoutMe
 id layoutMiniPlayer
 id layoutMusic
+id layoutTopBar
 id left
 id leftToRight
 id legacy
@@ -3966,6 +3973,7 @@ layout abc_tooltip
 layout activity_main
 layout activity_player
 layout custom_dialog
+layout custom_player_ui
 layout design_bottom_navigation_item
 layout design_bottom_sheet_dialog
 layout design_layout_snackbar

@@ -240,6 +240,36 @@ class MainActivity : AppCompatActivity() {
             prepare()
             play()
         }
+
+        // Setup Custom ExoPlayer Controller UI Buttons
+        val btnLock = playerView.findViewById<ImageView>(R.id.btn_lock)
+        val btnCut = playerView.findViewById<ImageView>(R.id.btn_cut)
+        val btnPip = playerView.findViewById<ImageView>(R.id.btn_pip)
+        val btnMute = playerView.findViewById<ImageView>(R.id.btn_mute)
+        val btnBack = playerView.findViewById<ImageView>(R.id.btn_back)
+        val exoTitle = playerView.findViewById<TextView>(R.id.exo_title)
+
+        exoTitle?.text = video.title
+
+        btnLock?.setOnClickListener {
+            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+        }
+
+        btnCut?.setOnClickListener {
+            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+        }
+
+        btnPip?.setOnClickListener {
+            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+        }
+
+        btnMute?.setOnClickListener {
+            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+        }
+
+        btnBack?.setOnClickListener {
+            onBackPressed()
+        }
     }
 
     private fun playAudio(audio: Audio) {

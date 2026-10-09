@@ -35,7 +35,8 @@
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:controller_layout_id="@layout/custom_player_ui" />
 
         <include
             android:id="@+id/layoutMe"

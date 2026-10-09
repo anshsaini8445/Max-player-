@@ -52,6 +52,10 @@
         "source": "com.app.mediaplayer.app-main-37:/drawable/ic_launcher.xml"
     },
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_custom_player_ui.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/custom_player_ui.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_fragment_music.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/layout/fragment_music.xml"
     },

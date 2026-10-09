@@ -19,6 +19,12 @@ id bottomNav
 id btnMiniPlayPause
 id btnReceive
 id btnSend
+id btn_back
+id btn_cut
+id btn_lock
+id btn_mute
+id btn_pip
+id exo_title
 id fabConvert
 id flThumbnail
 id ivAlbumArt
@@ -27,6 +33,7 @@ id ivThumbnail
 id layoutMe
 id layoutMiniPlayer
 id layoutMusic
+id layoutTopBar
 id musicTabBar
 id music_recycler
 id nav_effects
@@ -48,6 +55,7 @@ id tvSize
 id tvTitle
 layout activity_main
 layout activity_player
+layout custom_player_ui
 layout fragment_music
 layout item_audio
 layout item_video
