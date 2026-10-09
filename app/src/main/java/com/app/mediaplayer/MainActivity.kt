@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var playerView: PlayerView
     private lateinit var bottomNav: BottomNavigationView
+    private lateinit var layoutMe: View
     private val videoList = mutableListOf<Video>()
     private var player: ExoPlayer? = null
 
@@ -32,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerView)
         playerView = findViewById(R.id.playerView)
         bottomNav = findViewById(R.id.bottomNav)
+        layoutMe = findViewById(R.id.layoutMe)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -43,11 +45,21 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_video -> {
-                    recyclerView.visibility = View.VISIBLE
+                    layoutMe.visibility = View.GONE
                     playerView.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
                     true
                 }
-                R.id.nav_music, R.id.nav_effects, R.id.nav_game, R.id.nav_me -> {
+                R.id.nav_me -> {
+                    recyclerView.visibility = View.GONE
+                    playerView.visibility = View.GONE
+                    layoutMe.visibility = View.VISIBLE
+                    true
+                }
+                R.id.nav_music, R.id.nav_effects, R.id.nav_game -> {
+                    layoutMe.visibility = View.GONE
+                    recyclerView.visibility = View.GONE
+                    playerView.visibility = View.GONE
                     Toast.makeText(this, "Coming Soon", Toast.LENGTH_SHORT).show()
                     false
                 }
@@ -126,6 +138,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playVideo(video: Video) {
+        layoutMe.visibility = View.GONE
         recyclerView.visibility = View.GONE
         playerView.visibility = View.VISIBLE
 

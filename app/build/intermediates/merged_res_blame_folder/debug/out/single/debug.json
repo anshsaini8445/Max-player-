@@ -12,6 +12,10 @@
         "source": "com.app.mediaplayer.app-main-37:/color/nav_item_color.xml"
     },
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_layout_me.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/layout_me.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_item_video.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/layout/item_video.xml"
     },
@@ -48,8 +52,16 @@
         "source": "com.app.mediaplayer.app-main-37:/layout/fragment_music.xml"
     },
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_layout_mp3_converter.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/layout_mp3_converter.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_main.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_layout_file_transfer.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/layout_file_transfer.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_item_audio.xml.flat",

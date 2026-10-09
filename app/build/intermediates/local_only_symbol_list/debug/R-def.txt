@@ -16,9 +16,13 @@ drawable ic_launcher_foreground
 drawable ic_launcher_full
 drawable ic_launcher_max
 id bottomNav
+id btnReceive
+id btnSend
+id fabConvert
 id flThumbnail
 id ivAlbumArt
 id ivThumbnail
+id layoutMe
 id nav_effects
 id nav_game
 id nav_me
@@ -36,5 +40,8 @@ layout activity_player
 layout fragment_music
 layout item_audio
 layout item_video
+layout layout_file_transfer
+layout layout_me
+layout layout_mp3_converter
 menu bottom_nav_menu
 style Theme.MediaPlayer

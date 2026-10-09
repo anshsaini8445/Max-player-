@@ -3353,6 +3353,8 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btnReceive
+id btnSend
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3488,6 +3490,7 @@ id exo_track_selection_view
 id exo_vr
 id expand_activities_button
 id expanded_menu
+id fabConvert
 id fade
 id fill
 id fill_horizontal
@@ -3545,6 +3548,7 @@ id jumpToEnd
 id jumpToStart
 id labeled
 id layout
+id layoutMe
 id left
 id leftToRight
 id legacy
@@ -3981,6 +3985,9 @@ layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
 layout item_audio
 layout item_video
+layout layout_file_transfer
+layout layout_me
+layout layout_mp3_converter
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title

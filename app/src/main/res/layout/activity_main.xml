@@ -32,6 +32,11 @@
             android:layout_height="match_parent"
             android:visibility="gone" />
 
+        <include
+            android:id="@+id/layoutMe"
+            layout="@layout/layout_me"
+            android:visibility="gone" />
+
     </FrameLayout>
 
 </RelativeLayout>

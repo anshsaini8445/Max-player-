@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D1A"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- VIP Banner -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_my_calendar"
+                android:contentDescription="VIP Icon" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VIP Member"
+                    android:textColor="#FFD700"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Enjoy ad-free streaming &amp; premium features"
+                    android:textColor="#AAAAAA"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- 3-Column Grid for Tools -->
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:columnCount="3"
+            android:alignmentMode="alignMargins"
+            android:columnOrderPreserved="false">
+
+            <!-- Downloads -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/stat_sys_download" android:contentDescription="Downloads"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Downloads" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- MP3 Converter -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_media_ff" android:contentDescription="MP3 Converter"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MP3 Converter" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- Privacy -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_secure" android:contentDescription="Privacy"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Privacy" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- File Transfer -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginTop="16dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/stat_sys_upload" android:contentDescription="File Transfer"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File Transfer" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- Media Manage -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginTop="16dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_manage" android:contentDescription="Media Manage"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Media Manage" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- Theme -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginTop="16dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_view" android:contentDescription="Theme"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Theme" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- History -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginTop="16dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_recent_history" android:contentDescription="History"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="History" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- Clean -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginTop="16dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_delete" android:contentDescription="Clean"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clean" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+        </GridLayout>
+
+        <!-- Vertical List for Settings, Recycle Bin, etc. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Settings"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#222222" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Recycle Bin"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#222222" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Feedback &amp; Help"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#222222" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="About"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
