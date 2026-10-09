@@ -46,6 +46,15 @@ class MainActivity : AppCompatActivity() {
     private var brightnessValue = 0f
     private var audioManager: AudioManager? = null
 
+    private var btnLock: ImageView? = null
+    private var btnCut: ImageView? = null
+    private var btnPip: ImageView? = null
+    private var btnMute: ImageView? = null
+    private var btnBack: ImageView? = null
+    private var exoTitle: TextView? = null
+    private var gestureView: View? = null
+    private var gestureText: TextView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -252,16 +261,15 @@ class MainActivity : AppCompatActivity() {
             play()
         }
 
-        // Safely map custom buttons from playerView after it's visible and inflated
         playerView.post {
-            val btnLock = playerView.findViewById<ImageView>(R.id.btn_lock)
-            val btnCut = playerView.findViewById<ImageView>(R.id.btn_cut)
-            val btnPip = playerView.findViewById<ImageView>(R.id.btn_pip)
-            val btnMute = playerView.findViewById<ImageView>(R.id.btn_mute)
-            val btnBack = playerView.findViewById<ImageView>(R.id.btn_back)
-            val exoTitle = playerView.findViewById<TextView>(R.id.exo_title)
-            val gestureView = playerView.findViewById<View>(R.id.gesture_view)
-            val gestureText = playerView.findViewById<TextView>(R.id.gesture_text)
+            btnLock = playerView.findViewById(R.id.btn_lock)
+            btnCut = playerView.findViewById(R.id.btn_cut)
+            btnPip = playerView.findViewById(R.id.btn_pip)
+            btnMute = playerView.findViewById(R.id.btn_mute)
+            btnBack = playerView.findViewById(R.id.btn_back)
+            exoTitle = playerView.findViewById(R.id.exo_title)
+            gestureView = playerView.findViewById(R.id.gesture_view)
+            gestureText = playerView.findViewById(R.id.gesture_text)
 
             exoTitle?.text = video.title
 
@@ -287,7 +295,6 @@ class MainActivity : AppCompatActivity() {
                 onBackPressed()
             }
 
-            // Gesture Handling
             try {
                 brightnessValue = window.attributes.screenBrightness
                 if (brightnessValue < 0) brightnessValue = 0.5f
@@ -315,7 +322,6 @@ class MainActivity : AppCompatActivity() {
                         val changeFactor = deltaY / screenHeight
 
                         if (event.x < screenWidth / 2) {
-                            // Left half: Brightness
                             var newBrightness = brightnessValue + changeFactor
                             if (newBrightness > 1.0f) newBrightness = 1.0f
                             if (newBrightness < 0.0f) newBrightness = 0.0f
@@ -328,7 +334,6 @@ class MainActivity : AppCompatActivity() {
                             gestureText?.text = "Brightness: $percent%"
                             gestureText?.visibility = View.VISIBLE
                         } else {
-                            // Right half: Volume
                             audioManager?.let {
                                 val maxVolume = it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                                 val currentVolume = it.getStreamVolume(AudioManager.STREAM_MUSIC)
