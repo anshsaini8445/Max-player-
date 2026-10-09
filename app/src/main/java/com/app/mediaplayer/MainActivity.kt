@@ -191,8 +191,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        recyclerView.adapter = VideoAdapter(videoList) { video ->
-            playVideo(video)
+        recyclerView.adapter = VideoAdapter(videoList) {
+            playVideo(it)
         }
     }
 
@@ -233,8 +233,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        musicRecycler.adapter = AudioAdapter(audioList) { audio ->
-            playAudio(audio)
+        musicRecycler.adapter = AudioAdapter(audioList) {
+            playAudio(it)
         }
     }
 
@@ -252,103 +252,105 @@ class MainActivity : AppCompatActivity() {
             play()
         }
 
-        // Setup Custom ExoPlayer Controller UI Buttons
-        val btnLock = playerView.findViewById<ImageView>(R.id.btn_lock)
-        val btnCut = playerView.findViewById<ImageView>(R.id.btn_cut)
-        val btnPip = playerView.findViewById<ImageView>(R.id.btn_pip)
-        val btnMute = playerView.findViewById<ImageView>(R.id.btn_mute)
-        val btnBack = playerView.findViewById<ImageView>(R.id.btn_back)
-        val exoTitle = playerView.findViewById<TextView>(R.id.exo_title)
-        val gestureView = playerView.findViewById<View>(R.id.gesture_view)
-        val gestureText = playerView.findViewById<TextView>(R.id.gesture_text)
+        // Safely map custom buttons from playerView after it's visible and inflated
+        playerView.post {
+            val btnLock = playerView.findViewById<ImageView>(R.id.btn_lock)
+            val btnCut = playerView.findViewById<ImageView>(R.id.btn_cut)
+            val btnPip = playerView.findViewById<ImageView>(R.id.btn_pip)
+            val btnMute = playerView.findViewById<ImageView>(R.id.btn_mute)
+            val btnBack = playerView.findViewById<ImageView>(R.id.btn_back)
+            val exoTitle = playerView.findViewById<TextView>(R.id.exo_title)
+            val gestureView = playerView.findViewById<View>(R.id.gesture_view)
+            val gestureText = playerView.findViewById<TextView>(R.id.gesture_text)
 
-        exoTitle?.text = video.title
+            exoTitle?.text = video.title
 
-        btnLock?.setOnClickListener {
-            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
-        }
-
-        btnCut?.setOnClickListener {
-            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
-        }
-
-        btnPip?.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                enterPictureInPictureMode(PictureInPictureParams.Builder().build())
+            btnLock?.setOnClickListener {
+                Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
             }
-        }
 
-        btnMute?.setOnClickListener {
-            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
-        }
+            btnCut?.setOnClickListener {
+                Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+            }
 
-        btnBack?.setOnClickListener {
-            onBackPressed()
-        }
-
-        // Gesture Handling
-        try {
-            brightnessValue = window.attributes.screenBrightness
-            if (brightnessValue < 0) brightnessValue = 0.5f
-        } catch (e: Exception) {
-            brightnessValue = 0.5f
-        }
-
-        gestureView?.setOnTouchListener { v, event ->
-            val screenWidth = v.width
-            val screenHeight = v.height
-
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    touchStartY = event.y
-                    try {
-                        brightnessValue = window.attributes.screenBrightness
-                        if (brightnessValue < 0) brightnessValue = 0.5f
-                    } catch (e: Exception) {
-                        brightnessValue = 0.5f
-                    }
-                    true
+            btnPip?.setOnClickListener {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    enterPictureInPictureMode(PictureInPictureParams.Builder().build())
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    val deltaY = touchStartY - event.y
-                    val changeFactor = deltaY / screenHeight
+            }
 
-                    if (event.x < screenWidth / 2) {
-                        // Left half: Brightness
-                        var newBrightness = brightnessValue + changeFactor
-                        if (newBrightness > 1.0f) newBrightness = 1.0f
-                        if (newBrightness < 0.0f) newBrightness = 0.0f
+            btnMute?.setOnClickListener {
+                Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+            }
 
-                        val layoutParams = window.attributes
-                        layoutParams.screenBrightness = newBrightness
-                        window.attributes = layoutParams
+            btnBack?.setOnClickListener {
+                onBackPressed()
+            }
 
-                        val percent = (newBrightness * 100).toInt()
-                        gestureText?.text = "Brightness: $percent%"
-                        gestureText?.visibility = View.VISIBLE
-                    } else {
-                        // Right half: Volume
-                        audioManager?.let {
-                            val maxVolume = it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                            val currentVolume = it.getStreamVolume(AudioManager.STREAM_MUSIC)
-                            val volumeDelta = (changeFactor * maxVolume).toInt()
-                            var newVolume = currentVolume + volumeDelta
-                            if (newVolume > maxVolume) newVolume = maxVolume
-                            if (newVolume < 0) newVolume = 0
+            // Gesture Handling
+            try {
+                brightnessValue = window.attributes.screenBrightness
+                if (brightnessValue < 0) brightnessValue = 0.5f
+            } catch (e: Exception) {
+                brightnessValue = 0.5f
+            }
 
-                            it.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-                            val percent = (newVolume * 100) / maxVolume
-                            gestureText?.text = "Volume: $percent%"
-                            gestureText?.visibility = View.VISIBLE
+            gestureView?.setOnTouchListener { v, event ->
+                val screenWidth = v.width
+                val screenHeight = v.height
+
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchStartY = event.y
+                        try {
+                            brightnessValue = window.attributes.screenBrightness
+                            if (brightnessValue < 0) brightnessValue = 0.5f
+                        } catch (e: Exception) {
+                            brightnessValue = 0.5f
                         }
+                        true
                     }
-                    true
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaY = touchStartY - event.y
+                        val changeFactor = deltaY / screenHeight
+
+                        if (event.x < screenWidth / 2) {
+                            // Left half: Brightness
+                            var newBrightness = brightnessValue + changeFactor
+                            if (newBrightness > 1.0f) newBrightness = 1.0f
+                            if (newBrightness < 0.0f) newBrightness = 0.0f
+
+                            val layoutParams = window.attributes
+                            layoutParams.screenBrightness = newBrightness
+                            window.attributes = layoutParams
+
+                            val percent = (newBrightness * 100).toInt()
+                            gestureText?.text = "Brightness: $percent%"
+                            gestureText?.visibility = View.VISIBLE
+                        } else {
+                            // Right half: Volume
+                            audioManager?.let {
+                                val maxVolume = it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                val currentVolume = it.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                val volumeDelta = (changeFactor * maxVolume).toInt()
+                                var newVolume = currentVolume + volumeDelta
+                                if (newVolume > maxVolume) newVolume = maxVolume
+                                if (newVolume < 0) newVolume = 0
+
+                                it.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                                val percent = (newVolume * 100) / maxVolume
+                                gestureText?.text = "Volume: $percent%"
+                                gestureText?.visibility = View.VISIBLE
+                            }
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        gestureText?.visibility = View.GONE
+                        true
+                    }
+                    else -> false
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    gestureText?.visibility = View.GONE
-                    true
-                }
-                else -> false
             }
         }
     }
