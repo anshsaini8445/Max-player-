@@ -4,6 +4,27 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
+    <!-- Massive Invisible View for Gestures -->
+    <View
+        android:id="@+id/gesture_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent" />
+
+    <!-- Gesture Value Text View -->
+    <TextView
+        android:id="@+id/gesture_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:background="#99000000"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <!-- Top Bar -->
     <LinearLayout
         android:id="@+id/layoutTopBar"

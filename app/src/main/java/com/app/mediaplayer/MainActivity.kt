@@ -1,11 +1,15 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.app.PictureInPictureParams
 import android.content.ContentUris
+import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -19,6 +23,7 @@ import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -36,6 +41,10 @@ class MainActivity : AppCompatActivity() {
     private val audioList = mutableListOf<Audio>()
     private var player: ExoPlayer? = null
     private var currentAudio: Audio? = null
+
+    private var touchStartY = 0f
+    private var brightnessValue = 0f
+    private var audioManager: AudioManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +64,8 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         musicRecycler.layoutManager = LinearLayoutManager(this)
+
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         btnMiniPlayPause.setOnClickListener {
             player?.let {
@@ -248,6 +259,8 @@ class MainActivity : AppCompatActivity() {
         val btnMute = playerView.findViewById<ImageView>(R.id.btn_mute)
         val btnBack = playerView.findViewById<ImageView>(R.id.btn_back)
         val exoTitle = playerView.findViewById<TextView>(R.id.exo_title)
+        val gestureView = playerView.findViewById<View>(R.id.gesture_view)
+        val gestureText = playerView.findViewById<TextView>(R.id.gesture_text)
 
         exoTitle?.text = video.title
 
@@ -260,7 +273,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnPip?.setOnClickListener {
-            Toast.makeText(this, "Feature Coming Soon", Toast.LENGTH_SHORT).show()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                enterPictureInPictureMode(PictureInPictureParams.Builder().build())
+            }
         }
 
         btnMute?.setOnClickListener {
@@ -269,6 +284,72 @@ class MainActivity : AppCompatActivity() {
 
         btnBack?.setOnClickListener {
             onBackPressed()
+        }
+
+        // Gesture Handling
+        try {
+            brightnessValue = window.attributes.screenBrightness
+            if (brightnessValue < 0) brightnessValue = 0.5f
+        } catch (e: Exception) {
+            brightnessValue = 0.5f
+        }
+
+        gestureView?.setOnTouchListener { v, event ->
+            val screenWidth = v.width
+            val screenHeight = v.height
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartY = event.y
+                    try {
+                        brightnessValue = window.attributes.screenBrightness
+                        if (brightnessValue < 0) brightnessValue = 0.5f
+                    } catch (e: Exception) {
+                        brightnessValue = 0.5f
+                    }
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val deltaY = touchStartY - event.y
+                    val changeFactor = deltaY / screenHeight
+
+                    if (event.x < screenWidth / 2) {
+                        // Left half: Brightness
+                        var newBrightness = brightnessValue + changeFactor
+                        if (newBrightness > 1.0f) newBrightness = 1.0f
+                        if (newBrightness < 0.0f) newBrightness = 0.0f
+
+                        val layoutParams = window.attributes
+                        layoutParams.screenBrightness = newBrightness
+                        window.attributes = layoutParams
+
+                        val percent = (newBrightness * 100).toInt()
+                        gestureText?.text = "Brightness: $percent%"
+                        gestureText?.visibility = View.VISIBLE
+                    } else {
+                        // Right half: Volume
+                        audioManager?.let {
+                            val maxVolume = it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                            val currentVolume = it.getStreamVolume(AudioManager.STREAM_MUSIC)
+                            val volumeDelta = (changeFactor * maxVolume).toInt()
+                            var newVolume = currentVolume + volumeDelta
+                            if (newVolume > maxVolume) newVolume = maxVolume
+                            if (newVolume < 0) newVolume = 0
+
+                            it.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                            val percent = (newVolume * 100) / maxVolume
+                            gestureText?.text = "Volume: $percent%"
+                            gestureText?.visibility = View.VISIBLE
+                        }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    gestureText?.visibility = View.GONE
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -284,6 +365,15 @@ class MainActivity : AppCompatActivity() {
             setMediaItem(MediaItem.fromUri(uri))
             prepare()
             play()
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (playerView.visibility == View.VISIBLE && player?.isPlaying == true) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                enterPictureInPictureMode(PictureInPictureParams.Builder().build())
+            }
         }
     }
 

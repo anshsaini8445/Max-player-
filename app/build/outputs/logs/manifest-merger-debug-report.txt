@@ -109,6 +109,10 @@ activity#com.app.mediaplayer.MainActivity
 ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:7:9-12:20
 	android:exported
 		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:7:48-71
+	android:supportsPictureInPicture
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:7:72-111
+	android:configChanges
+		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:7:112-190
 	android:name
 		ADDED from /home/runner/work/Max-player-/Max-player-/app/src/main/AndroidManifest.xml:7:19-47
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
