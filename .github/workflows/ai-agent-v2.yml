@@ -65,7 +65,7 @@ jobs:
           # STRICTLY MEMORIZED 2026 MODELS - AS REQUESTED
           models_pool = [
               "gemini-3.1-pro",
-              "gemini-3.8-flash",
+              "gemini-3.8-flash"
           ]
           
           allowed_exts = {".kt", ".xml", ".gradle"}
