@@ -3444,6 +3444,7 @@ id endToStart
 id end_padder
 id enterAlways
 id enterAlwaysCollapsed
+id etSearch
 id exitUntilCollapsed
 id exo_ad_overlay
 id exo_artwork
@@ -3516,6 +3517,7 @@ id flThumbnail
 id flip
 id floating
 id forever
+id fragmentContainer
 id fragment_container_view_tag
 id frost
 id fullscreen_header
@@ -3552,15 +3554,15 @@ id is_pooling_container_tag
 id italic
 id item_touch_helper_previous_elevation
 id ivAlbumArt
+id ivHistoryThumb
 id ivMiniVinyl
+id ivOptions
 id ivThumbnail
 id jumpToEnd
 id jumpToStart
 id labeled
 id layout
-id layoutMe
 id layoutMiniPlayer
-id layoutMusic
 id layoutTopBar
 id left
 id leftToRight
@@ -3634,10 +3636,9 @@ id mtrl_view_tag_bottom_padding
 id multiply
 id musicTabBar
 id music_recycler
-id nav_effects
-id nav_game
 id nav_me
 id nav_music
+id nav_search
 id nav_video
 id navigation_bar_item_active_indicator_view
 id navigation_bar_item_icon_container
@@ -3700,7 +3701,6 @@ id progress_horizontal
 id radio
 id ratio
 id rectangles
-id recyclerView
 id report_drawn
 id reverseSawtooth
 id right
@@ -3709,7 +3709,10 @@ id right_icon
 id right_side
 id rounded
 id row_index_key
+id rvHistory
 id rvMusic
+id rvSearchResults
+id rvVideo
 id save_non_transition_alpha
 id save_overlay_view
 id sawtooth
@@ -3826,6 +3829,7 @@ id transition_transform
 id triangle
 id tvArtist
 id tvDuration
+id tvHistoryTitle
 id tvMiniArtist
 id tvMiniTitle
 id tvSize
@@ -4001,10 +4005,14 @@ layout exo_styled_settings_list
 layout exo_styled_settings_list_item
 layout exo_styled_sub_settings_list_item
 layout exo_track_selection_dialog
+layout fragment_me
 layout fragment_music
+layout fragment_search
+layout fragment_video
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
 layout item_audio
+layout item_history
 layout item_video
 layout layout_file_transfer
 layout layout_me

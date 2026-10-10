@@ -1,5 +1,13 @@
 [
     {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_fragment_me.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/fragment_me.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_fragment_search.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/fragment_search.xml"
+    },
+    {
         "merged": "com.app.mediaplayer.app-merged_res-35:/menu_bottom_nav_menu.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/menu/bottom_nav_menu.xml"
     },
@@ -22,6 +30,14 @@
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/layout_activity_player.xml.flat",
         "source": "com.app.mediaplayer.app-main-37:/layout/activity_player.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_item_history.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/item_history.xml"
+    },
+    {
+        "merged": "com.app.mediaplayer.app-merged_res-35:/layout_fragment_video.xml.flat",
+        "source": "com.app.mediaplayer.app-main-37:/layout/fragment_video.xml"
     },
     {
         "merged": "com.app.mediaplayer.app-merged_res-35:/drawable_ic_app_icon.xml.flat",

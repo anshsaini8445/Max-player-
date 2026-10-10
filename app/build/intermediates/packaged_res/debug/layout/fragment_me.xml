@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D1A"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- User Profile Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_circle_outline"
+                android:padding="8dp"
+                android:src="@android:drawable/ic_menu_myplaces"
+                android:contentDescription="Profile Icon" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MAX Pro User"
+                    android:textColor="#FFD700"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Coins: 520 | Premium Status: Active"
+                    android:textColor="#00E5FF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Options Grid -->
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:alignmentMode="alignMargins"
+            android:columnCount="3"
+            android:columnOrderPreserved="false">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/stat_sys_download" android:contentDescription="Downloads"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Downloads" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_media_ff" android:contentDescription="MP3 Converter"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MP3 Converter" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_secure" android:contentDescription="Privacy"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Privacy" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/stat_sys_upload" android:contentDescription="File Transfer"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File Transfer" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_view" android:contentDescription="Theme"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Theme" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_recent_history" android:contentDescription="History"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="History" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+        </GridLayout>
+
+        <!-- Settings List -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Settings &amp; Preferences"
+                android:textColor="#00E5FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#222233" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Playback Settings"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#222233" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Audio Boost &amp; Equalizer"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#222233" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="About MAX Player Pro"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D1A"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Search Bar -->
+    <EditText
+        android:id="@+id/etSearch"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#1E1E2F"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="10dp"
+        android:hint="Search videos, music, files..."
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:paddingHorizontal="12dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#888888"
+        android:textSize="14sp" />
+
+    <!-- Quick Filter Chips -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="8K"
+            android:textColor="#00E5FF"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="Hindi Songs"
+            android:textColor="#00E5FF"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="Movies"
+            android:textColor="#00E5FF"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#1E1E2F"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="Downloads"
+            android:textColor="#00E5FF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Search Results RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSearchResults"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1" />
+
+</LinearLayout>
