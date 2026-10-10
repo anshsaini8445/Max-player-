@@ -1,91 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D0D1A"
-    android:orientation="vertical">
+    android:background="#000000">
 
-    <!-- History Section Header -->
     <TextView
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="12dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="6dp"
-        android:text="Recently Played"
-        android:textColor="#00E5FF"
-        android:textSize="16sp"
+        android:layout_gravity="center"
+        android:text="Video Tab"
+        android:textColor="#00FFFF"
+        android:textSize="24sp"
         android:textStyle="bold" />
 
-    <!-- History Horizontal RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvHistory"
-        android:layout_width="match_parent"
-        android:layout_height="105dp"
-        android:clipToPadding="false"
-        android:paddingHorizontal="12dp"
-        android:orientation="horizontal" />
-
-    <!-- Filter Tabs Row -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:scrollbars="none"
-        android:background="#161626"
-        android:paddingHorizontal="8dp">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:text="Video"
-                android:textColor="#00E5FF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:text="Folder"
-                android:textColor="#888888"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:text="Playlist"
-                android:textColor="#888888"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:text="Favorite"
-                android:textColor="#888888"
-                android:textSize="14sp" />
-        </LinearLayout>
-    </HorizontalScrollView>
-
-    <!-- Main Vertical Video RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvVideo"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingVertical="8dp" />
-
-</LinearLayout>
+</FrameLayout>

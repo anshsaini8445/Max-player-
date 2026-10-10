@@ -15,7 +15,7 @@ drawable ic_launcher_background
 drawable ic_launcher_foreground
 drawable ic_launcher_full
 drawable ic_launcher_max
-id bottomNav
+id bottom_navigation
 id btnMiniPlayPause
 id btnReceive
 id btnSend
@@ -24,11 +24,10 @@ id btn_cut
 id btn_lock
 id btn_mute
 id btn_pip
-id etSearch
 id exo_title
 id fabConvert
 id flThumbnail
-id fragmentContainer
+id fragment_container
 id gesture_text
 id gesture_view
 id ivAlbumArt
@@ -45,10 +44,6 @@ id nav_music
 id nav_search
 id nav_video
 id playerView
-id rvHistory
-id rvMusic
-id rvSearchResults
-id rvVideo
 id tabAllSongs
 id tabFolder
 id tabPlaylist

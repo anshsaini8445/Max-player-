@@ -3348,7 +3348,7 @@ id beginning
 id bestChoice
 id blocking
 id bottom
-id bottomNav
+id bottom_navigation
 id bounce
 id bounceBoth
 id bounceEnd
@@ -3444,7 +3444,6 @@ id endToStart
 id end_padder
 id enterAlways
 id enterAlwaysCollapsed
-id etSearch
 id exitUntilCollapsed
 id exo_ad_overlay
 id exo_artwork
@@ -3517,7 +3516,7 @@ id flThumbnail
 id flip
 id floating
 id forever
-id fragmentContainer
+id fragment_container
 id fragment_container_view_tag
 id frost
 id fullscreen_header
@@ -3709,10 +3708,6 @@ id right_icon
 id right_side
 id rounded
 id row_index_key
-id rvHistory
-id rvMusic
-id rvSearchResults
-id rvVideo
 id save_non_transition_alpha
 id save_overlay_view
 id sawtooth
