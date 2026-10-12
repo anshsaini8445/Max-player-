@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="Music Tab"
-        android:textColor="#00FFFF"
-        android:textSize="24sp"
-        android:textStyle="bold" />
-
-</FrameLayout>
+    android:background="@color/max_dark_bg">
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAudioList"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingTop="8dp"
+        android:clipToPadding="false"/>
+</RelativeLayout>
