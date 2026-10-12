@@ -1,19 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/nav_video"
-        android:icon="@android:drawable/ic_media_play"
-        android:title="Video" />
-    <item
-        android:id="@+id/nav_music"
-        android:icon="@android:drawable/ic_media_ff"
-        android:title="Music" />
-    <item
-        android:id="@+id/nav_search"
-        android:icon="@android:drawable/ic_menu_search"
-        android:title="Search" />
-    <item
-        android:id="@+id/nav_me"
-        android:icon="@android:drawable/ic_menu_myplaces"
-        android:title="Me" />
+    <item android:id="@+id/nav_video" android:title="Video" android:icon="@android:drawable/ic_media_play" />
+    <item android:id="@+id/nav_music" android:title="Music" android:icon="@android:drawable/ic_media_ff" />
+    <item android:id="@+id/nav_search" android:title="Search" android:icon="@android:drawable/ic_menu_search" />
+    <item android:id="@+id/nav_me" android:title="Me" android:icon="@android:drawable/ic_menu_manage" />
 </menu>
