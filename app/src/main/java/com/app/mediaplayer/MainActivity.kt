@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissionsNeeded = mutableListOf<String>()
 
-        // Advanced Android 13+ (API 33+) Media Permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
                 permissionsNeeded.add(Manifest.permission.READ_MEDIA_VIDEO)
@@ -34,9 +33,7 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 permissionsNeeded.add(Manifest.permission.READ_MEDIA_AUDIO)
             }
-        } 
-        // Legacy Android 7 to 12 Permissions
-        else {
+        } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
@@ -45,7 +42,6 @@ class MainActivity : AppCompatActivity() {
         if (permissionsNeeded.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQ_CODE)
         } else {
-            // Permissions already granted, load initial fragment
             loadFragment(VideoFragment())
         }
     }
@@ -56,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 loadFragment(VideoFragment())
             } else {
-                Toast.makeText(this, "Storage Permission is required to play 8K/4K videos", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Permissions required to load media", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -67,9 +63,9 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setOnItemSelectedListener { item ->
             val selectedFragment: Fragment = when (item.itemId) {
                 R.id.nav_video -> VideoFragment()
-                // R.id.nav_music -> MusicFragment() // Uncomment when you create these
-                // R.id.nav_search -> SearchFragment()
-                // R.id.nav_me -> MeFragment()
+                R.id.nav_music -> MusicFragment()
+                R.id.nav_search -> SearchFragment()
+                R.id.nav_me -> MeFragment()
                 else -> VideoFragment()
             }
             loadFragment(selectedFragment)
@@ -78,10 +74,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        val transaction = supportFragmentManager.beginTransaction()
-        // Adding custom smooth fade animation for premium feel
-        transaction.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
-        transaction.replace(R.id.fragment_container, fragment)
-        transaction.commit()
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+            .replace(R.id.fragment_container, fragment)
+            .commit()
     }
 }
