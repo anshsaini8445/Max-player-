@@ -1,55 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="12dp"
-    android:background="?attr/selectableItemBackground"
-    android:gravity="center_vertical">
+    android:background="@color/max_dark_bg"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
 
     <ImageView
-        android:id="@+id/ivAlbumArt"
+        android:id="@+id/imgAudioIcon"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:background="@drawable/bg_circle_outline"
         android:src="@android:drawable/ic_media_play"
-        android:scaleType="centerInside"
-        android:padding="8dp"
-        android:contentDescription="Album Art" />
+        android:background="#222222"
+        android:padding="12dp"
+        app:tint="@color/max_cyan" />
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1">
+        android:layout_toEndOf="@id/imgAudioIcon"
+        android:layout_toStartOf="@id/tvAudioDuration"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp">
 
         <TextView
-            android:id="@+id/tvTitle"
+            android:id="@+id/tvAudioTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textColor="@color/white"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:text="Audio Title" />
 
         <TextView
-            android:id="@+id/tvArtist"
+            android:id="@+id/tvAudioArtist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#AAAAAA"
+            android:textColor="@color/max_gray"
             android:textSize="13sp"
-            android:layout_marginTop="4dp"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:layout_marginTop="2dp"
+            android:text="Unknown Artist" />
     </LinearLayout>
 
     <TextView
-        android:id="@+id/tvDuration"
+        android:id="@+id/tvAudioDuration"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#777777"
-        android:textSize="12sp"
-        android:layout_marginStart="8dp" />
-</LinearLayout>
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:textColor="@color/max_gray"
+        android:textSize="13sp"
+        android:text="00:00" />
+</RelativeLayout>
