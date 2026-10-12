@@ -1,49 +1,67 @@
 package com.app.mediaplayer
 
+import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import java.io.File
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-class VideoAdapter(
-    private val videoList: List<Video>,
-    private val onVideoClick: (Video) -> Unit
-) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
+class VideoAdapter(private val context: Context, private val videoList: List<VideoModel>) :
+    RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
-    class VideoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val ivThumbnail: ImageView = itemView.findViewById(R.id.ivThumbnail)
-        val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)
-        val tvDuration: TextView = itemView.findViewById(R.id.tvDuration)
-        val tvSize: TextView = itemView.findViewById(R.id.tvSize)
+    class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val imgThumbnail: ImageView = view.findViewById(R.id.imgThumbnail)
+        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+        val tvTitle: TextView = view.findViewById(R.id.tvTitle)
+        val tvSizeFormat: TextView = view.findViewById(R.id.tvSizeFormat)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int):
-            VideoViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_video, parent, false)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
+        val view = LayoutInflater.from(context).inflate(R.layout.item_video, parent, false)
         return VideoViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
         val video = videoList[position]
+
         holder.tvTitle.text = video.title
+        holder.tvDuration.text = formatDuration(video.duration)
         
-        val minutes = (video.duration / 1000) / 60
-        val seconds = (video.duration / 1000) % 60
-        holder.tvDuration.text = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+        val sizeInMb = video.size / (1024.0 * 1024.0)
+        val extension = File(video.path).extension.lowercase(Locale.getDefault())
+        holder.tvSizeFormat.text = String.format(Locale.US, "%.2f MB • (%s)", sizeInMb, extension)
 
-        val sizeMb = video.size / (1024.0 * 1024.0)
-        holder.tvSize.text = String.format(Locale.getDefault(), "%.2f MB", sizeMb)
-
-        holder.ivThumbnail.setImageURI(video.uri)
+        Glide.with(context)
+            .load(video.path)
+            .placeholder(android.R.color.darker_gray)
+            .centerCrop()
+            .into(holder.imgThumbnail)
 
         holder.itemView.setOnClickListener {
-            onVideoClick(video)
+            val intent = Intent(context, PlayerActivity::class.java)
+            intent.putExtra("VIDEO_PATH", video.path)
+            context.startActivity(intent)
         }
     }
 
-    override fun getItemCount() = videoList.size
+    override fun getItemCount(): Int = videoList.size
+
+    private fun formatDuration(durationMillis: Long): String {
+        val hours = TimeUnit.MILLISECONDS.toHours(durationMillis)
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis) - TimeUnit.HOURS.toMinutes(hours)
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(durationMillis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(durationMillis))
+        
+        return if (hours > 0) {
+            String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        }
+    }
 }
