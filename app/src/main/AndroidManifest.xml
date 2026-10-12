@@ -2,9 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.app.mediaplayer">
 
-    <!-- Storage permissions for Android 7 to 12 -->
+    <!-- Permissions for Android 7 to 15+ -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <!-- Media permissions for Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
