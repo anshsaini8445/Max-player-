@@ -13,29 +13,39 @@ import kotlin.concurrent.thread
 
 class VideoFragment : Fragment() {
 
+    private lateinit var rvMainVideos: RecyclerView
+    private lateinit var videoAdapter: VideoAdapter
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_video, container, false)
-        
-        val rvMainVideos = view.findViewById<RecyclerView>(R.id.rvMainVideos)
+        rvMainVideos = view.findViewById(R.id.rvMainVideos)
         rvMainVideos.layoutManager = LinearLayoutManager(requireContext())
-        
-        // Fetch videos in background to prevent UI freezing (Better than PLAYit)
-        thread {
-            val videoList = fetchAllVideos()
-            requireActivity().runOnUiThread {
-                if (videoList.isEmpty()) {
-                    Toast.makeText(requireContext(), "No videos found", Toast.LENGTH_SHORT).show()
-                } else {
-                    // rvMainVideos.adapter = VideoAdapter(videoList) // Next step: Create VideoAdapter
-                    Toast.makeText(requireContext(), "Found ${videoList.size} High-Res Videos", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        loadVideosSafely()
         return view
     }
 
-    private fun fetchAllVideos(): List<String> {
-        val videos = mutableListOf<String>()
+    private fun loadVideosSafely() {
+        thread {
+            try {
+                val videoList = fetchAllVideos()
+                activity?.runOnUiThread {
+                    if (!isAdded || context == null) return@runOnUiThread
+                    
+                    if (videoList.isEmpty()) {
+                        Toast.makeText(requireContext(), "No videos found", Toast.LENGTH_SHORT).show()
+                    } else {
+                        videoAdapter = VideoAdapter(requireContext(), videoList)
+                        rvMainVideos.adapter = videoAdapter
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun fetchAllVideos(): List<VideoModel> {
+        val videos = mutableListOf<VideoModel>()
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
@@ -45,18 +55,28 @@ class VideoFragment : Fragment() {
         )
         
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+        val contentResolver = context?.contentResolver ?: return videos
         
-        requireContext().contentResolver.query(
+        contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection,
             null,
             null,
             sortOrder
         )?.use { cursor ->
-            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+            val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+
             while (cursor.moveToNext()) {
-                val name = cursor.getString(nameColumn)
-                videos.add(name)
+                val id = cursor.getLong(idCol)
+                val title = cursor.getString(nameCol) ?: "Unknown"
+                val path = cursor.getString(dataCol) ?: ""
+                val size = cursor.getLong(sizeCol)
+                val duration = cursor.getLong(durCol)
+                videos.add(VideoModel(id, title, path, size, duration))
             }
         }
         return videos
