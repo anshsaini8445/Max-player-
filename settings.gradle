@@ -11,6 +11,8 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
+        // THE LIFESAVER: FFmpeg-Kit Backup Server (Because it was deleted from Maven Central)
+        maven { url 'https://artifactory.appodeal.com/appodeal-public/' }
     }
 }
 rootProject.name = "MAX Player Pro"
