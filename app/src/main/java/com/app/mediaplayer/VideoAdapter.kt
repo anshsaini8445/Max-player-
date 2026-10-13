@@ -2,6 +2,8 @@ package com.app.mediaplayer
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,9 +16,12 @@ import com.bumptech.glide.Glide
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
-class VideoAdapter(private val context: Context, private val videoList: List<VideoModel>) :
+class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
     RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
+
+    private val videoList: MutableList<VideoModel> = videos.toMutableList()
 
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imgThumbnail: ImageView = view.findViewById(R.id.imgThumbnail)
@@ -71,13 +76,35 @@ class VideoAdapter(private val context: Context, private val videoList: List<Vid
                         true
                     }
                     3 -> {
-                        Toast.makeText(context, "Ready for Step 8: Encryption & Hiding Logic", Toast.LENGTH_SHORT).show()
+                        hideVideoToVault(video, holder.adapterPosition)
                         true
                     }
                     else -> false
                 }
             }
             popup.show()
+        }
+    }
+
+    private fun hideVideoToVault(video: VideoModel, currentPosition: Int) {
+        if (currentPosition == RecyclerView.NO_POSITION) return
+        
+        Toast.makeText(context, "Encrypting and Moving to Vault...", Toast.LENGTH_SHORT).show()
+        
+        thread {
+            val success = VaultHelper.hideVideo(context, video)
+            Handler(Looper.getMainLooper()).post {
+                if (success) {
+                    Toast.makeText(context, "Video hidden successfully!", Toast.LENGTH_SHORT).show()
+                    if (currentPosition >= 0 && currentPosition < videoList.size) {
+                        videoList.removeAt(currentPosition)
+                        notifyItemRemoved(currentPosition)
+                        notifyItemRangeChanged(currentPosition, videoList.size)
+                    }
+                } else {
+                    Toast.makeText(context, "Failed to hide video.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
