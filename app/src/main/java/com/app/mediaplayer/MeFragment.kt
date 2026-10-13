@@ -14,10 +14,18 @@ class MeFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_me, container, false)
         
         val btnPrivacyVault = view.findViewById<LinearLayout>(R.id.btnPrivacyVault)
+        val btnFileTransfer = view.findViewById<LinearLayout>(R.id.btnFileTransfer)
         
         btnPrivacyVault.setOnClickListener {
             if (context != null) {
                 val intent = Intent(requireContext(), VaultPinActivity::class.java)
+                startActivity(intent)
+            }
+        }
+
+        btnFileTransfer.setOnClickListener {
+            if (context != null) {
+                val intent = Intent(requireContext(), FileTransferActivity::class.java)
                 startActivity(intent)
             }
         }
