@@ -42,12 +42,15 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // Google Media3 (ExoPlayer) - Advanced Hardware Acceleration
+    // Google Media3 (ExoPlayer)
     implementation 'androidx.media3:media3-exoplayer:1.2.0'
     implementation 'androidx.media3:media3-ui:1.2.0'
     implementation 'androidx.media3:media3-common:1.2.0'
 
-    // Glide - Ultra Fast Image & Thumbnail Loading
+    // Glide - Fast Image Loading
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+
+    // NEW DEPENDENCY FOR STEP 5: FFmpeg for Video to MP3 Conversion
+    implementation 'com.arthenica:ffmpeg-kit-full:6.0-2'
 }
