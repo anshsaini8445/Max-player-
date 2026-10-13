@@ -14,13 +14,17 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_REQ_CODE = 1001
+    private var isInitializationComplete = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         setupBottomNavigation()
-        checkAndRequestPermissions()
+        
+        if (savedInstanceState == null) {
+            checkAndRequestPermissions()
+        }
     }
 
     private fun checkAndRequestPermissions() {
@@ -42,18 +46,35 @@ class MainActivity : AppCompatActivity() {
         if (permissionsNeeded.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQ_CODE)
         } else {
-            loadFragment(VideoFragment())
+            initializeBaseFragment()
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadFragment(VideoFragment())
-            } else {
-                Toast.makeText(this, "Permissions required to load media", Toast.LENGTH_LONG).show()
+            var allGranted = true
+            for (result in grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false
+                    break
+                }
             }
+
+            if (allGranted) {
+                initializeBaseFragment()
+            } else {
+                Toast.makeText(this, "Critical Storage Permissions Denied. Media cannot be loaded.", Toast.LENGTH_LONG).show()
+                // Proceeding anyway to show empty states gracefully instead of crashing
+                initializeBaseFragment()
+            }
+        }
+    }
+
+    private fun initializeBaseFragment() {
+        if (!isInitializationComplete) {
+            loadFragment(VideoFragment())
+            isInitializationComplete = true
         }
     }
 
@@ -74,9 +95,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
-            .replace(R.id.fragment_container, fragment)
-            .commit()
+        try {
+            supportFragmentManager.beginTransaction()
+                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                .replace(R.id.fragment_container, fragment)
+                .commit()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
