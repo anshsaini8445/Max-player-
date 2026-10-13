@@ -1,6 +1,15 @@
-<resources>
-    <style name="Theme.MediaPlayer" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="android:statusBarColor">@color/black</item>
-        <item name="android:navigationBarColor">@color/black</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme strictly enforced to Dark Mode without ActionBar -->
+    <style name="Base.Theme.MediaPlayer" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/max_cyan</item>
+        <item name="colorPrimaryVariant">@color/max_dark_bg</item>
+        <item name="colorOnPrimary">@color/black</item>
+        <item name="android:colorBackground">@color/max_dark_bg</item>
+        <item name="android:windowBackground">@color/max_dark_bg</item>
+        <item name="android:statusBarColor">@color/max_dark_bg</item>
+        <item name="android:navigationBarColor">@color/max_card_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <style name="Theme.MediaPlayer" parent="Base.Theme.MediaPlayer" />
 </resources>
