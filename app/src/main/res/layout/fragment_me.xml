@@ -54,7 +54,6 @@
         android:textStyle="bold"
         android:padding="20dp" />
 
-    <!-- NEW: Privacy Vault Button -->
     <LinearLayout
         android:id="@+id/btnPrivacyVault"
         android:layout_width="match_parent"
@@ -77,6 +76,34 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Privacy Vault (Secret Box)"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:layout_marginStart="16dp"/>
+    </LinearLayout>
+
+    <!-- NEW: Offline File Transfer Button -->
+    <LinearLayout
+        android:id="@+id/btnFileTransfer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#111111"
+        android:layout_marginBottom="2dp"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true">
+        
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_share"
+            app:tint="@color/max_cyan" />
+            
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Offline File Transfer"
             android:textColor="@color/white"
             android:textSize="16sp"
             android:layout_marginStart="16dp"/>
