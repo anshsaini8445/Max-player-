@@ -7,12 +7,13 @@ import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import java.io.File
+import kotlin.concurrent.thread
 
 class VaultListActivity : AppCompatActivity() {
 
     private lateinit var rvVaultVideos: RecyclerView
     private lateinit var llVaultEmpty: LinearLayout
+    private lateinit var vaultAdapter: VaultAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,30 +23,36 @@ class VaultListActivity : AppCompatActivity() {
 
         rvVaultVideos = findViewById(R.id.rvVaultVideos)
         llVaultEmpty = findViewById(R.id.llVaultEmpty)
-
         rvVaultVideos.layoutManager = LinearLayoutManager(this)
 
-        loadVaultFiles()
+        loadVaultFilesSafely()
     }
 
-    private fun loadVaultFiles() {
-        try {
-            val vaultDir = File(getExternalFilesDir(null), ".MAX_Vault")
-            if (!vaultDir.exists()) {
-                vaultDir.mkdirs()
+    private fun loadVaultFilesSafely() {
+        thread {
+            try {
+                val videos = VaultHelper.getVaultVideos(this)
+                runOnUiThread {
+                    if (videos.isEmpty()) {
+                        showEmptyState()
+                    } else {
+                        rvVaultVideos.visibility = View.VISIBLE
+                        llVaultEmpty.visibility = View.GONE
+                        
+                        vaultAdapter = VaultAdapter(this, videos.toMutableList()) {
+                            showEmptyState()
+                        }
+                        rvVaultVideos.adapter = vaultAdapter
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-
-            val files = vaultDir.listFiles()
-            if (files == null || files.isEmpty()) {
-                rvVaultVideos.visibility = View.GONE
-                llVaultEmpty.visibility = View.VISIBLE
-            } else {
-                rvVaultVideos.visibility = View.VISIBLE
-                llVaultEmpty.visibility = View.GONE
-                // Detailed List Adapter logic will be fully implemented in Step 8
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
+    }
+
+    private fun showEmptyState() {
+        rvVaultVideos.visibility = View.GONE
+        llVaultEmpty.visibility = View.VISIBLE
     }
 }
