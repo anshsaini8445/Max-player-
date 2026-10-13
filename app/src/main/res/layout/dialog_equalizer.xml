@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#15151E"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Audio Equalizer &amp; Bass"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center" />
+
+    <!-- Bass Boost Controller -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bass Boost"
+        android:textColor="#00FFFF"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <SeekBar
+        android:id="@+id/seekBarBass"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp"
+        android:progressTint="#00FFFF"
+        android:thumbTint="#00FFFF"
+        android:max="1000" />
+
+    <!-- Virtualizer (3D Sound) Controller -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="3D Virtualizer"
+        android:textColor="#00FFFF"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <SeekBar
+        android:id="@+id/seekBarVirtualizer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp"
+        android:progressTint="#00FFFF"
+        android:thumbTint="#00FFFF"
+        android:max="1000" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Frequency Bands"
+        android:textColor="#888888"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Dynamic Equalizer Bands will be injected here -->
+    <LinearLayout
+        android:id="@+id/layoutEqualizerBands"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+    <Button
+        android:id="@+id/btnCloseEqualizer"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="24dp"
+        android:backgroundTint="#00FFFF"
+        android:textColor="#000000"
+        android:textStyle="bold"
+        android:text="Apply &amp; Close" />
+
+</LinearLayout>
