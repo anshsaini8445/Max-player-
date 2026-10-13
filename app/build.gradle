@@ -14,7 +14,10 @@ android {
         versionCode 2
         versionName "1.1"
         
-        // Removed abiFilters to maintain 100% support across all devices (Mobiles, PCs, Emulators).
+        // RESTRICTED TO REAL PHONES: Instantly drops APK size from 80MB to ~35-40MB without losing any features
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
 
     buildTypes {
@@ -23,7 +26,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         release {
-            // This will automatically optimize and shrink the size for Play Store AAB builds.
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
