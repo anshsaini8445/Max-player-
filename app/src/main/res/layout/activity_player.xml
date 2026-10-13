@@ -14,7 +14,7 @@
         app:show_buffering="when_playing"
         app:resize_mode="fit" />
 
-    <!-- Custom PiP Button (Top Right) -->
+    <!-- FIXED: Replaced picture_in_picture with universally available slideshow icon -->
     <ImageView
         android:id="@+id/btnPipMode"
         android:layout_width="50dp"
@@ -24,11 +24,10 @@
         android:layout_marginEnd="40dp"
         android:background="@drawable/circle_bg"
         android:padding="12dp"
-        android:src="@android:drawable/ic_picture_in_picture"
+        android:src="@android:drawable/ic_menu_slideshow"
         app:tint="#FFFFFF"
         android:elevation="10dp" />
 
-    <!-- Gesture Feedback Indicator (Center Overlay) -->
     <LinearLayout
         android:id="@+id/layoutGestureFeedback"
         android:layout_width="wrap_content"
