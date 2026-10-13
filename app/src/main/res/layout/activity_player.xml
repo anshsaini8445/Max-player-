@@ -13,4 +13,51 @@
         app:use_controller="true"
         app:show_buffering="when_playing"
         app:resize_mode="fit" />
+
+    <!-- Custom PiP Button (Top Right) -->
+    <ImageView
+        android:id="@+id/btnPipMode"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="40dp"
+        android:background="@drawable/circle_bg"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_picture_in_picture"
+        app:tint="#FFFFFF"
+        android:elevation="10dp" />
+
+    <!-- Gesture Feedback Indicator (Center Overlay) -->
+    <LinearLayout
+        android:id="@+id/layoutGestureFeedback"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#B3000000"
+        android:paddingHorizontal="32dp"
+        android:paddingVertical="24dp"
+        android:visibility="gone"
+        android:elevation="10dp">
+
+        <ImageView
+            android:id="@+id/imgGestureIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_lock_silent_mode_off"
+            app:tint="#00FFFF" />
+
+        <TextView
+            android:id="@+id/tvGestureValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="50%" />
+    </LinearLayout>
+
 </FrameLayout>
