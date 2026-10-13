@@ -51,6 +51,6 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 
-    // FFmpeg-Kit LTS (Supports Android 6 up to Future Android versions)
-    implementation 'com.arthenica:ffmpeg-kit-full:5.1.LTS'
+    // FFmpeg-Kit (Latest Stable Version 6.0-2)
+    implementation 'com.arthenica:ffmpeg-kit-full:6.0-2'
 }
