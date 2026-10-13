@@ -17,7 +17,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -30,6 +30,10 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
@@ -38,12 +42,12 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // Google Media3 (ExoPlayer) for Advanced Playback
+    // Google Media3 (ExoPlayer) - Advanced Hardware Acceleration
     implementation 'androidx.media3:media3-exoplayer:1.2.0'
     implementation 'androidx.media3:media3-ui:1.2.0'
     implementation 'androidx.media3:media3-common:1.2.0'
 
-    // Glide for Ultra-Fast Thumbnails
+    // Glide - Ultra Fast Image & Thumbnail Loading
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 }
