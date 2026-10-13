@@ -51,6 +51,6 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 
-    // NEW DEPENDENCY FOR STEP 5: FFmpeg for Video to MP3 Conversion
-    implementation 'com.arthenica:ffmpeg-kit-full:6.0-2'
+    // FIXED: Using highly stable LTS version of FFmpeg
+    implementation 'com.arthenica:ffmpeg-kit-full:5.1.LTS'
 }
