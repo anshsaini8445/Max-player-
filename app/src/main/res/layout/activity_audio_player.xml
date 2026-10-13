@@ -29,14 +29,14 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <!-- NEW: Equalizer Button -->
+        <!-- FIXED: Replaced private route icon with universally available preferences icon -->
         <ImageView
             android:id="@+id/btnEqualizer"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:src="@android:drawable/ic_media_route_on"
+            android:src="@android:drawable/ic_menu_preferences"
             app:tint="#00FFFF"
             android:padding="4dp" />
     </RelativeLayout>
