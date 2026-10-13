@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import java.io.File
@@ -46,16 +47,15 @@ class VideoAdapter(private val context: Context, private val videoList: List<Vid
             .centerCrop()
             .into(holder.imgThumbnail)
 
-        // Single Click -> Play Video
         holder.itemView.setOnClickListener {
             playVideo(video.path)
         }
 
-        // Options Button (3 Dots) -> Popup Menu
         holder.btnOptions.setOnClickListener { view ->
             val popup = PopupMenu(context, view)
             popup.menu.add(0, 1, 0, "Play Video")
             popup.menu.add(0, 2, 0, "Convert to MP3")
+            popup.menu.add(0, 3, 0, "Move to Vault (Hide)")
             
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -68,6 +68,10 @@ class VideoAdapter(private val context: Context, private val videoList: List<Vid
                         intent.putExtra("VIDEO_PATH", video.path)
                         intent.putExtra("VIDEO_TITLE", video.title)
                         context.startActivity(intent)
+                        true
+                    }
+                    3 -> {
+                        Toast.makeText(context, "Ready for Step 8: Encryption & Hiding Logic", Toast.LENGTH_SHORT).show()
                         true
                     }
                     else -> false
