@@ -3,13 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.app.mediaplayer">
 
-    <!-- Universal Storage & Media Permissions (Android 7 to 15+) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    
-    <!-- Required for future features like WiFi-Direct & MP3 Converter -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -47,6 +44,12 @@
             android:name=".AudioPlayerActivity"
             android:screenOrientation="portrait"
             android:launchMode="singleTop" />
+
+        <!-- NEW ACTIVITY FOR STEP 2: Shows videos inside a specific folder -->
+        <activity
+            android:name=".FolderVideosActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
 
     </application>
 </manifest>
