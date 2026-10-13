@@ -2,11 +2,14 @@ name: Build MAX Player Pro APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build and Package APK
     runs-on: ubuntu-latest
 
     steps:
@@ -18,15 +21,17 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: 'gradle'
 
     - name: Grant Execute Permission for Gradle
       run: chmod +x gradlew
 
-    - name: Build APK (For Phone Installation)
-      run: ./gradlew assembleDebug
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace
 
-    - name: Upload APK File
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MAX-Player-Pro-APK
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 7
