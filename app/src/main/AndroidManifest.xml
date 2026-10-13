@@ -9,14 +9,12 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     
-    <!-- Network & Transfer Permissions for Step 9 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" tools:targetApi="33" />
-    
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
@@ -30,16 +28,23 @@
         android:requestLegacyExternalStorage="true"
         android:largeHeap="true">
 
+        <!-- NEW SPLASH SCREEN (LAUNCHER) -->
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustPan">
+            android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan" />
 
         <activity
             android:name=".PlayerActivity"
@@ -73,7 +78,6 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
-        <!-- NEW ACTIVITY FOR STEP 9: File Transfer -->
         <activity
             android:name=".FileTransferActivity"
             android:screenOrientation="portrait"
