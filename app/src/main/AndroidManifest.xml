@@ -52,9 +52,19 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
-        <!-- NEW ACTIVITY FOR STEP 5: MP3 Converter -->
         <activity
             android:name=".Mp3ConverterActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- NEW ACTIVITIES FOR STEP 7: Privacy Vault -->
+        <activity
+            android:name=".VaultPinActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            
+        <activity
+            android:name=".VaultListActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
