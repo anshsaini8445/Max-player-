@@ -2,8 +2,20 @@
 <resources>
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
+    
+    <!-- Premium Dark Theme Core Colors -->
     <color name="max_dark_bg">#0A0A10</color>
-    <color name="max_cyan">#00FFFF</color>
-    <color name="max_gray">#888888</color>
     <color name="max_card_bg">#15151E</color>
+    <color name="max_card_bg_light">#1E1E28</color>
+    
+    <!-- Accent & Highlight Colors -->
+    <color name="max_cyan">#00FFFF</color>
+    <color name="max_gold">#FFC107</color>
+    
+    <!-- Text Colors -->
+    <color name="max_gray">#888888</color>
+    <color name="max_gray_light">#BBBBBB</color>
+    
+    <!-- Transparent Overlay -->
+    <color name="transparent_black_overlay">#99000000</color>
 </resources>
