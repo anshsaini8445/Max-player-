@@ -23,40 +23,89 @@
         android:paddingHorizontal="12dp"
         android:clipToPadding="false" />
 
+    <!-- Interactive Tabs -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp">
+        
         <TextView
+            android:id="@+id/tvTabVideo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Video"
             android:textColor="@color/max_cyan"
             android:textSize="16sp"
             android:textStyle="bold"
+            android:paddingVertical="8dp"
             android:layout_marginEnd="24dp"/>
+            
         <TextView
+            android:id="@+id/tvTabFolder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Folder"
             android:textColor="@color/max_gray"
             android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingVertical="8dp"
             android:layout_marginEnd="24dp"/>
+            
         <TextView
+            android:id="@+id/tvTabPlaylist"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Playlist"
             android:textColor="@color/max_gray"
-            android:textSize="16sp"/>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingVertical="8dp" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMainVideos"
+    <!-- Swappable Lists Area -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="8dp"
-        android:clipToPadding="false"/>
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMainVideos"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="8dp"
+            android:clipToPadding="false"
+            android:visibility="visible" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvFolders"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="8dp"
+            android:clipToPadding="false"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/llPlaylistsEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+            
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@android:drawable/ic_menu_add"
+                app:tint="@color/max_gray" />
+                
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No Playlists Created Yet"
+                android:textColor="@color/max_gray"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>
