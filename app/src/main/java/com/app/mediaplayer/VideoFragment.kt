@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -37,10 +38,12 @@ class VideoFragment : Fragment() {
     private lateinit var folderAdapter: FolderAdapter
 
     private val allVideosList = mutableListOf<VideoModel>()
+    private val displayedVideosList = mutableListOf<VideoModel>()
     private val historyVideosList = mutableListOf<VideoModel>()
     private val allFoldersList = mutableListOf<FolderModel>()
 
     private var isScanning = false
+    private var currentTab = 0
 
     private val supportedVideoExtensions = setOf(
         "mp4", "mkv", "avi", "mov", "flv", "wmv", "3gp", "webm", "ts", "m4v", "mpeg", "mpg"
@@ -66,7 +69,7 @@ class VideoFragment : Fragment() {
         rvMainVideos.layoutManager = LinearLayoutManager(requireContext())
         rvFolders.layoutManager = LinearLayoutManager(requireContext())
 
-        videoAdapter = VideoAdapter(requireContext(), allVideosList)
+        videoAdapter = VideoAdapter(requireContext(), displayedVideosList)
         historyAdapter = VideoAdapter(requireContext(), historyVideosList)
         folderAdapter = FolderAdapter(requireContext(), allFoldersList)
 
@@ -107,9 +110,14 @@ class VideoFragment : Fragment() {
         val inactiveColor = Color.parseColor("#888888")
 
         tvTabVideo.setOnClickListener {
+            currentTab = 0
             tvTabVideo.setTextColor(activeColor)
             tvTabFolder.setTextColor(inactiveColor)
             tvTabPlaylist.setTextColor(inactiveColor)
+
+            displayedVideosList.clear()
+            displayedVideosList.addAll(allVideosList)
+            videoAdapter.notifyDataSetChanged()
 
             rvMainVideos.visibility = View.VISIBLE
             rvFolders.visibility = View.GONE
@@ -117,6 +125,7 @@ class VideoFragment : Fragment() {
         }
 
         tvTabFolder.setOnClickListener {
+            currentTab = 1
             tvTabVideo.setTextColor(inactiveColor)
             tvTabFolder.setTextColor(activeColor)
             tvTabPlaylist.setTextColor(inactiveColor)
@@ -127,13 +136,33 @@ class VideoFragment : Fragment() {
         }
 
         tvTabPlaylist.setOnClickListener {
+            currentTab = 2
             tvTabVideo.setTextColor(inactiveColor)
             tvTabFolder.setTextColor(inactiveColor)
             tvTabPlaylist.setTextColor(activeColor)
 
+            showFavoritesAndBookmarksPlaylist()
+        }
+    }
+
+    private fun showFavoritesAndBookmarksPlaylist() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val favAndBookmarked = allVideosList.filter { video ->
+            prefs.getBoolean("fav_${video.path}", false) ||
+                prefs.getLong("bookmark_${video.path}", -1L) != -1L
+        }
+
+        rvFolders.visibility = View.GONE
+        if (favAndBookmarked.isEmpty()) {
             rvMainVideos.visibility = View.GONE
-            rvFolders.visibility = View.GONE
             llPlaylistsEmpty.visibility = View.VISIBLE
+        } else {
+            displayedVideosList.clear()
+            displayedVideosList.addAll(favAndBookmarked)
+            videoAdapter.notifyDataSetChanged()
+            llPlaylistsEmpty.visibility = View.GONE
+            rvMainVideos.visibility = View.VISIBLE
         }
     }
 
@@ -160,7 +189,14 @@ class VideoFragment : Fragment() {
                     allFoldersList.clear()
                     allFoldersList.addAll(fetchedFolders)
 
-                    videoAdapter.notifyDataSetChanged()
+                    if (currentTab == 2) {
+                        showFavoritesAndBookmarksPlaylist()
+                    } else {
+                        displayedVideosList.clear()
+                        displayedVideosList.addAll(allVideosList)
+                        videoAdapter.notifyDataSetChanged()
+                    }
+
                     historyAdapter.notifyDataSetChanged()
                     folderAdapter.notifyDataSetChanged()
 
