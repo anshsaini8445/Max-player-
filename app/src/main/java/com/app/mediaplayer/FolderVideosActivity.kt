@@ -8,39 +8,50 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.File
+import java.util.Locale
 import kotlin.concurrent.thread
 
 class FolderVideosActivity : AppCompatActivity() {
 
     private lateinit var rvFolderSpecificVideos: RecyclerView
     private lateinit var videoAdapter: VideoAdapter
+    private val folderVideosList = mutableListOf<VideoModel>()
+
+    private val supportedVideoExtensions = setOf(
+        "mp4", "mkv", "avi", "mov", "flv", "wmv", "3gp", "webm", "ts", "m4v", "mpeg", "mpg"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
 
-        val bucketId = intent.getStringExtra("BUCKET_ID") ?: return
+        val bucketId = intent.getStringExtra("BUCKET_ID") ?: ""
         val folderName = intent.getStringExtra("FOLDER_NAME") ?: "Folder"
+        val folderPath = intent.getStringExtra("FOLDER_PATH") ?: ""
 
         findViewById<TextView>(R.id.tvFolderTitleTop).text = folderName
         findViewById<ImageView>(R.id.btnBackFromFolder).setOnClickListener { finish() }
 
         rvFolderSpecificVideos = findViewById(R.id.rvFolderSpecificVideos)
         rvFolderSpecificVideos.layoutManager = LinearLayoutManager(this)
+        videoAdapter = VideoAdapter(this, folderVideosList)
+        rvFolderSpecificVideos.adapter = videoAdapter
 
-        loadVideosForFolder(bucketId)
+        loadVideosForFolder(bucketId, folderPath)
     }
 
-    private fun loadVideosForFolder(bucketId: String) {
+    private fun loadVideosForFolder(bucketId: String, folderPath: String) {
         thread {
             try {
-                val videos = fetchVideosByBucketId(bucketId)
+                val videos = fetchVideosByBucketOrPath(bucketId, folderPath)
                 runOnUiThread {
-                    if (videos.isEmpty()) {
+                    folderVideosList.clear()
+                    folderVideosList.addAll(videos)
+                    videoAdapter.notifyDataSetChanged()
+
+                    if (folderVideosList.isEmpty()) {
                         Toast.makeText(this, "No videos found in this folder", Toast.LENGTH_SHORT).show()
-                    } else {
-                        videoAdapter = VideoAdapter(this, videos)
-                        rvFolderSpecificVideos.adapter = videoAdapter
                     }
                 }
             } catch (e: Exception) {
@@ -49,8 +60,18 @@ class FolderVideosActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchVideosByBucketId(bucketId: String): List<VideoModel> {
+    private fun fetchVideosByBucketOrPath(bucketId: String, folderPath: String): List<VideoModel> {
         val videos = mutableListOf<VideoModel>()
+        val seenPaths = HashSet<String>()
+        var detectedFolderDir: File? = if (folderPath.isNotEmpty()) File(folderPath) else null
+
+        if (detectedFolderDir == null && bucketId.startsWith("/")) {
+            val possibleDir = File(bucketId)
+            if (possibleDir.exists()) {
+                detectedFolderDir = if (possibleDir.isDirectory) possibleDir else possibleDir.parentFile
+            }
+        }
+
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
@@ -62,28 +83,74 @@ class FolderVideosActivity : AppCompatActivity() {
         val selectionArgs = arrayOf(bucketId)
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
-        contentResolver.query(
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            sortOrder
-        )?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+        try {
+            contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idCol)
-                val title = cursor.getString(nameCol) ?: "Unknown"
-                val path = cursor.getString(dataCol) ?: ""
-                val size = cursor.getLong(sizeCol)
-                val duration = cursor.getLong(durCol)
-                videos.add(VideoModel(id, title, path, size, duration))
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val path = cursor.getString(dataCol) ?: continue
+                    val file = File(path)
+                    if (!file.exists() || file.length() <= 0L) continue
+
+                    if (detectedFolderDir == null) {
+                        detectedFolderDir = file.parentFile
+                    }
+
+                    val title = cursor.getString(nameCol) ?: file.name
+                    val size = cursor.getLong(sizeCol).coerceAtLeast(file.length())
+                    val duration = cursor.getLong(durCol).coerceAtLeast(0L)
+
+                    if (seenPaths.add(path)) {
+                        videos.add(VideoModel(id, title, path, size, duration))
+                    }
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+
+        // Scan physical directory for any unindexed video files (.mkv, .avi, .ts, .mp4, etc.)
+        try {
+            val dir = detectedFolderDir
+            if (dir != null && dir.exists() && dir.isDirectory) {
+                val files = dir.listFiles()
+                if (files != null) {
+                    for (file in files) {
+                        if (file.isFile && !file.name.startsWith(".") && file.length() > 10240L) {
+                            val ext = file.extension.lowercase(Locale.getDefault())
+                            if (supportedVideoExtensions.contains(ext)) {
+                                val path = file.absolutePath
+                                if (seenPaths.add(path)) {
+                                    videos.add(
+                                        VideoModel(
+                                            path.hashCode().toLong(),
+                                            file.name,
+                                            path,
+                                            file.length(),
+                                            0L
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         return videos
     }
 }
