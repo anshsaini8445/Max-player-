@@ -22,9 +22,9 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@drawable/ic_max_logo"
         android:label="MAX Player Pro"
-        android:roundIcon="@android:drawable/sym_def_app_icon"
+        android:roundIcon="@drawable/ic_max_logo"
         android:supportsRtl="true"
         android:theme="@style/Theme.MediaPlayer"
         android:hardwareAccelerated="true"
@@ -51,10 +51,21 @@
 
         <activity
             android:name=".PlayerActivity"
+            android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:screenOrientation="sensorLandscape"
             android:supportsPictureInPicture="true"
-            android:launchMode="singleTask" />
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".AudioPlayerActivity"
