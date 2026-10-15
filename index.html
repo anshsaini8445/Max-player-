@@ -3,31 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Max Player - 8K Ultra HD Media Player & File Transfer</title>
+    <title>Max Player - The Ultimate Media Experience</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800;900&display=swap');
+
         :root {
-            --bg-primary: #0A0A10;
-            --bg-card: #13131F;
-            --bg-card-hover: #1A1A2E;
-            --accent-cyan: #00FFFF;
-            --accent-cyan-dim: rgba(0, 255, 255, 0.15);
+            --bg-deep: #030305;
+            --glass-bg: rgba(20, 20, 30, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --neon-cyan: #00F0FF;
+            --neon-purple: #8A2BE2;
             --text-main: #FFFFFF;
-            --text-muted: #A0A0B8;
-            --border-glow: rgba(0, 255, 255, 0.3);
+            --text-muted: #9E9EA7;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Poppins', sans-serif;
         }
 
         body {
-            background-color: var(--bg-primary);
+            background-color: var(--bg-deep);
             color: var(--text-main);
-            line-height: 1.6;
             overflow-x: hidden;
+            line-height: 1.7;
+        }
+
+        /* Background Glowing Orbs */
+        .orb-1, .orb-2 {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: floatOrb 10s infinite alternate ease-in-out;
+        }
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--neon-purple);
+            top: -100px;
+            left: -100px;
+        }
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--neon-cyan);
+            top: 20%;
+            right: -50px;
+            animation-delay: 2s;
+        }
+
+        @keyframes floatOrb {
+            0% { transform: translateY(0) translateX(0); }
+            100% { transform: translateY(50px) translateX(50px); }
         }
 
         /* Navbar */
@@ -35,498 +66,333 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 5%;
-            background: rgba(10, 10, 16, 0.9);
-            backdrop-filter: blur(12px);
-            position: sticky;
+            padding: 20px 8%;
+            background: rgba(3, 3, 5, 0.7);
+            backdrop-filter: blur(20px);
+            position: fixed;
+            width: 100%;
             top: 0;
-            z-index: 100;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            z-index: 1000;
+            border-bottom: 1px solid var(--glass-border);
         }
 
-        .logo-container {
+        .logo-wrap {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
         }
 
         .logo-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #00FFFF, #0077FF);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #0A0A10;
-            font-weight: 900;
-            font-size: 20px;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
-        }
-
-        .logo-text {
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            color: var(--text-main);
-        }
-
-        .logo-text span {
-            color: var(--accent-cyan);
-        }
-
-        .version-pill {
-            background: var(--accent-cyan-dim);
-            color: var(--accent-cyan);
-            border: 1px solid var(--border-glow);
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        /* Hero Section */
-        .hero {
-            text-align: center;
-            padding: 70px 5% 50px;
-            max-width: 900px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        .hero::before {
-            content: "";
-            position: absolute;
-            top: 10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 320px;
-            height: 320px;
-            background: radial-gradient(circle, rgba(0, 255, 255, 0.15) 0%, rgba(10, 10, 16, 0) 70%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .badge-top {
-            display: inline-block;
-            background: #181828;
-            color: var(--accent-cyan);
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 22px;
-            border: 1px solid rgba(0, 255, 255, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .hero h1 {
-            font-size: clamp(32px, 6vw, 56px);
-            font-weight: 900;
-            line-height: 1.15;
-            margin-bottom: 20px;
-        }
-
-        .hero h1 .highlight {
-            color: var(--accent-cyan);
-            text-shadow: 0 0 25px rgba(0, 255, 255, 0.35);
-        }
-
-        .hero p {
-            color: var(--text-muted);
-            font-size: clamp(16px, 2.5vw, 19px);
-            max-width: 680px;
-            margin: 0 auto 38px;
-        }
-
-        /* Download CTA */
-        .download-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 45px;
-        }
-
-        .btn-download {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            background: var(--accent-cyan);
-            color: #0A0A10;
-            font-size: 19px;
-            font-weight: 800;
-            padding: 18px 42px;
-            border-radius: 16px;
-            text-decoration: none;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.45);
-            transition: all 0.25s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-download:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 0 45px rgba(0, 255, 255, 0.75);
-            background: #33FFFF;
-        }
-
-        .btn-download svg {
-            width: 24px;
-            height: 24px;
-            fill: #0A0A10;
-        }
-
-        .meta-info {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .meta-info span {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .meta-info strong {
-            color: var(--text-main);
-        }
-
-        /* App Mockup Preview */
-        .mockup-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glow);
-            border-radius: 20px;
-            padding: 24px;
-            max-width: 780px;
-            margin: 0 auto 60px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
-        }
-
-        .mockup-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 16px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        }
-
-        .tabs-preview {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            text-align: center;
-        }
-
-        .tab-item {
-            background: #1B1B2A;
-            padding: 14px 10px;
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
             border-radius: 12px;
-            border: 1px solid transparent;
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .tab-item.active {
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
-            background: var(--accent-cyan-dim);
-        }
-
-        /* Features Section */
-        .section-title {
-            text-align: center;
-            font-size: clamp(24px, 4vw, 36px);
-            font-weight: 800;
-            margin-bottom: 12px;
-        }
-
-        .section-subtitle {
-            text-align: center;
-            color: var(--text-muted);
-            margin-bottom: 45px;
-            font-size: 16px;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            padding: 0 5%;
-            max-width: 1200px;
-            margin: 0 auto 80px;
-        }
-
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 18px;
-            padding: 28px;
-            transition: all 0.3s ease;
-        }
-
-        .feature-card:hover {
-            background: var(--bg-card-hover);
-            border-color: var(--border-glow);
-            transform: translateY(-5px);
-        }
-
-        .feature-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            background: var(--accent-cyan-dim);
-            color: var(--accent-cyan);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            margin-bottom: 18px;
-            border: 1px solid var(--border-glow);
+            font-weight: 900;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+            animation: spin 10s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .logo-text span {
+            background: linear-gradient(to right, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .vip-badge {
+            background: rgba(138, 43, 226, 0.15);
+            color: #D47BFF;
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            padding: 6px 18px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 180px 5% 80px;
+            text-align: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .tagline {
+            display: inline-block;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 8px 24px;
+            border-radius: 50px;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hero h1 {
+            font-size: clamp(40px, 7vw, 70px);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 25px;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(to right, #FFF, var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: clamp(16px, 2.5vw, 20px);
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            font-weight: 300;
+        }
+
+        /* Super Animated Download Button */
+        .download-btn-wrap {
+            margin-bottom: 40px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .btn-download {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            background: linear-gradient(45deg, var(--neon-purple), var(--neon-cyan));
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
+            padding: 20px 50px;
+            border-radius: 50px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            z-index: 2;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-5px) scale(1.05);
+        }
+
+        .btn-glow {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, var(--neon-purple), var(--neon-cyan));
+            border-radius: 50px;
+            z-index: 1;
+            filter: blur(25px);
+            opacity: 0.7;
+            animation: pulseGlow 2s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { opacity: 0.5; filter: blur(20px); }
+            100% { opacity: 1; filter: blur(35px); transform: scale(1.1); }
+        }
+
+        .btn-download svg {
+            width: 28px;
+            height: 28px;
+            fill: #fff;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            flex-wrap: wrap;
+            font-size: 15px;
+            color: #C0C0C0;
+            font-weight: 400;
+        }
+        
+        .meta-info span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--glass-bg);
+            padding: 6px 16px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Premium Features Section */
+        .features-section {
+            padding: 50px 8% 100px;
+            position: relative;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: linear-gradient(to right, var(--neon-purple), var(--neon-cyan));
+            opacity: 0;
+            transition: 0.4s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            background: rgba(30, 30, 45, 0.6);
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .f-icon {
+            font-size: 38px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #fff, var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .feature-card h3 {
-            font-size: 20px;
-            margin-bottom: 10px;
-            color: var(--text-main);
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: #fff;
         }
 
         .feature-card p {
             color: var(--text-muted);
             font-size: 15px;
-        }
-
-        /* Install Guide */
-        .install-section {
-            background: var(--bg-card);
-            border-top: 1px solid rgba(0, 255, 255, 0.1);
-            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
-            padding: 60px 5%;
-            margin-bottom: 60px;
-        }
-
-        .steps-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .step-box {
-            background: var(--bg-primary);
-            padding: 24px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            position: relative;
-        }
-
-        .step-number {
-            display: inline-block;
-            background: var(--accent-cyan);
-            color: #0A0A10;
-            font-weight: 900;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 32px;
-            margin-bottom: 14px;
-        }
-
-        .step-box h4 {
-            font-size: 18px;
-            margin-bottom: 8px;
-        }
-
-        .step-box p {
-            color: var(--text-muted);
-            font-size: 14px;
+            line-height: 1.6;
         }
 
         /* Footer */
         footer {
             text-align: center;
-            padding: 30px 5% 50px;
+            padding: 40px 20px;
+            border-top: 1px solid var(--glass-border);
             color: var(--text-muted);
+            background: rgba(0,0,0,0.3);
             font-size: 14px;
         }
 
-        /* Toast Notification */
-        #toast {
-            visibility: hidden;
-            min-width: 280px;
-            background-color: #13131F;
-            color: var(--accent-cyan);
-            text-align: center;
-            border-radius: 12px;
-            padding: 16px 24px;
-            position: fixed;
-            z-index: 200;
-            left: 50%;
-            bottom: 30px;
-            transform: translateX(-50%);
-            border: 1px solid var(--accent-cyan);
-            box-shadow: 0 5px 25px rgba(0, 255, 255, 0.3);
-            font-weight: 600;
-        }
-
-        #toast.show {
-            visibility: visible;
-            animation: fadein 0.4s, fadeout 0.4s 3.5s;
-        }
-
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 30px; opacity: 1;}
-        }
-
-        @keyframes fadeout {
-            from {bottom: 30px; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-
-        @media (max-width: 600px) {
-            .tabs-preview {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .btn-download {
-                width: 100%;
-                padding: 16px 24px;
-            }
+        @media (max-width: 768px) {
+            .btn-download { width: 100%; padding: 18px 20px; justify-content: center; font-size: 18px;}
+            header { padding: 15px 5%; }
+            .hero { padding: 140px 5% 60px; }
         }
     </style>
 </head>
 <body>
 
+    <div class="orb-1"></div>
+    <div class="orb-2"></div>
+
     <header>
-        <div class="logo-container">
+        <div class="logo-wrap">
             <div class="logo-icon">▶</div>
-            <div class="logo-text">MAX <span>PLAYER</span></div>
+            <div class="logo-text">MAX<span>PLAYER</span></div>
         </div>
-        <div class="version-pill">v1.0 Official APK</div>
+        <div class="vip-badge">Official Build</div>
     </header>
 
     <section class="hero">
-        <div class="badge-top">100% Ad-Free • Zero Bloatware Games</div>
-        <h1>The Ultimate <span class="highlight">8K Ultra HD</span> Media Player for Android</h1>
-        <p>Experience hardware-accelerated 8K/4K playback, instant Video-to-MP3 conversion, Background Play, and high-speed Royal File Transfer in a clean 4-tab dark interface.</p>
+        <div class="tagline">🔥 Next-Gen Media Engine</div>
+        <h1>The Most Advanced <br><span>8K Ultra HD</span> Player</h1>
+        <p>Experience cinema-grade 8K playback, lightning-fast Video-to-MP3 extraction, and Royal File Transfer in an ultra-lightweight, 100% ad-free architecture.</p>
 
-        <div class="download-box">
-            <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="btn-download" onclick="triggerDownloadNotice()">
+        <div class="download-btn-wrap">
+            <div class="btn-glow"></div>
+            <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="btn-download">
                 <svg viewBox="0 0 24 24">
                     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                 </svg>
-                Download Max Player APK
+                Install Max Player
             </a>
-            <div class="meta-info">
-                <span>📦 Size: <strong>~35 MB</strong></span>
-                <span>🤖 Android: <strong>5.0 to 16+ Supported</strong></span>
-                <span>🛡️ Security: <strong>100% Safe & Verified</strong></span>
-            </div>
         </div>
 
-        <div class="mockup-card">
-            <div class="mockup-header">
-                <span style="color: var(--text-muted); font-size: 13px;">CLEAN 4-TAB ARCHITECTURE</span>
-                <span style="color: var(--accent-cyan); font-size: 13px; font-weight: 700;">● HW+ ACCELERATION READY</span>
-            </div>
-            <div class="tabs-preview">
-                <div class="tab-item active">🎬 Video (8K/4K)</div>
-                <div class="tab-item">🎵 Audio & Music</div>
-                <div class="tab-item">🔍 Instant Search</div>
-                <div class="tab-item">⚡ Me & Tools</div>
-            </div>
+        <div class="meta-info">
+            <span>⚡ <strong>Ultra-Lite Engine</strong></span>
+            <span>📱 <strong>Android 5.0 - 16+</strong></span>
+            <span>🛡️ <strong>100% Secure & Ad-Free</strong></span>
         </div>
     </section>
 
-    <h2 class="section-title">Built for Extreme Performance</h2>
-    <p class="section-subtitle">Everything you love in a pro media player, without annoying ads or heavy games.</p>
-
-    <section class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">8K</div>
-            <h3>8K & 4K 60FPS Playback</h3>
-            <p>Powered by an advanced ExoPlayer engine with dedicated Hardware Acceleration for stutter-free Ultra HD video rendering.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">🎧</div>
-            <h3>Background & PiP Mode</h3>
-            <p>Listen to music videos with your screen off or multitask effortlessly using the floating Picture-in-Picture window.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">🔄</div>
-            <h3>Video to MP3 Converter</h3>
-            <p>Extract high-bitrate audio tracks directly from any video file in seconds with our built-in offline media muxer engine.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <h3>Royal File Transfer</h3>
-            <p>Share heavy movies and music albums offline at blazing Wi-Fi Direct speeds without consuming mobile data.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">👆</div>
-            <h3>Smart Gesture Controls</h3>
-            <p>Swipe smoothly to adjust screen brightness, audio volume, playback speed (0.5x to 2.0x), and child-safety screen lock.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">📱</div>
-            <h3>Universal Compatibility</h3>
-            <p>Engineered to run smoothly across all devices from Android 5.0 (Lollipop) all the way up to Android 15 and 16+.</p>
-        </div>
-    </section>
-
-    <section class="install-section">
-        <h2 class="section-title">How to Install Max Player</h2>
-        <p class="section-subtitle">Update or install the latest build in 3 simple steps.</p>
-
-        <div class="steps-container">
-            <div class="step-box">
-                <div class="step-number">1</div>
-                <h4>Click Download</h4>
-                <p>Tap the cyan Download APK button above to save the latest MaxPlayer.apk file to your device.</p>
+    <section class="features-section">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="f-icon">🎬</div>
+                <h3>8K Hardware Acceleration</h3>
+                <p>Built-in MediaCodec optimization for playing heavy 4K and 8K 60FPS videos smoothly without heating your device.</p>
             </div>
-            <div class="step-box">
-                <div class="step-number">2</div>
-                <h4>Allow Unknown Sources</h4>
-                <p>Open the downloaded APK. If prompted, enable "Install from Unknown Sources" in your browser settings.</p>
+            
+            <div class="feature-card">
+                <div class="f-icon">🎵</div>
+                <h3>Pro Video to MP3</h3>
+                <p>Extract crystal-clear audio from any video instantly with our offline ultra-fast conversion engine.</p>
             </div>
-            <div class="step-box">
-                <div class="step-number">3</div>
-                <h4>Enjoy 8K Playback</h4>
-                <p>Launch Max Player, grant media permissions, and enjoy all your local videos and music instantly.</p>
+
+            <div class="feature-card">
+                <div class="f-icon">🚀</div>
+                <h3>Royal File Transfer</h3>
+                <p>Share heavy movies and full albums without internet at blazing fast Wi-Fi Direct speeds.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="f-icon">🎧</div>
+                <h3>Background & PiP Mode</h3>
+                <p>Keep the music playing with screen off, or watch videos in a floating window while chatting.</p>
             </div>
         </div>
     </section>
 
     <footer>
-        <p>© 2026 Max Player Official Project. Designed with Dark Cyan Architecture.</p>
+        <p>© 2026 Max Player Foundation. Designed with Next-Gen UI.</p>
     </footer>
-
-    <div id="toast">Starting download: MaxPlayer.apk...</div>
-
-    <script>
-        function triggerDownloadNotice() {
-            var toast = document.getElementById("toast");
-            toast.className = "show";
-            setTimeout(function() {
-                toast.className = toast.className.replace("show", "");
-            }, 3800);
-        }
-    </script>
 
 </body>
 </html>
