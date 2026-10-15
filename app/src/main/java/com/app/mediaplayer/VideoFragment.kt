@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -14,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -49,6 +51,12 @@ class VideoFragment : Fragment() {
         "mp4", "mkv", "avi", "mov", "flv", "wmv", "3gp", "webm", "ts", "m4v", "mpeg", "mpg"
     )
 
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        loadMediaDataSafely()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -69,16 +77,8 @@ class VideoFragment : Fragment() {
         rvMainVideos.layoutManager = LinearLayoutManager(requireContext())
         rvFolders.layoutManager = LinearLayoutManager(requireContext())
 
-        videoAdapter = VideoAdapter(requireContext(), displayedVideosList)
-        historyAdapter = VideoAdapter(requireContext(), historyVideosList)
-        folderAdapter = FolderAdapter(requireContext(), allFoldersList)
-
-        rvMainVideos.adapter = videoAdapter
-        rvHistory.adapter = historyAdapter
-        rvFolders.adapter = folderAdapter
-
         setupTabClicks()
-        loadMediaDataSafely()
+        checkAndRequestPermissions()
 
         return view
     }
@@ -87,6 +87,25 @@ class VideoFragment : Fragment() {
         super.onResume()
         if (hasStoragePermission()) {
             loadMediaDataSafely()
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        if (hasStoragePermission()) {
+            loadMediaDataSafely()
+        } else {
+            val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_VIDEO,
+                    Manifest.permission.READ_MEDIA_AUDIO
+                )
+            } else {
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            }
+            permissionLauncher.launch(perms)
         }
     }
 
@@ -117,7 +136,10 @@ class VideoFragment : Fragment() {
 
             displayedVideosList.clear()
             displayedVideosList.addAll(allVideosList)
-            videoAdapter.notifyDataSetChanged()
+            if (isAdded && context != null) {
+                videoAdapter = VideoAdapter(requireContext(), displayedVideosList)
+                rvMainVideos.adapter = videoAdapter
+            }
 
             rvMainVideos.visibility = View.VISIBLE
             rvFolders.visibility = View.GONE
@@ -129,6 +151,11 @@ class VideoFragment : Fragment() {
             tvTabVideo.setTextColor(inactiveColor)
             tvTabFolder.setTextColor(activeColor)
             tvTabPlaylist.setTextColor(inactiveColor)
+
+            if (isAdded && context != null) {
+                folderAdapter = FolderAdapter(requireContext(), allFoldersList)
+                rvFolders.adapter = folderAdapter
+            }
 
             rvMainVideos.visibility = View.GONE
             rvFolders.visibility = View.VISIBLE
@@ -160,7 +187,8 @@ class VideoFragment : Fragment() {
         } else {
             displayedVideosList.clear()
             displayedVideosList.addAll(favAndBookmarked)
-            videoAdapter.notifyDataSetChanged()
+            videoAdapter = VideoAdapter(ctx, displayedVideosList)
+            rvMainVideos.adapter = videoAdapter
             llPlaylistsEmpty.visibility = View.GONE
             rvMainVideos.visibility = View.VISIBLE
         }
@@ -183,22 +211,30 @@ class VideoFragment : Fragment() {
                     allVideosList.clear()
                     allVideosList.addAll(fetchedVideos)
 
+                    val prefs = requireContext().getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                    val recentPlayed = fetchedVideos.sortedByDescending {
+                        prefs.getLong("history_time_${it.path}", 0L)
+                    }
                     historyVideosList.clear()
-                    historyVideosList.addAll(fetchedVideos.take(15))
+                    historyVideosList.addAll(recentPlayed.take(15))
 
                     allFoldersList.clear()
                     allFoldersList.addAll(fetchedFolders)
+
+                    historyAdapter = VideoAdapter(requireContext(), historyVideosList)
+                    rvHistory.adapter = historyAdapter
+
+                    folderAdapter = FolderAdapter(requireContext(), allFoldersList)
+                    rvFolders.adapter = folderAdapter
 
                     if (currentTab == 2) {
                         showFavoritesAndBookmarksPlaylist()
                     } else {
                         displayedVideosList.clear()
                         displayedVideosList.addAll(allVideosList)
-                        videoAdapter.notifyDataSetChanged()
+                        videoAdapter = VideoAdapter(requireContext(), displayedVideosList)
+                        rvMainVideos.adapter = videoAdapter
                     }
-
-                    historyAdapter.notifyDataSetChanged()
-                    folderAdapter.notifyDataSetChanged()
 
                     if (allVideosList.isEmpty()) {
                         Toast.makeText(requireContext(), "No videos found on device", Toast.LENGTH_SHORT).show()
@@ -249,24 +285,26 @@ class VideoFragment : Fragment() {
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
-                    val path = cursor.getString(dataCol) ?: continue
-                    val file = File(path)
-                    if (!file.exists() || file.length() <= 0L) continue
+                    val rawPath = cursor.getString(dataCol)
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    ).toString()
 
-                    val title = cursor.getString(nameCol) ?: file.name
-                    val size = cursor.getLong(sizeCol).coerceAtLeast(file.length())
+                    val path = if (!rawPath.isNullOrEmpty()) rawPath else contentUri
+                    val title = cursor.getString(nameCol) ?: "Video_$id"
+                    val size = cursor.getLong(sizeCol).coerceAtLeast(0L)
                     val duration = cursor.getLong(durCol).coerceAtLeast(0L)
 
-                    val parentFile = file.parentFile
-                    val bucketId = cursor.getString(bucketIdCol) ?: (parentFile?.absolutePath ?: "0")
-                    val bucketName = cursor.getString(bucketNameCol) ?: (parentFile?.name ?: "Internal Storage")
+                    val bucketId = cursor.getString(bucketIdCol) ?: "0"
+                    val bucketName = cursor.getString(bucketNameCol) ?: "Internal Storage"
 
                     if (seenPaths.add(path)) {
                         videoOutput.add(VideoModel(id, title, path, size, duration))
                         if (folderMap.containsKey(bucketId)) {
                             folderMap[bucketId]!!.videoCount++
                         } else {
-                            folderMap[bucketId] = FolderModel(bucketId, bucketName, parentFile?.absolutePath ?: path, 1)
+                            folderMap[bucketId] = FolderModel(bucketId, bucketName, path, 1)
                         }
                     }
                 }
