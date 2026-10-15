@@ -3,69 +3,77 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/max_dark_bg">
+    android:background="#0A0A10"
+    android:orientation="vertical">
 
-    <TextView
+    <!-- History Header & Horizontal List -->
+    <LinearLayout
+        android:id="@+id/llHistoryContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="History"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:textStyle="bold"
+        android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingTop="10dp" />
+        android:paddingTop="12dp">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvHistory"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
-        android:clipToPadding="false" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="History"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-    <!-- Interactive Tabs -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvHistory"
+            android:layout_width="match_parent"
+            android:layout_height="110dp"
+            android:layout_marginTop="8dp"
+            android:clipToPadding="false" />
+    </LinearLayout>
+
+    <!-- Tabs: Video | Folder | Playlist -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:orientation="horizontal"
+        android:layout_height="48dp"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingHorizontal="16dp">
-        
+
         <TextView
             android:id="@+id/tvTabVideo"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingEnd="24dp"
             android:text="Video"
-            android:textColor="@color/max_cyan"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingVertical="8dp"
-            android:layout_marginEnd="24dp"/>
-            
+            android:textColor="#00FFFF"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
         <TextView
             android:id="@+id/tvTabFolder"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
             android:text="Folder"
-            android:textColor="@color/max_gray"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingVertical="8dp"
-            android:layout_marginEnd="24dp"/>
-            
+            android:textColor="#888888"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
         <TextView
             android:id="@+id/tvTabPlaylist"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
             android:text="Playlist"
-            android:textColor="@color/max_gray"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingVertical="8dp" />
+            android:textColor="#888888"
+            android:textSize="17sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Swappable Lists Area -->
+    <!-- Content Area -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -75,38 +83,49 @@
             android:id="@+id/rvMainVideos"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingTop="8dp"
-            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
             android:visibility="visible" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvFolders"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingTop="8dp"
-            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
             android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/llPlaylistsEmpty"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
             android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
             android:visibility="gone">
-            
+
             <ImageView
                 android:layout_width="64dp"
                 android:layout_height="64dp"
-                android:src="@android:drawable/ic_menu_add"
-                app:tint="@color/max_gray" />
-                
+                android:src="@android:drawable/btn_star_big_off"
+                app:tint="#00FFFF" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="No Playlists Created Yet"
-                android:textColor="@color/max_gray"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="12dp"
+                android:text="No Favorites or Bookmarks Yet"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="Mark videos as Favorite or Bookmark inside the player to see them here."
+                android:textColor="#888888"
+                android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
+
 </LinearLayout>
