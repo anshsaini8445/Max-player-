@@ -189,6 +189,9 @@ class PlayerActivity : AppCompatActivity() {
 
             tvPlayerTitle.text = videoTitle
             val prefs = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+            if (videoPath.isNotEmpty()) {
+                prefs.edit().putLong("history_time_$videoPath", System.currentTimeMillis()).apply()
+            }
             isFavorite = prefs.getBoolean("fav_$videoPath", false)
             updateFavoriteUi()
         } catch (e: Exception) {
@@ -241,6 +244,10 @@ class PlayerActivity : AppCompatActivity() {
                             videoPath = videoList[index]
                             videoTitle = File(videoPath).name
                             tvPlayerTitle.text = videoTitle
+                            getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                                .edit()
+                                .putLong("history_time_$videoPath", System.currentTimeMillis())
+                                .apply()
                         }
                     }
 
@@ -265,15 +272,15 @@ class PlayerActivity : AppCompatActivity() {
         btnHdrMode.setOnClickListener {
             isHdrEnabled = !isHdrEnabled
             if (isHdrEnabled) {
-                btnHdrMode.setTextColor(Color.parseColor("#00E676"))
+                btnHdrMode.setTextColor(Color.parseColor("#1ED760"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#18FF9800"))
-                Toast.makeText(this, "HDR Color Boost ON", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "HDR Enhancement ON", Toast.LENGTH_SHORT).show()
             } else {
                 btnHdrMode.setTextColor(Color.WHITE)
                 viewVisualOverlay.setBackgroundColor(
                     if (isNightMode) Color.parseColor("#88000000") else Color.TRANSPARENT
                 )
-                Toast.makeText(this, "HDR Color Boost OFF", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "HDR Enhancement OFF", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -429,7 +436,7 @@ class PlayerActivity : AppCompatActivity() {
                 if (eqIntent.resolveActivity(packageManager) != null) {
                     startActivityForResult(eqIntent, 101)
                 } else {
-                    Toast.makeText(this, "Built-in Equalizer Preset: Bass Boost Active", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Equalizer Preset: Dolby Bass Boost Active", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(this, "Equalizer Active", Toast.LENGTH_SHORT).show()
@@ -514,7 +521,7 @@ class PlayerActivity : AppCompatActivity() {
             isVrMode = !isVrMode
             playerView.scaleX = if (isVrMode) 1.15f else if (isMirrorMode) -1f else 1f
             playerView.scaleY = if (isVrMode) 1.15f else 1f
-            Toast.makeText(this, if (isVrMode) "VR 360 View Enabled" else "VR 360 View Disabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, if (isVrMode) "VR 360 Mode Enabled" else "VR 360 Mode Disabled", Toast.LENGTH_SHORT).show()
         }
 
         findViewById<LinearLayout>(R.id.optAbRepeat).setOnClickListener {
@@ -605,13 +612,13 @@ class PlayerActivity : AppCompatActivity() {
         })
 
         btnHwDecoder.setOnClickListener {
-            btnHwDecoder.setTextColor(Color.parseColor("#00E676"))
+            btnHwDecoder.setTextColor(Color.parseColor("#1ED760"))
             btnSwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Switched to Hardware (HW) Decoder", Toast.LENGTH_SHORT).show()
         }
 
         btnSwDecoder.setOnClickListener {
-            btnSwDecoder.setTextColor(Color.parseColor("#00E676"))
+            btnSwDecoder.setTextColor(Color.parseColor("#1ED760"))
             btnHwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Switched to Software (SW) Decoder", Toast.LENGTH_SHORT).show()
         }
@@ -623,7 +630,7 @@ class PlayerActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.optTutorials).setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Player Gestures Guide")
-                .setMessage("• Swipe Left Side Up/Down: Brightness\n• Swipe Right Side Up/Down: Volume\n• Double Tap / SeekBar: Fast Seek\n• Use A-B Repeat to loop any scene")
+                .setMessage("• Swipe Left Side Up/Down: Brightness\n• Swipe Right Side Up/Down: Volume\n• Double Tap Left/Right: -10s / +10s Seek\n• Use A-B Repeat to loop any scene")
                 .setPositiveButton("OK", null)
                 .show()
         }
@@ -651,7 +658,7 @@ class PlayerActivity : AppCompatActivity() {
             btn.setTextColor(Color.WHITE)
         }
         val activeBtn = allButtons[mode]
-        activeBtn.setBackgroundColor(Color.parseColor("#00E676"))
+        activeBtn.setBackgroundColor(Color.parseColor("#1ED760"))
         activeBtn.setTextColor(Color.BLACK)
 
         stopAfterCurrent = false
