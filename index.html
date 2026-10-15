@@ -2,790 +2,696 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Max Player Pro — 8K Ultra HD Cinema Engine & Media Suite</title>
-    <meta name="description" content="Official Max Player APK by Ansh Saini Foundation. Experience hardware-accelerated 8K playback, Video-to-MP3 studio converter, Royal Wi-Fi Direct transfer, and Private Vault.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Max Player Official — 8K Ultra HD Video & Music Player</title>
+    <meta name="description" content="Official Max Player by 2026 Ansh Saini Foundation. Sleek 8K Ultra HD playback, Video to MP3 converter, Floating PiP, Equalizer, Private Vault, and Royal File Transfer.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-obsidian: #070A12;
-            --bg-surface: #0F1523;
-            --bg-card: rgba(19, 27, 46, 0.72);
-            --bg-card-hover: rgba(26, 37, 64, 0.9);
-            --emerald-primary: #10B981;
-            --emerald-glow: rgba(16, 185, 129, 0.35);
-            --cyan-accent: #06B6D4;
-            --indigo-accent: #6366F1;
-            --amber-gold: #F59E0B;
-            --text-white: #F8FAFC;
-            --text-secondary: #94A3B8;
-            --text-muted: #64748B;
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            --border-highlight: rgba(16, 185, 129, 0.45);
-            --radius-lg: 24px;
-            --radius-md: 16px;
-            --radius-sm: 12px;
+            --bg-dark: #0A0A10;
+            --bg-deeper: #06060A;
+            --card-surface: rgba(18, 19, 30, 0.85);
+            --cyan-glow: #00FFFF;
+            --cyan-soft: rgba(0, 255, 255, 0.14);
+            --play-pink: #FF2E63;
+            --play-orange: #FF7A00;
+            --royal-gold: #FFC700;
+            --neon-purple: #9D4EDD;
+            --text-pure: #FFFFFF;
+            --text-slim: #B8BCD0;
+            --text-dim: #767B91;
+            --border-cyan: rgba(0, 255, 255, 0.28);
+            --border-light: rgba(255, 255, 255, 0.08);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
             scroll-behavior: smooth;
         }
 
         body {
-            background-color: var(--bg-obsidian);
-            color: var(--text-white);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.65;
+            background-color: var(--bg-dark);
+            color: var(--text-pure);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 400;
+            line-height: 1.55;
             overflow-x: hidden;
-            position: relative;
+            font-size: 14px;
         }
 
-        h1, h2, h3, h4, .brand-font {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+        h1, h2, h3, h4, .sleek-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.2px;
         }
 
-        /* Ambient Background Mesh */
-        .ambient-mesh {
+        /* Subtle Ambient Shimmer Background */
+        .bg-lights {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -1;
+            inset: 0;
             pointer-events: none;
+            z-index: -1;
             overflow: hidden;
         }
 
-        .glow-sphere {
+        .light-beam {
             position: absolute;
             border-radius: 50%;
-            filter: blur(130px);
-            opacity: 0.35;
-        }
-
-        .sphere-1 {
-            width: 480px;
-            height: 480px;
-            background: var(--emerald-primary);
-            top: -140px;
-            left: -120px;
-        }
-
-        .sphere-2 {
-            width: 420px;
-            height: 420px;
-            background: var(--cyan-accent);
-            top: 30%;
-            right: -140px;
-        }
-
-        .sphere-3 {
-            width: 500px;
-            height: 500px;
-            background: var(--indigo-accent);
-            bottom: -150px;
-            left: 20%;
+            filter: blur(110px);
             opacity: 0.22;
         }
 
-        /* Top Announcement Bar */
-        .top-banner {
-            background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
-            border-bottom: 1px solid var(--border-subtle);
+        .beam-cyan {
+            width: 300px;
+            height: 300px;
+            background: var(--cyan-glow);
+            top: -80px;
+            right: -60px;
+        }
+
+        .beam-pink {
+            width: 280px;
+            height: 280px;
+            background: var(--play-pink);
+            top: 38%;
+            left: -90px;
+        }
+
+        .beam-gold {
+            width: 260px;
+            height: 260px;
+            background: var(--play-orange);
+            bottom: 10%;
+            right: -80px;
+        }
+
+        /* Slim Top Foundation Strip */
+        .foundation-bar {
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.08), rgba(255, 46, 99, 0.12), rgba(0, 255, 255, 0.08));
+            border-bottom: 1px solid rgba(0, 255, 255, 0.18);
             text-align: center;
-            padding: 9px 16px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
+            padding: 7px 12px;
+            font-size: 11.5px;
+            color: var(--text-slim);
+            letter-spacing: 0.4px;
         }
 
-        .top-banner strong {
-            color: var(--emerald-primary);
-            font-weight: 700;
+        .foundation-bar span {
+            color: var(--cyan-glow);
+            font-weight: 600;
         }
 
-        /* Sticky Header Navigation */
+        /* Sleek Compact Navbar */
         header {
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: rgba(7, 10, 18, 0.82);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 16px 6%;
+            background: rgba(10, 10, 16, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: var(--text-white);
-        }
-
-        .brand-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--emerald-primary), var(--cyan-accent));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 20px var(--emerald-glow);
-        }
-
-        .brand-icon svg {
-            width: 24px;
-            height: 24px;
-            fill: #070A12;
-        }
-
-        .brand-name {
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .brand-name span {
-            color: var(--emerald-primary);
-        }
-
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 28px;
-        }
-
-        .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 600;
-            transition: color 0.2s ease;
-        }
-
-        .nav-links a:hover {
-            color: var(--emerald-primary);
-        }
-
-        .header-cta {
-            background: rgba(16, 185, 129, 0.14);
-            color: var(--emerald-primary);
-            border: 1px solid var(--border-highlight);
-            padding: 9px 20px;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: all 0.25s ease;
-        }
-
-        .header-cta:hover {
-            background: var(--emerald-primary);
-            color: #070A12;
-            box-shadow: 0 0 20px var(--emerald-glow);
-        }
-
-        /* Hero Section */
-        .hero {
-            max-width: 1180px;
+            max-width: 1140px;
             margin: 0 auto;
-            padding: 75px 5% 60px;
-            text-align: center;
         }
 
-        .trust-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(15, 21, 35, 0.9);
-            border: 1px solid var(--border-highlight);
-            padding: 7px 18px;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--emerald-primary);
-            margin-bottom: 26px;
-        }
-
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--emerald-primary);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--emerald-primary);
-            animation: pulseDot 1.8s infinite;
-        }
-
-        @keyframes pulseDot {
-            0% { transform: scale(0.95); opacity: 0.7; }
-            50% { transform: scale(1.3); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.7; }
-        }
-
-        .hero h1 {
-            font-size: clamp(36px, 6.5vw, 68px);
-            font-weight: 900;
-            line-height: 1.08;
-            letter-spacing: -1.5px;
-            margin-bottom: 24px;
-        }
-
-        .gradient-text {
-            background: linear-gradient(135deg, #FFFFFF 0%, #34D399 55%, #06B6D4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero-subtext {
-            color: var(--text-secondary);
-            font-size: clamp(16px, 2.2vw, 20px);
-            max-width: 760px;
-            margin: 0 auto 42px;
-            font-weight: 400;
-        }
-
-        /* Primary Download Action Area */
-        .cta-container {
+        .brand-box {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 18px;
-            margin-bottom: 55px;
-        }
-
-        .btn-primary-download {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            background: linear-gradient(135deg, var(--emerald-primary) 0%, #059669 100%);
-            color: #05080F;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 20px;
-            font-weight: 800;
-            padding: 20px 48px;
-            border-radius: 18px;
+            gap: 10px;
             text-decoration: none;
-            box-shadow: 0 12px 35px var(--emerald-glow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-            overflow: hidden;
+            color: var(--text-pure);
         }
 
-        .btn-primary-download:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 18px 45px rgba(16, 185, 129, 0.55);
-            background: linear-gradient(135deg, #34D399 0%, var(--emerald-primary) 100%);
-        }
-
-        .btn-primary-download svg {
-            width: 26px;
-            height: 26px;
-            fill: #05080F;
-        }
-
-        .security-badges {
+        .brand-logo-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--cyan-glow), var(--play-pink));
             display: flex;
-            flex-wrap: wrap;
+            align-items: center;
             justify-content: center;
-            gap: 14px;
+            box-shadow: 0 0 14px rgba(0, 255, 255, 0.45);
         }
 
-        .sec-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            background: rgba(15, 21, 35, 0.75);
-            border: 1px solid var(--border-subtle);
-            padding: 7px 15px;
-            border-radius: 10px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
+        .brand-logo-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: #0A0A10;
         }
 
-        .sec-badge svg {
-            width: 16px;
-            height: 16px;
-            fill: var(--emerald-primary);
-        }
-
-        /* Interactive Player UI Showcase Mockup */
-        .ui-showcase {
-            background: linear-gradient(180deg, rgba(19, 27, 46, 0.9) 0%, rgba(10, 14, 24, 0.95) 100%);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 28px;
-            max-width: 960px;
-            margin: 0 auto 30px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
-            text-align: left;
-        }
-
-        .ui-top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 18px;
-            margin-bottom: 22px;
-            border-bottom: 1px solid var(--border-subtle);
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .ui-window-dots {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .dot {
-            width: 11px;
-            height: 11px;
-            border-radius: 50%;
-        }
-
-        .dot-green { background: #10B981; }
-        .dot-cyan { background: #06B6D4; }
-        .dot-indigo { background: #6366F1; }
-
-        .ui-status-tag {
-            font-size: 12px;
+        .brand-title {
+            font-size: 17px;
             font-weight: 700;
-            color: var(--cyan-accent);
-            background: rgba(6, 182, 212, 0.12);
-            padding: 5px 12px;
-            border-radius: 6px;
             letter-spacing: 0.5px;
         }
 
-        .ui-screen-grid {
-            display: grid;
-            grid-template-columns: 1.4fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .video-viewport {
-            background: radial-gradient(circle at center, #1E293B 0%, #090D16 100%);
-            border-radius: var(--radius-md);
-            padding: 28px;
-            border: 1px solid var(--border-subtle);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 220px;
-        }
-
-        .viewport-badges {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .v-tag {
-            background: rgba(0, 0, 0, 0.55);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: var(--text-white);
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 6px;
-        }
-
-        .v-tag.active {
-            background: var(--emerald-primary);
-            color: #05080F;
-            border-color: var(--emerald-primary);
-        }
-
-        .viewport-center {
-            margin: 24px 0;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .play-circle {
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: var(--emerald-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #070A12;
-            font-weight: 900;
-            font-size: 20px;
-            box-shadow: 0 0 25px var(--emerald-glow);
-            flex-shrink: 0;
-        }
-
-        .track-meta h4 {
-            font-size: 17px;
-            margin-bottom: 4px;
-        }
-
-        .track-meta p {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .progress-bar-mock {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            width: 68%;
-            height: 100%;
-            background: linear-gradient(90deg, var(--emerald-primary), var(--cyan-accent));
-        }
-
-        .quick-tools-panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .tool-mini-card {
-            background: rgba(15, 21, 35, 0.85);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-sm);
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .tool-mini-card span {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-
-        .tool-mini-card strong {
-            font-size: 14px;
-            color: var(--text-white);
-        }
-
-        /* 4-Tab Navigation Preview Bar */
-        .bottom-nav-preview {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            background: rgba(7, 10, 18, 0.9);
-            padding: 12px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-subtle);
-        }
-
-        .nav-tab-mock {
-            text-align: center;
-            padding: 10px 8px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-secondary);
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .nav-tab-mock.active {
-            background: rgba(16, 185, 129, 0.16);
-            color: var(--emerald-primary);
-            border: 1px solid var(--border-highlight);
-        }
-
-        /* Stats Strip */
-        .stats-strip {
-            max-width: 1100px;
-            margin: 40px auto 90px;
-            padding: 0 5%;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .stat-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 24px 20px;
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 30px;
-            font-weight: 900;
-            color: var(--emerald-primary);
-            margin-bottom: 4px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
+        .brand-title em {
+            font-style: normal;
+            color: var(--cyan-glow);
             font-weight: 500;
         }
 
-        /* Section Headings */
-        .section-header {
+        .nav-mini-btn {
+            background: linear-gradient(90deg, var(--cyan-glow), #00B8FF);
+            color: #06060A;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 7px 16px;
+            border-radius: 30px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
+            transition: transform 0.2s ease;
+        }
+
+        .nav-mini-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* Sleek Mobile-First Hero Section */
+        .hero-wrap {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 36px 16px 28px;
             text-align: center;
-            max-width: 760px;
-            margin: 0 auto 55px;
-            padding: 0 5%;
         }
 
-        .section-eyebrow {
-            color: var(--emerald-primary);
-            font-size: 13px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 10px;
-            display: block;
+        .shimmer-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid var(--border-cyan);
+            color: var(--cyan-glow);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 5px 14px;
+            border-radius: 40px;
+            margin-bottom: 16px;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
         }
 
-        .section-header h2 {
-            font-size: clamp(28px, 4.5vw, 44px);
-            font-weight: 800;
-            letter-spacing: -0.8px;
-            margin-bottom: 14px;
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--cyan-glow);
+            box-shadow: 0 0 8px var(--cyan-glow);
+            animation: blink 1.5s infinite;
         }
 
-        .section-header p {
-            color: var(--text-secondary);
-            font-size: 16px;
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
         }
 
-        /* Complete 12-Feature Master Grid */
-        .features-master-grid {
-            max-width: 1220px;
-            margin: 0 auto 100px;
-            padding: 0 5%;
+        .hero-wrap h1 {
+            font-size: clamp(26px, 6.2vw, 42px);
+            font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            color: var(--text-pure);
+        }
+
+        .hero-wrap h1 .glow-word {
+            background: linear-gradient(90deg, var(--cyan-glow), #FF4D8D, var(--royal-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .hero-desc {
+            color: var(--text-slim);
+            font-size: 13.5px;
+            font-weight: 300;
+            max-width: 520px;
+            margin: 0 auto 24px;
+            line-height: 1.6;
+        }
+
+        /* Glowing Download Button Area */
+        .download-zone {
+            margin-bottom: 26px;
+        }
+
+        .btn-glow-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 330px;
+            padding: 14px 26px;
+            border-radius: 50px;
+            background: linear-gradient(90deg, #00FFFF 0%, #00B4D8 50%, #00FFFF 100%);
+            background-size: 200% auto;
+            color: #05050A;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15.5px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 0 24px rgba(0, 255, 255, 0.5), 0 4px 15px rgba(0, 0, 0, 0.6);
+            animation: shineFlow 3s linear infinite;
+            transition: transform 0.2s ease;
+        }
+
+        @keyframes shineFlow {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .btn-glow-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 32px rgba(0, 255, 255, 0.75);
+        }
+
+        .btn-glow-download svg {
+            width: 20px;
+            height: 20px;
+            fill: #05050A;
+            flex-shrink: 0;
+        }
+
+        .quick-tags {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .q-tag {
+            font-size: 11px;
+            color: var(--text-slim);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-light);
+            padding: 4px 11px;
+            border-radius: 20px;
+        }
+
+        .q-tag strong {
+            color: var(--cyan-glow);
+            font-weight: 500;
+        }
+
+        /* Compact Rating & Trust Strip */
+        .trust-strip {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 540px;
+            margin: 0 auto 32px;
+            padding: 0 16px;
         }
 
-        .f-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 30px 26px;
-            transition: all 0.3s ease;
+        .trust-item {
+            background: var(--card-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            padding: 10px 6px;
+            text-align: center;
+        }
+
+        .trust-val {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--cyan-glow);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .trust-lbl {
+            font-size: 10.5px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* Sleek Interactive 4-Tab App Preview Card */
+        .app-preview-shell {
+            max-width: 560px;
+            margin: 0 auto 42px;
+            padding: 0 16px;
+        }
+
+        .phone-frame {
+            background: linear-gradient(180deg, #121422 0%, #0A0A12 100%);
+            border: 1px solid var(--border-cyan);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.75), 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        .frame-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 11px;
+        }
+
+        .frame-status {
+            color: var(--cyan-glow);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .screen-banner {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.12), rgba(255, 46, 99, 0.14));
+            border: 1px solid rgba(0, 255, 255, 0.22);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .screen-banner-left h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .screen-banner-left p {
+            font-size: 11.5px;
+            color: var(--text-slim);
+        }
+
+        .play-orb {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--cyan-glow);
+            color: #06060A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 0 15px var(--cyan-glow);
+            flex-shrink: 0;
+        }
+
+        .four-tabs-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .tab-chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-slim);
+            font-weight: 500;
+        }
+
+        .tab-chip.active {
+            border-color: var(--cyan-glow);
+            color: var(--cyan-glow);
+            background: var(--cyan-soft);
+        }
+
+        /* Section Header Styling */
+        .sec-head {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 28px;
+            padding: 0 16px;
+        }
+
+        .sec-tag {
+            display: inline-block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            color: var(--cyan-glow);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .sec-head h2 {
+            font-size: clamp(21px, 5vw, 30px);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .sec-head p {
+            font-size: 13px;
+            color: var(--text-slim);
+            font-weight: 300;
+        }
+
+        /* Individual Separated Feature Cards List (Every Feature Distinct & Glowing) */
+        .features-container {
+            max-width: 980px;
+            margin: 0 auto 55px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+            gap: 22px; /* Generous separation so cards never crowd each other */
+        }
+
+        .feat-card {
+            background: var(--card-surface);
+            border: 1px solid var(--border-cyan);
+            border-radius: 16px;
+            padding: 18px 18px 16px;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 0 18px rgba(0, 255, 255, 0.03);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        .f-card:hover {
-            background: var(--bg-card-hover);
-            border-color: var(--border-highlight);
-            transform: translateY(-6px);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        .feat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7), 0 0 18px rgba(0, 255, 255, 0.22);
         }
 
-        .f-icon-box {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.3);
+        /* Distinct Accent Top Glow Bars for Visual Variety */
+        .feat-card[data-accent="cyan"] { border-top: 2px solid var(--cyan-glow); }
+        .feat-card[data-accent="pink"] { border-top: 2px solid var(--play-pink); }
+        .feat-card[data-accent="gold"] { border-top: 2px solid var(--royal-gold); }
+        .feat-card[data-accent="purple"] { border-top: 2px solid var(--neon-purple); }
+
+        .feat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .feat-icon-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: var(--emerald-primary);
-            font-weight: 800;
+            font-size: 17px;
+            flex-shrink: 0;
         }
 
-        .f-card h3 {
-            font-size: 20px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            color: var(--text-white);
+        .feat-num {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--cyan-glow);
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.22);
+            padding: 3px 9px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
         }
 
-        .f-card p {
-            color: var(--text-secondary);
-            font-size: 14.5px;
-            margin-bottom: 18px;
+        .feat-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-pure);
+            margin-bottom: 6px;
         }
 
-        .f-Card-footer {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--cyan-accent);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            border-top: 1px solid var(--border-subtle);
-            padding-top: 14px;
+        .feat-card p {
+            font-size: 12.8px;
+            color: var(--text-slim);
+            font-weight: 300;
+            line-height: 1.55;
+            margin-bottom: 12px;
         }
 
-        /* Supported Formats & Codec Marquee Wall */
-        .codec-section {
-            background: var(--bg-surface);
-            border-top: 1px solid var(--border-subtle);
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 75px 5%;
-            margin-bottom: 100px;
+        .feat-badge-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 11px;
+            color: var(--cyan-glow);
+            font-weight: 500;
         }
 
-        .codec-grid {
-            max-width: 1100px;
-            margin: 0 auto;
+        .feat-badge-bottom span:last-child {
+            color: var(--royal-gold);
+        }
+
+        /* Supported Formats Ribbon */
+        .formats-box {
+            max-width: 960px;
+            margin: 0 auto 55px;
+            padding: 0 16px;
+        }
+
+        .formats-inner {
+            background: var(--card-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 18px;
+            padding: 24px 16px;
+            text-align: center;
+        }
+
+        .chips-wrap {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 12px;
+            gap: 8px;
+            margin-top: 16px;
         }
 
-        .codec-pill {
-            background: rgba(7, 10, 18, 0.85);
-            border: 1px solid var(--border-subtle);
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text-white);
-            transition: all 0.2s ease;
+        .codec-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 255, 255, 0.22);
+            color: var(--text-pure);
+            font-size: 11.5px;
+            font-weight: 500;
+            padding: 6px 13px;
+            border-radius: 30px;
         }
 
-        .codec-pill:hover {
-            border-color: var(--emerald-primary);
-            color: var(--emerald-primary);
-            transform: scale(1.05);
+        /* Sleek Comparison Card */
+        .compare-section {
+            max-width: 780px;
+            margin: 0 auto 55px;
+            padding: 0 16px;
         }
 
-        /* Comparison Table Section */
-        .comparison-wrap {
-            max-width: 1000px;
-            margin: 0 auto 100px;
-            padding: 0 5%;
+        .compare-card {
+            background: var(--card-surface);
+            border: 1px solid var(--border-cyan);
+            border-radius: 18px;
+            overflow: hidden;
         }
 
-        .table-container {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th, td {
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border-subtle);
-            font-size: 15px;
-        }
-
-        th {
-            background: rgba(15, 21, 35, 0.95);
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 800;
-            color: var(--text-white);
-        }
-
-        th.highlight-col {
-            color: var(--emerald-primary);
-        }
-
-        td.highlight-col {
-            font-weight: 700;
-            color: var(--emerald-primary);
-            background: rgba(16, 185, 129, 0.05);
-        }
-
-        td.muted-col {
-            color: var(--text-muted);
-        }
-
-        /* 3-Step Installation Section */
-        .install-steps-grid {
-            max-width: 1100px;
-            margin: 0 auto 100px;
-            padding: 0 5%;
+        .c-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-        }
-
-        .step-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 32px 26px;
-            position: relative;
-        }
-
-        .step-num {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: var(--emerald-primary);
-            color: #05080F;
-            font-weight: 900;
-            font-size: 18px;
-            display: flex;
+            grid-template-columns: 1.3fr 1fr 0.9fr;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 12.5px;
             align-items: center;
-            justify-content: center;
-            margin-bottom: 18px;
         }
 
-        .step-card h3 {
-            font-size: 19px;
+        .c-row.c-head {
+            background: rgba(0, 255, 255, 0.08);
+            font-weight: 600;
+            color: var(--cyan-glow);
+            font-size: 12px;
+        }
+
+        .c-win {
+            color: var(--cyan-glow);
+            font-weight: 600;
+        }
+
+        .c-lose {
+            color: var(--text-dim);
+        }
+
+        /* Quick 3-Step Installation */
+        .steps-wrap {
+            max-width: 900px;
+            margin: 0 auto 55px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .step-box {
+            background: var(--card-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .step-pill {
+            display: inline-block;
+            background: var(--cyan-soft);
+            color: var(--cyan-glow);
+            border: 1px solid var(--border-cyan);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
             margin-bottom: 10px;
         }
 
-        .step-card p {
-            color: var(--text-secondary);
-            font-size: 14.5px;
+        .step-box h4 {
+            font-size: 15px;
+            margin-bottom: 5px;
         }
 
-        /* FAQ Accordion Section */
-        .faq-wrap {
-            max-width: 860px;
-            margin: 0 auto 100px;
-            padding: 0 5%;
+        .step-box p {
+            font-size: 12.5px;
+            color: var(--text-slim);
+            font-weight: 300;
+        }
+
+        /* Sleek FAQ Section */
+        .faq-section {
+            max-width: 720px;
+            margin: 0 auto 60px;
+            padding: 0 16px;
         }
 
         details {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-sm);
-            margin-bottom: 14px;
-            padding: 20px 24px;
-            transition: all 0.25s ease;
+            background: var(--card-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            margin-bottom: 12px;
+            padding: 14px 16px;
         }
 
         details[open] {
-            border-color: var(--border-highlight);
-            background: var(--bg-card-hover);
+            border-color: var(--border-cyan);
         }
 
         summary {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 17px;
-            font-weight: 700;
+            font-size: 13.5px;
+            font-weight: 600;
             cursor: pointer;
             list-style: none;
             display: flex;
@@ -799,9 +705,8 @@
 
         summary::after {
             content: "+";
-            font-size: 22px;
-            color: var(--emerald-primary);
-            font-weight: 800;
+            color: var(--cyan-glow);
+            font-size: 18px;
         }
 
         details[open] summary::after {
@@ -809,562 +714,644 @@
         }
 
         details p {
-            margin-top: 14px;
-            color: var(--text-secondary);
-            font-size: 14.5px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-subtle);
+            font-size: 12.5px;
+            color: var(--text-slim);
+            font-weight: 300;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-light);
         }
 
-        /* Bottom Final CTA Banner */
-        .bottom-cta-banner {
-            max-width: 1100px;
-            margin: 0 auto 90px;
-            padding: 0 5%;
-        }
-
-        .banner-inner {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.15) 100%);
-            border: 1px solid var(--border-highlight);
-            border-radius: var(--radius-lg);
-            padding: 55px 30px;
+        /* Official Footer with 2026 Ansh Saini Foundation */
+        footer {
+            background: var(--bg-deeper);
+            border-top: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 36px 16px 90px;
             text-align: center;
         }
 
-        .banner-inner h2 {
-            font-size: clamp(26px, 4vw, 40px);
-            font-weight: 900;
-            margin-bottom: 14px;
-        }
-
-        .banner-inner p {
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto 30px;
-        }
-
-        /* Footer */
-        footer {
-            background: #04060B;
-            border-top: 1px solid var(--border-subtle);
-            padding: 60px 6% 40px;
-        }
-
-        .footer-top {
-            max-width: 1200px;
-            margin: 0 auto 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 30px;
-        }
-
-        .footer-brand p {
-            color: var(--text-secondary);
-            font-size: 14px;
-            max-width: 340px;
-            margin-top: 12px;
-        }
-
-        .footer-bottom {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-top: 28px;
-            border-top: 1px solid var(--border-subtle);
-            display: flex;
-            justify-content: space-between;
+        .footer-logo {
+            display: inline-flex;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            color: var(--text-secondary);
-            font-size: 14px;
+            gap: 8px;
+            margin-bottom: 10px;
         }
 
-        .foundation-credit {
-            color: var(--text-white);
+        .footer-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            max-width: 420px;
+            margin: 0 auto 18px;
+        }
+
+        .copyright-box {
+            display: inline-block;
+            background: rgba(0, 255, 255, 0.06);
+            border: 1px solid var(--border-cyan);
+            border-radius: 30px;
+            padding: 8px 20px;
+            font-size: 12.5px;
+            color: var(--text-pure);
+            font-weight: 500;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.12);
+        }
+
+        .copyright-box strong {
+            color: var(--cyan-glow);
             font-weight: 700;
         }
 
-        .foundation-credit span {
-            color: var(--emerald-primary);
-        }
-
-        /* Download Notification Toast */
-        #download-toast {
-            visibility: hidden;
-            min-width: 300px;
-            background: #0F1523;
-            color: var(--text-white);
-            border: 1px solid var(--emerald-primary);
-            border-radius: 14px;
-            padding: 16px 22px;
+        /* Floating Sticky Mobile Bottom Download Bar */
+        .sticky-bottom-bar {
             position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2000;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(14, 15, 24, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-cyan);
+            border-radius: 50px;
+            padding: 8px 10px 8px 16px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 14px;
+            justify-content: space-between;
+            z-index: 1500;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        .sticky-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sticky-info strong {
+            font-size: 12.5px;
+            color: var(--text-pure);
+        }
+
+        .sticky-info span {
+            font-size: 10.5px;
+            color: var(--cyan-glow);
+        }
+
+        .sticky-dl-btn {
+            background: linear-gradient(90deg, var(--cyan-glow), #00C2FF);
+            color: #05050A;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 9px 18px;
+            border-radius: 40px;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+        }
+
+        /* Download Toast Alert */
+        #dl-toast {
+            visibility: hidden;
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10121E;
+            border: 1px solid var(--cyan-glow);
+            color: var(--cyan-glow);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 12px;
             font-weight: 600;
+            z-index: 2000;
+            box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3);
+            white-space: nowrap;
         }
 
-        #download-toast.show {
+        #dl-toast.show {
             visibility: visible;
-            animation: slideUp 0.35s ease forwards;
-        }
-
-        @keyframes slideUp {
-            from { bottom: 0; opacity: 0; }
-            to { bottom: 30px; opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-            .nav-links { display: none; }
-            .ui-screen-grid { grid-template-columns: 1fr; }
-            .bottom-nav-preview { grid-template-columns: repeat(2, 1fr); }
-            .btn-primary-download { width: 100%; padding: 18px 24px; font-size: 18px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="ambient-mesh">
-        <div class="glow-sphere sphere-1"></div>
-        <div class="glow-sphere sphere-2"></div>
-        <div class="glow-sphere sphere-3"></div>
+    <div class="bg-lights">
+        <div class="light-beam beam-cyan"></div>
+        <div class="light-beam beam-pink"></div>
+        <div class="light-beam beam-gold"></div>
     </div>
 
-    <div class="top-banner">
-        🚀 <strong>Official Release:</strong> Engineered by Ansh Saini Foundation • Zero Ads • Zero Bloatware Games
+    <div class="foundation-bar">
+        ✨ Official Flagship Release by <span>2026 Ansh Saini Foundation</span>
     </div>
 
     <header>
-        <a href="#" class="brand-logo">
-            <div class="brand-icon">
+        <a href="#" class="brand-box">
+            <div class="brand-logo-icon">
                 <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
-            <div class="brand-name brand-font">MAX<span>PLAYER</span></div>
+            <div class="brand-title sleek-title">MAX<em>PLAYER</em></div>
         </a>
-        <nav class="nav-links">
-            <a href="#features">All Features</a>
-            <a href="#codecs">8K Codecs</a>
-            <a href="#compare">Comparison</a>
-            <a href="#faq">FAQ</a>
-        </nav>
-        <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="header-cta" onclick="showDownloadToast()">Download APK</a>
+        <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="nav-mini-btn" onclick="triggerToast()">Download APK</a>
     </header>
 
-    <section class="hero">
-        <div class="trust-pill">
-            <span class="pulse-dot"></span>
-            Next-Gen Cinema & Audio Architecture
+    <section class="hero-wrap">
+        <div class="shimmer-pill">
+            <span class="live-dot"></span>
+            All-In-One 8K Cinema & Audio Suite
         </div>
-        <h1>Experience True <span class="gradient-text">8K Ultra HD</span><br>Media Playback on Android</h1>
-        <p class="hero-subtext">
-            A flagship, ultra-responsive media player crafted for pure performance. Enjoy hardware-accelerated 8K 60FPS decoding, instant Video-to-MP3 conversion, offline Royal File Transfer, and background audio playback with zero interruptions.
+
+        <h1>Ultra-Sleek <span class="glow-word">8K HD Player</span> & Fast Media Hub</h1>
+
+        <p class="hero-desc">
+            Experience razor-sharp 8K & 4K 60FPS playback, instant Video-to-MP3 conversion, Floating PiP multitask window, and high-speed Royal File Transfer with zero ads.
         </p>
 
-        <div class="cta-container">
-            <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="btn-primary-download" onclick="showDownloadToast()">
+        <div class="download-zone">
+            <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="btn-glow-download" onclick="triggerToast()">
                 <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Download Max Player Official APK
             </a>
-            <div class="security-badges">
-                <div class="sec-badge">
-                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                    Play Protect Verified Safe
-                </div>
-                <div class="sec-badge">
-                    <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
-                    Android 5.0 to Android 16+ Ready
-                </div>
-                <div class="sec-badge">
-                    <svg viewBox="0 0 24 24"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
-                    Ultra-Featherweight Engine
-                </div>
-            </div>
-        </div>
 
-        <div class="ui-showcase">
-            <div class="ui-top-bar">
-                <div class="ui-window-dots">
-                    <span class="dot dot-green"></span>
-                    <span class="dot dot-cyan"></span>
-                    <span class="dot dot-indigo"></span>
-                    <span style="margin-left: 8px; font-size: 13px; color: var(--text-secondary); font-weight: 600;">MaxPlayer Studio Interface</span>
-                </div>
-                <div class="ui-status-tag">HW+ DECODER ACTIVE • 60 FPS</div>
-            </div>
-
-            <div class="ui-screen-grid">
-                <div class="video-viewport">
-                    <div class="viewport-badges">
-                        <span class="v-tag active">8K UHD</span>
-                        <span class="v-tag">HDR10+</span>
-                        <span class="v-tag">DOLBY AUDIO</span>
-                        <span class="v-tag">SPEED 1.0X</span>
-                    </div>
-                    <div class="viewport-center">
-                        <div class="play-circle">▶</div>
-                        <div class="track-meta">
-                            <h4>Cinema_Masterpiece_8K_HDR.mkv</h4>
-                            <p>Hardware Accelerated • Multi-Track Subtitle Ready</p>
-                        </div>
-                    </div>
-                    <div class="progress-bar-mock">
-                        <div class="progress-fill"></div>
-                    </div>
-                </div>
-
-                <div class="quick-tools-panel">
-                    <div class="tool-mini-card">
-                        <span>Audio Extractor</span>
-                        <strong>Video to MP3</strong>
-                    </div>
-                    <div class="tool-mini-card">
-                        <span>Offline P2P Share</span>
-                        <strong>Royal Transfer</strong>
-                    </div>
-                    <div class="tool-mini-card">
-                        <span>Multitasking</span>
-                        <strong>PiP & BG Play</strong>
-                    </div>
-                    <div class="tool-mini-card">
-                        <span>Security</span>
-                        <strong>Private Vault</strong>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bottom-nav-preview">
-                <div class="nav-tab-mock active">🎬 Video Library</div>
-                <div class="nav-tab-mock">🎵 Hi-Res Audio</div>
-                <div class="nav-tab-mock">🔍 Instant Search</div>
-                <div class="nav-tab-mock">⚡ Me & Suite</div>
+            <div class="quick-tags">
+                <span class="q-tag">⚡ <strong>Ultra-Lite</strong> Featherweight</span>
+                <span class="q-tag">📱 <strong>Android 5.0 – 16+</strong></span>
+                <span class="q-tag">🛡️ <strong>100% Ad-Free</strong></span>
             </div>
         </div>
     </section>
 
-    <section class="stats-strip">
-        <div class="stat-box">
-            <div class="stat-number">8K 60FPS</div>
-            <div class="stat-label">Ultra HD Hardware Decoding</div>
+    <div class="trust-strip">
+        <div class="trust-item">
+            <div class="trust-val">4.9 ★</div>
+            <div class="trust-lbl">User Rating</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">0% Ads</div>
-            <div class="stat-label">Pure Uninterrupted Experience</div>
+        <div class="trust-item">
+            <div class="trust-val">8K UHD</div>
+            <div class="trust-lbl">HW+ Decoder</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">200 Mbps</div>
-            <div class="stat-label">Royal Wi-Fi Direct Transfer</div>
+        <div class="trust-item">
+            <div class="trust-val">0% Ads</div>
+            <div class="trust-lbl">No Bloat Games</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">API 21–36</div>
-            <div class="stat-label">Android 5.0 to 16+ Support</div>
-        </div>
-    </section>
+    </div>
 
-    <section id="features">
-        <div class="section-header">
-            <span class="section-eyebrow">Complete Feature Ecosystem</span>
-            <h2>Every Pro Feature Built Right In</h2>
-            <p>Designed to outperform cluttered media players with a clean 4-tab layout and studio-grade media tools.</p>
-        </div>
-
-        <div class="features-master-grid">
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">8K</div>
-                    <h3>8K & 4K Hardware Acceleration</h3>
-                    <p>Utilizes advanced MediaCodec HW+ rendering to play high-bitrate 4K and 8K videos smoothly without frame drops or battery drain.</p>
-                </div>
-                <div class="f-Card-footer">Zero Lag Engine</div>
+    <section class="app-preview-shell">
+        <div class="phone-frame">
+            <div class="frame-header">
+                <span style="color: var(--text-slim);">Max Player Pro Interface</span>
+                <span class="frame-status">● 60FPS HW+ ACTIVE</span>
             </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🎵</div>
-                    <h3>Instant Video to MP3 Converter</h3>
-                    <p>Extract crystal-clear audio tracks from any video file in seconds using our built-in offline muxer engine. Save directly to your music library.</p>
+            <div class="screen-banner">
+                <div class="screen-banner-left">
+                    <h4>8K Cinema HDR & Dolby Audio</h4>
+                    <p>Auto-Hardware Acceleration • Subtitle Sync</p>
                 </div>
-                <div class="f-Card-footer">Offline Studio Extractor</div>
+                <div class="play-orb">▶</div>
             </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🚀</div>
-                    <h3>Royal File Transfer (Wi-Fi Direct)</h3>
-                    <p>Send and receive full movies, lossless songs, and large folders across nearby devices at blazing speeds with zero mobile data usage.</p>
-                </div>
-                <div class="f-Card-footer">Zero Data P2P Sharing</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🎧</div>
-                    <h3>Background Audio & PiP Mode</h3>
-                    <p>Listen to video lectures or music videos with your screen turned off, or pop out a floating Picture-in-Picture window while multitasking.</p>
-                </div>
-                <div class="f-Card-footer">True Multitasking</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🎛️</div>
-                    <h3>10-Band Equalizer & Bass Boost</h3>
-                    <p>Customize your soundstage with studio presets, deep bass boost, 3D reverb effects, and a 200% volume booster for quiet recordings.</p>
-                </div>
-                <div class="f-Card-footer">Audiophile Grade</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">👆</div>
-                    <h3>Precision Gesture Controls</h3>
-                    <p>Swipe vertically on the left for screen brightness, right for volume, horizontally to seek, and pinch-to-zoom effortlessly.</p>
-                </div>
-                <div class="f-Card-footer">Intuitive Touch UI</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🔒</div>
-                    <h3>Private Media Folder Vault</h3>
-                    <p>Hide sensitive videos and personal recordings inside a PIN-protected encrypted vault that remains invisible to external gallery apps.</p>
-                </div>
-                <div class="f-Card-footer">PIN & Biometric Ready</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">💬</div>
-                    <h3>Multi-Audio & Subtitle Sync</h3>
-                    <p>Switch seamlessly between dual audio tracks and load external SRT, ASS, or SSA subtitles with custom font size and timing offset controls.</p>
-                </div>
-                <div class="f-Card-footer">Cinema Subtitle Engine</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">⚡</div>
-                    <h3>Universal Instant Search</h3>
-                    <p>Locate any movie, song, artist, or folder across thousands of local files in milliseconds using our unified real-time search tab.</p>
-                </div>
-                <div class="f-Card-footer">Real-Time Indexing</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">⏩</div>
-                    <h3>Variable Speed & Screen Lock</h3>
-                    <p>Fine-tune playback speed from 0.25x up to 4.0x for fast learning, and engage the child-proof screen lock to prevent accidental touches.</p>
-                </div>
-                <div class="f-Card-footer">0.25x to 4.0x Control</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">🌙</div>
-                    <h3>Smart Resume & Sleep Timer</h3>
-                    <p>Automatically remembers the exact timestamp where you left off for every video, plus an intelligent sleep timer to pause playback at night.</p>
-                </div>
-                <div class="f-Card-footer">State Persistence</div>
-            </div>
-
-            <div class="f-card">
-                <div>
-                    <div class="f-icon-box">📱</div>
-                    <h3>Android 5.0 to 16+ Architecture</h3>
-                    <p>Carefully engineered with backward-compatible APIs and scoped storage support so it runs crash-free on every smartphone generation.</p>
-                </div>
-                <div class="f-Card-footer">Universal Stability</div>
+            <div class="four-tabs-bar">
+                <div class="tab-chip active">🎬 Video</div>
+                <div class="tab-chip">🎵 Audio</div>
+                <div class="tab-chip">🔍 Search</div>
+                <div class="tab-chip">⚡ Me Tools</div>
             </div>
         </div>
     </section>
 
-    <section id="codecs" class="codec-section">
-        <div class="section-header" style="margin-bottom: 35px;">
-            <span class="section-eyebrow">Universal Format Support</span>
-            <h2>Plays Every Video & Audio Format</h2>
-            <p>No extra codec packs required. Max Player natively decodes all modern containers and lossless audio streams.</p>
+    <div class="sec-head">
+        <span class="sec-tag">Every Feature Separated & Glowing</span>
+        <h2>16 Flagship Features Built In</h2>
+        <p>Each module is independently engineered for maximum speed and crystal-clear playback.</p>
+    </div>
+
+    <!-- 16 Individually Separated Feature Cards -->
+    <section class="features-container">
+
+        <!-- Feature 01 -->
+        <div class="feat-card" data-accent="cyan">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🎬</div>
+                        <h3>8K & 4K Ultra HD Playback</h3>
+                    </div>
+                    <span class="feat-num">#01</span>
+                </div>
+                <p>Plays extreme-bitrate 8K and 4K 60FPS videos smoothly without frame drops or phone heating.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Cinema Engine</span>
+                <span>★ Ultra Clear</span>
+            </div>
         </div>
-        <div class="codec-grid">
-            <span class="codec-pill">MKV (Matroska)</span>
-            <span class="codec-pill">MP4 / M4V</span>
-            <span class="codec-pill">H.265 / HEVC</span>
-            <span class="codec-pill">H.264 / AVC</span>
-            <span class="codec-pill">AV1 8K Codec</span>
-            <span class="codec-pill">VP9 Ultra HD</span>
-            <span class="codec-pill">AVI / MOV</span>
-            <span class="codec-pill">FLV / WEBM</span>
-            <span class="codec-pill">TS / M2TS</span>
-            <span class="codec-pill">MP3 / AAC</span>
-            <span class="codec-pill">FLAC Lossless</span>
-            <span class="codec-pill">WAV / OGG</span>
-            <span class="codec-pill">OPUS / ALAC</span>
-            <span class="codec-pill">SRT / ASS / SSA</span>
+
+        <!-- Feature 02 -->
+        <div class="feat-card" data-accent="pink">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">⚡</div>
+                        <h3>HW+ Hardware Acceleration</h3>
+                    </div>
+                    <span class="feat-num">#02</span>
+                </div>
+                <p>Dedicated multi-core MediaCodec hardware decoder that saves up to 40% battery during long movies.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>HW / HW+ Core</span>
+                <span>★ Zero Lag</span>
+            </div>
+        </div>
+
+        <!-- Feature 03 -->
+        <div class="feat-card" data-accent="gold">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🎵</div>
+                        <h3>One-Tap Video to MP3</h3>
+                    </div>
+                    <span class="feat-num">#03</span>
+                </div>
+                <p>Extract high-bitrate MP3/AAC audio songs from any video clip offline in seconds with one tap.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Audio Muxer</span>
+                <span>★ Instant Save</span>
+            </div>
+        </div>
+
+        <!-- Feature 04 -->
+        <div class="feat-card" data-accent="purple">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🚀</div>
+                        <h3>Royal File Transfer (P2P)</h3>
+                    </div>
+                    <span class="feat-num">#04</span>
+                </div>
+                <p>Share heavy movies and music albums across nearby phones at 200Mbps Wi-Fi Direct speed without internet.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Zero Mobile Data</span>
+                <span>★ Super Fast</span>
+            </div>
+        </div>
+
+        <!-- Feature 05 -->
+        <div class="feat-card" data-accent="cyan">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🖼️</div>
+                        <h3>Floating PiP Popup Window</h3>
+                    </div>
+                    <span class="feat-num">#05</span>
+                </div>
+                <p>Watch videos in a resizable floating Picture-in-Picture window while chatting on WhatsApp or browsing.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Multitask Mode</span>
+                <span>★ Floating Play</span>
+            </div>
+        </div>
+
+        <!-- Feature 06 -->
+        <div class="feat-card" data-accent="pink">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🎧</div>
+                        <h3>Background Audio Play</h3>
+                    </div>
+                    <span class="feat-num">#06</span>
+                </div>
+                <p>Turn off your screen or switch apps while keeping video songs and lectures playing in the background.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Screen-Off Play</span>
+                <span>★ Battery Saver</span>
+            </div>
+        </div>
+
+        <!-- Feature 07 -->
+        <div class="feat-card" data-accent="gold">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🎛️</div>
+                        <h3>10-Band Pro Equalizer</h3>
+                    </div>
+                    <span class="feat-num">#07</span>
+                </div>
+                <p>Studio-grade sound customization with deep Bass Boost, 3D Surround Reverb, and 200% Volume Booster.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>200% Sound Boost</span>
+                <span>★ Dolby Feel</span>
+            </div>
+        </div>
+
+        <!-- Feature 08 -->
+        <div class="feat-card" data-accent="purple">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">👆</div>
+                        <h3>Smart Swipe Gestures</h3>
+                    </div>
+                    <span class="feat-num">#08</span>
+                </div>
+                <p>Slide left side for brightness, right side for volume, double-tap to skip 10s, and pinch to zoom smoothly.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>One-Hand Control</span>
+                <span>★ Smooth Touch</span>
+            </div>
+        </div>
+
+        <!-- Feature 09 -->
+        <div class="feat-card" data-accent="cyan">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🔐</div>
+                        <h3>Private Safe Folder Vault</h3>
+                    </div>
+                    <span class="feat-num">#09</span>
+                </div>
+                <p>Hide personal videos inside a PIN-locked secret vault that stays completely invisible to other apps.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>PIN Protection</span>
+                <span>★ 100% Private</span>
+            </div>
+        </div>
+
+        <!-- Feature 10 -->
+        <div class="feat-card" data-accent="pink">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">💬</div>
+                        <h3>Dual Audio & Subtitle Sync</h3>
+                    </div>
+                    <span class="feat-num">#10</span>
+                </div>
+                <p>Switch between Hindi/English multi-audio tracks and load SRT/ASS subtitles with custom styling.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Multi-Language</span>
+                <span>★ Auto Sync</span>
+            </div>
+        </div>
+
+        <!-- Feature 11 -->
+        <div class="feat-card" data-accent="gold">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">⏩</div>
+                        <h3>0.25x to 4.0x Speed Control</h3>
+                    </div>
+                    <span class="feat-num">#11</span>
+                </div>
+                <p>Watch slow-motion sports highlights at 0.25x or speed through study lectures at up to 4.0x speed.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Precision Speed</span>
+                <span>★ Pitch Corrected</span>
+            </div>
+        </div>
+
+        <!-- Feature 12 -->
+        <div class="feat-card" data-accent="purple">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🔒</div>
+                        <h3>Child-Proof Screen Lock</h3>
+                    </div>
+                    <span class="feat-num">#12</span>
+                </div>
+                <p>Lock all player controls with one tap so accidental screen touches never interrupt your movie.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Touch Blocker</span>
+                <span>★ Kid Safe</span>
+            </div>
+        </div>
+
+        <!-- Feature 13 -->
+        <div class="feat-card" data-accent="cyan">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🔍</div>
+                        <h3>Universal Instant Search</h3>
+                    </div>
+                    <span class="feat-num">#13</span>
+                </div>
+                <p>Find any video or song across thousands of folders in milliseconds from the dedicated Search tab.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Real-Time Filter</span>
+                <span>★ Zero Delay</span>
+            </div>
+        </div>
+
+        <!-- Feature 14 -->
+        <div class="feat-card" data-accent="pink">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">📐</div>
+                        <h3>Aspect Ratio & Screen Fit</h3>
+                    </div>
+                    <span class="feat-num">#14</span>
+                </div>
+                <p>Toggle instantly between Full Screen Stretch, 16:9, 4:3, Original Fit, and Zoom-to-Fill modes.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Notch Friendly</span>
+                <span>★ Full Display</span>
+            </div>
+        </div>
+
+        <!-- Feature 15 -->
+        <div class="feat-card" data-accent="gold">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">🌙</div>
+                        <h3>Auto-Resume & Sleep Timer</h3>
+                    </div>
+                    <span class="feat-num">#15</span>
+                </div>
+                <p>Automatically resumes every video from the exact second you left off, plus a smart night sleep timer.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Smart Memory</span>
+                <span>★ Night Mode</span>
+            </div>
+        </div>
+
+        <!-- Feature 16 -->
+        <div class="feat-card" data-accent="purple">
+            <div>
+                <div class="feat-top">
+                    <div class="feat-icon-wrap">
+                        <div class="feat-icon">📱</div>
+                        <h3>Android 5.0 to 16+ Ready</h3>
+                    </div>
+                    <span class="feat-num">#16</span>
+                </div>
+                <p>Engineered to run crash-free across both older phones and the latest flagship Android 16+ devices.</p>
+            </div>
+            <div class="feat-badge-bottom">
+                <span>Universal Build</span>
+                <span>★ 100% Stable</span>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="formats-box">
+        <div class="formats-inner">
+            <span class="sec-tag">All Codecs Supported</span>
+            <h3 style="font-size: 19px; margin-bottom: 4px;">Plays Every Format Without Plugins</h3>
+            <p style="font-size: 12.5px; color: var(--text-slim);">Native support for all cinema video containers and lossless audio files.</p>
+            <div class="chips-wrap">
+                <span class="codec-chip">MKV</span>
+                <span class="codec-chip">MP4</span>
+                <span class="codec-chip">H.265 / HEVC</span>
+                <span class="codec-chip">AV1 8K</span>
+                <span class="codec-chip">VP9</span>
+                <span class="codec-chip">AVI</span>
+                <span class="codec-chip">MOV</span>
+                <span class="codec-chip">FLV</span>
+                <span class="codec-chip">TS / M2TS</span>
+                <span class="codec-chip">WEBM</span>
+                <span class="codec-chip">MP3</span>
+                <span class="codec-chip">FLAC</span>
+                <span class="codec-chip">AAC / WAV</span>
+                <span class="codec-chip">SRT / ASS</span>
+            </div>
         </div>
     </section>
 
-    <section id="compare" class="comparison-wrap">
-        <div class="section-header">
-            <span class="section-eyebrow">Why Switch To Max Player</span>
-            <h2>Built Better Than Ordinary Players</h2>
-            <p>See how Max Player delivers a cleaner, faster experience without bloatware.</p>
+    <section class="compare-section">
+        <div class="sec-head">
+            <span class="sec-tag">Pure Advantage</span>
+            <h2>Max Player vs Other Players</h2>
         </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Feature / Capability</th>
-                        <th class="highlight-col">Max Player Official</th>
-                        <th>Other Media Players</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Unwanted Games & Spam Tabs</td>
-                        <td class="highlight-col">✔ Zero Bloatware (Clean 4 Tabs)</td>
-                        <td class="muted-col">✖ Cluttered with heavy games</td>
-                    </tr>
-                    <tr>
-                        <td> Video & Pop-up Advertisements</td>
-                        <td class="highlight-col">✔ 100% Ad-Free Forever</td>
-                        <td class="muted-col">✖ Full-screen ads after every video</td>
-                    </tr>
-                    <tr>
-                        <td>8K / 4K 60FPS Hardware Decoding</td>
-                        <td class="highlight-col">✔ Full HW+ Acceleration</td>
-                        <td class="muted-col">✖ Stutters or requires paid pro version</td>
-                    </tr>
-                    <tr>
-                        <td>Built-in Video to MP3 Converter</td>
-                        <td class="highlight-col">✔ Instant Offline Extraction</td>
-                        <td class="muted-col">✖ Requires separate downloader app</td>
-                    </tr>
-                    <tr>
-                        <td>Royal Offline File Transfer</td>
-                        <td class="highlight-col">✔ High-Speed Wi-Fi Direct</td>
-                        <td class="muted-col">✖ Limited or slow Bluetooth sharing</td>
-                    </tr>
-                    <tr>
-                        <td>Android OS Compatibility</td>
-                        <td class="highlight-col">✔ Android 5.0 to Android 16+</td>
-                        <td class="muted-col">✖ Drops support for older phones</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <section>
-        <div class="section-header">
-            <span class="section-eyebrow">Quick Setup Guide</span>
-            <h2>Install in 3 Simple Steps</h2>
-            <p>Get started with the latest build directly on your Android device.</p>
-        </div>
-
-        <div class="install-steps-grid">
-            <div class="step-card">
-                <div class="step-num">1</div>
-                <h3>Tap Download APK</h3>
-                <p>Click the emerald download button on this page to save the official MaxPlayer.apk package directly to your phone.</p>
+        <div class="compare-card">
+            <div class="c-row c-head">
+                <div>Feature</div>
+                <div>Max Player</div>
+                <div>Others</div>
             </div>
-            <div class="step-card">
-                <div class="step-num">2</div>
-                <h3>Enable Unknown Sources</h3>
-                <p>Open the downloaded file from your notification bar and allow installation from your browser if prompted by Android.</p>
+            <div class="c-row">
+                <div>Annoying Video Ads</div>
+                <div class="c-win">✔ 0% Ads (Free)</div>
+                <div class="c-lose">✖ Heavy Ads</div>
             </div>
-            <div class="step-card">
-                <div class="step-num">3</div>
-                <h3>Launch & Enjoy 8K</h3>
-                <p>Open Max Player, grant media storage access, and watch all your local videos and music load instantaneously.</p>
+            <div class="c-row">
+                <div>Junk Games Bloat</div>
+                <div class="c-win">✔ Clean 4 Tabs</div>
+                <div class="c-lose">✖ Cluttered</div>
+            </div>
+            <div class="c-row">
+                <div>8K 60FPS HW+ Engine</div>
+                <div class="c-win">✔ Built-In</div>
+                <div class="c-lose">✖ Paid / Lags</div>
+            </div>
+            <div class="c-row">
+                <div>Video to MP3 & Share</div>
+                <div class="c-win">✔ Offline Ready</div>
+                <div class="c-lose">✖ Missing</div>
             </div>
         </div>
     </section>
 
-    <section id="faq" class="faq-wrap">
-        <div class="section-header">
-            <span class="section-eyebrow">Got Questions?</span>
+    <div class="sec-head">
+        <span class="sec-tag">Easy Setup</span>
+        <h2>Quick 3-Step Installation</h2>
+    </div>
+
+    <section class="steps-wrap">
+        <div class="step-box">
+            <span class="step-pill">Step 1</span>
+            <h4>Tap Download Button</h4>
+            <p>Click the glowing cyan download button to save the official MaxPlayer.apk file.</p>
+        </div>
+        <div class="step-box">
+            <span class="step-pill">Step 2</span>
+            <h4>Allow Installation</h4>
+            <p>Open the downloaded APK and tap Allow from this source if prompted by your browser.</p>
+        </div>
+        <div class="step-box">
+            <span class="step-pill">Step 3</span>
+            <h4>Enjoy 8K Playback</h4>
+            <p>Launch Max Player, grant media permission, and enjoy all 16 pro features immediately.</p>
+        </div>
+    </section>
+
+    <section class="faq-section">
+        <div class="sec-head">
+            <span class="sec-tag">Support</span>
             <h2>Frequently Asked Questions</h2>
         </div>
 
         <details open>
-            <summary>Is Max Player completely free and ad-free?</summary>
-            <p>Yes. Max Player by Ansh Saini Foundation is 100% free to use and contains zero advertisements, zero pop-ups, and no unnecessary built-in games.</p>
+            <summary>Who developed Max Player Official?</summary>
+            <p>Max Player is officially designed and maintained by the 2026 Ansh Saini Foundation with a focus on zero ads and extreme playback performance.</p>
         </details>
 
         <details>
-            <summary>Does it work on older and newer Android versions?</summary>
-            <p>Absolutely. Our architecture supports every Android version starting from Android 5.0 (Lollipop) all the way up to Android 14, 15, and 16+ with full permission compatibility.</p>
+            <summary>Will it run smoothly on my Android phone?</summary>
+            <p>Yes. The app is ultra-lightweight and optimized for all devices running Android 5.0 up to Android 16+.</p>
         </details>
 
         <details>
-            <summary>How does the Video to MP3 Converter work offline?</summary>
-            <p>Navigate to the "Me" tab, choose Video to Audio Converter, select any local video, and tap Convert. The built-in hardware muxer extracts the audio track directly to your Music folder without needing an internet connection.</p>
+            <summary>How do I update to newer versions later?</summary>
+            <p>Whenever a new update is uploaded, simply download MaxPlayer.apk from this website again and install it over your existing app.</p>
         </details>
-
-        <details>
-            <summary>How do I update the app when a new version is released?</summary>
-            <p>Simply visit this official page and tap the Download button again. Installing the latest MaxPlayer.apk will seamlessly update your existing app while keeping your playlists and playback history intact.</p>
-        </details>
-    </section>
-
-    <section class="bottom-cta-banner">
-        <div class="banner-inner">
-            <h2>Ready to Upgrade Your Media Experience?</h2>
-            <p>Download the official Max Player APK now and unlock 8K playback, background music mode, and Royal File Transfer.</p>
-            <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="btn-primary-download" onclick="showDownloadToast()">
-                <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                Download Max Player Now
-            </a>
-        </div>
     </section>
 
     <footer>
-        <div class="footer-top">
-            <div class="footer-brand">
-                <a href="#" class="brand-logo">
-                    <div class="brand-icon">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
-                    <div class="brand-name brand-font">MAX<span>PLAYER</span></div>
-                </a>
-                <p>Next-generation 8K Ultra HD media player, audio converter, and high-speed file transfer suite for Android devices.</p>
+        <div class="footer-logo">
+            <div class="brand-logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
-            <div>
-                <h4 style="margin-bottom: 10px; color: var(--emerald-primary);">Core Navigation</h4>
-                <p style="font-size: 14px; color: var(--text-secondary);">Video • Audio • Search • Me Suite</p>
-            </div>
+            <div class="brand-title sleek-title">MAX<em>PLAYER</em></div>
         </div>
-
-        <div class="footer-bottom">
-            <div class="foundation-credit">
-                © 2026 <span>Ansh Saini Foundation</span>. All Rights Reserved.
-            </div>
-            <div>
-                Official Release • Engineered for Extreme Performance
-            </div>
+        <p class="footer-desc">
+            Next-Gen 8K Ultra HD Media Player, Audio Converter & High-Speed File Transfer Suite.
+        </p>
+        <div class="copyright-box">
+            © <strong>2026 Ansh Saini Foundation</strong>. All Rights Reserved.
         </div>
     </footer>
 
-    <div id="download-toast">
-        <span class="pulse-dot"></span>
-        <span>Downloading Official MaxPlayer.apk...</span>
+    <!-- Sticky Mobile Download Bar -->
+    <div class="sticky-bottom-bar">
+        <div class="sticky-info">
+            <strong>Max Player Official APK</strong>
+            <span>2026 Ansh Saini Foundation • Ad-Free</span>
+        </div>
+        <a href="MaxPlayer.apk" download="MaxPlayer.apk" class="sticky-dl-btn" onclick="triggerToast()">Download Now</a>
     </div>
 
+    <div id="dl-toast">⚡ Starting download: MaxPlayer.apk...</div>
+
     <script>
-        function showDownloadToast() {
-            var toast = document.getElementById("download-toast");
-            toast.classList.add("show");
+        function triggerToast() {
+            var t = document.getElementById("dl-toast");
+            t.classList.add("show");
             setTimeout(function() {
-                toast.classList.remove("show");
-            }, 4000);
+                t.classList.remove("show");
+            }, 3500);
         }
     </script>
 </body>
