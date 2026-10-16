@@ -1,59 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/max_dark_bg"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
-
-    <ImageView
-        android:id="@+id/imgAudioIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@android:drawable/ic_media_play"
-        android:background="#222222"
-        android:padding="12dp"
-        app:tint="@color/max_cyan" />
+    android:layout_margin="5dp"
+    app:cardBackgroundColor="#15151E"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="3dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_toEndOf="@id/imgAudioIcon"
-        android:layout_toStartOf="@id/tvAudioDuration"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="8dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <FrameLayout
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="#222230">
+
+            <ImageView
+                android:id="@+id/imgAudioArt"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/ic_media_play"
+                app:tint="#00FFFF" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvAudioTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Song Title"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvAudioArtist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Artist Name"
+                android:textColor="#888888"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tvAudioTitle"
-            android:layout_width="match_parent"
+            android:id="@+id/tvAudioDuration"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="Audio Title" />
+            android:layout_marginEnd="6dp"
+            android:text="03:45"
+            android:textColor="#AAAAAA"
+            android:textSize="12sp" />
 
-        <TextView
-            android:id="@+id/tvAudioArtist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/max_gray"
-            android:textSize="13sp"
-            android:layout_marginTop="2dp"
-            android:text="Unknown Artist" />
+        <ImageView
+            android:id="@+id/btnAudioMore"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_more"
+            app:tint="#888888" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/tvAudioDuration"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:textColor="@color/max_gray"
-        android:textSize="13sp"
-        android:text="00:00" />
-</RelativeLayout>
+</androidx.cardview.widget.CardView>
