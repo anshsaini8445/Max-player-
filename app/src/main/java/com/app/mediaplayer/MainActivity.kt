@@ -1,9 +1,14 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -13,23 +18,21 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_REQ_CODE = 1001
-    private lateinit var bottomNav: BottomNavigationView
+    private var isInitializationComplete = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        bottomNav = findViewById(R.id.bottom_navigation)
         setupBottomNavigation()
 
         if (savedInstanceState == null) {
-            loadFragment(VideoFragment())
+            initializeBaseFragment()
         }
-
         checkAndRequestPermissions()
     }
 
-    private fun checkAndRequestPermissions() {
+    fun checkAndRequestPermissions() {
         val permissionsNeeded = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -65,6 +68,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun requestAllFilesAccessIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -75,13 +97,24 @@ class MainActivity : AppCompatActivity() {
             val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
             if (currentFragment is VideoFragment) {
                 currentFragment.reloadVideosNow()
+            } else if (!isInitializationComplete) {
+                initializeBaseFragment()
             } else {
-                loadFragment(VideoFragment())
+                Toast.makeText(this, "Refreshing media library...", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
+    private fun initializeBaseFragment() {
+        if (!isInitializationComplete) {
+            loadFragment(VideoFragment())
+            isInitializationComplete = true
+        }
+    }
+
     private fun setupBottomNavigation() {
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+
         bottomNav.setOnItemSelectedListener { item ->
             val selectedFragment: Fragment = when (item.itemId) {
                 R.id.nav_video -> VideoFragment()
