@@ -6,32 +6,54 @@
     android:background="#0A0A10"
     android:orientation="vertical">
 
-    <!-- History Header & Horizontal List -->
+    <!-- History Section -->
     <LinearLayout
-        android:id="@+id/llHistoryContainer"
+        android:id="@+id/llHistorySection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingTop="12dp">
+        android:paddingTop="10dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="History"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="History"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnResumeLastVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#1A00FFFF"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="Resume Last"
+                android:textColor="#00FFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvHistory"
             android:layout_width="match_parent"
-            android:layout_height="110dp"
+            android:layout_height="104dp"
             android:layout_marginTop="8dp"
-            android:clipToPadding="false" />
+            android:clipToPadding="false"
+            android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Tabs: Video | Folder | Playlist -->
+    <!-- Navigation Tabs & Sleek Action Icons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="48dp"
@@ -44,10 +66,10 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingEnd="24dp"
+            android:paddingEnd="22dp"
             android:text="Video"
             android:textColor="#00FFFF"
-            android:textSize="17sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
@@ -55,10 +77,10 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="14dp"
             android:text="Folder"
             android:textColor="#888888"
-            android:textSize="17sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
@@ -66,14 +88,50 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="14dp"
             android:text="Playlist"
             android:textColor="#888888"
-            android:textSize="17sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/btnSortVideos"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="6dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            app:tint="#CCCCCC" />
+
+        <ImageView
+            android:id="@+id/btnToggleVideoGrid"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="6dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_dialog_dialer"
+            app:tint="#CCCCCC" />
+
+        <ImageView
+            android:id="@+id/btnRescanVideos"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_popup_sync"
+            app:tint="#00FFFF" />
     </LinearLayout>
 
-    <!-- Content Area -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#18FFFFFF" />
+
+    <!-- Main Content Container -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -83,48 +141,62 @@
             android:id="@+id/rvMainVideos"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:clipToPadding="false"
             android:paddingHorizontal="8dp"
+            android:paddingTop="6dp"
             android:visibility="visible" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvFolders"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:clipToPadding="false"
             android:paddingHorizontal="8dp"
+            android:paddingTop="6dp"
             android:visibility="gone" />
 
+        <!-- Empty / Permission Grant State -->
         <LinearLayout
             android:id="@+id/llPlaylistsEmpty"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="24dp"
+            android:padding="28dp"
             android:visibility="gone">
 
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@android:drawable/btn_star_big_off"
-                app:tint="#00FFFF" />
-
             <TextView
+                android:id="@+id/tvEmptyStateTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="No Favorites or Bookmarks Yet"
+                android:gravity="center"
+                android:text="No Videos Found"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/tvEmptyStateSub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="Mark videos as Favorite or Bookmark inside the player to see them here."
+                android:text="Allow storage permission or tap Rescan to load all videos from your phone."
                 android:textColor="#888888"
                 android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btnGrantAccessAction"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="18dp"
+                android:background="#00FFFF"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:text="ALLOW ACCESS &amp; SCAN"
+                android:textColor="#000000"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </FrameLayout>
 
