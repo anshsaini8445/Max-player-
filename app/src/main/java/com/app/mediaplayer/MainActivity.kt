@@ -1,9 +1,13 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -14,74 +18,92 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_REQ_CODE = 1001
-    private var isInitializationComplete = false
+    private var currentNavId = R.id.nav_video
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         setupBottomNavigation()
-        
-        if (savedInstanceState == null) {
-            checkAndRequestPermissions()
-        }
+        loadFragment(VideoFragment())
+        checkAndRequestPermissions()
     }
 
     private fun checkAndRequestPermissions() {
         val permissionsNeeded = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsNeeded.add(Manifest.permission.READ_MEDIA_VIDEO)
             }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsNeeded.add(Manifest.permission.READ_MEDIA_AUDIO)
             }
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsNeeded.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
 
         if (permissionsNeeded.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQ_CODE)
-        } else {
-            initializeBaseFragment()
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsNeeded.toTypedArray(),
+                PERMISSION_REQ_CODE
+            )
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_CODE) {
-            var allGranted = true
-            for (result in grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false
-                    break
-                }
-            }
-
-            if (allGranted) {
-                initializeBaseFragment()
-            } else {
-                Toast.makeText(this, "Critical Storage Permissions Denied. Media cannot be loaded.", Toast.LENGTH_LONG).show()
-                // Proceeding anyway to show empty states gracefully instead of crashing
-                initializeBaseFragment()
+            if (currentNavId == R.id.nav_video) {
+                loadFragment(VideoFragment())
             }
         }
     }
 
-    private fun initializeBaseFragment() {
-        if (!isInitializationComplete) {
-            loadFragment(VideoFragment())
-            isInitializationComplete = true
+    fun requestAllFilesAccessIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                    } catch (ex: Exception) {
+                        Toast.makeText(this, "Please enable storage permission in Settings", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } else {
+            checkAndRequestPermissions()
         }
     }
 
     private fun setupBottomNavigation() {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-        
+
         bottomNav.setOnItemSelectedListener { item ->
+            currentNavId = item.itemId
             val selectedFragment: Fragment = when (item.itemId) {
                 R.id.nav_video -> VideoFragment()
                 R.id.nav_music -> MusicFragment()
@@ -96,10 +118,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadFragment(fragment: Fragment) {
         try {
-            supportFragmentManager.beginTransaction()
-                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
-                .replace(R.id.fragment_container, fragment)
-                .commit()
+            if (!isFinishing && !isDestroyed) {
+                supportFragmentManager.beginTransaction()
+                    .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                    .replace(R.id.fragment_container, fragment)
+                    .commitAllowingStateLoss()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
