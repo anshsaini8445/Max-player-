@@ -1,5 +1,6 @@
 package com.app.mediaplayer
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -23,7 +24,6 @@ import kotlin.concurrent.thread
 class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
     RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
-    // Directly reference the mutable list so notifyDataSetChanged() reflects scanned videos immediately
     private val videoList: MutableList<VideoModel> =
         if (videos is MutableList<VideoModel>) videos else videos.toMutableList()
 
@@ -47,11 +47,21 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         holder.tvDuration.text = formatDuration(video.duration)
 
         val sizeInMb = video.size / (1024.0 * 1024.0)
-        val extension = File(video.path).extension.lowercase(Locale.getDefault()).ifEmpty { "video" }
-        holder.tvSizeFormat.text = String.format(Locale.US, "%.2f MB • (%s)", sizeInMb, extension)
+        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "HD" }
+        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val isFav = prefs.getBoolean("fav_${video.path}", false)
+        val favBadge = if (isFav) " ★" else ""
+
+        holder.tvSizeFormat.text = String.format(Locale.US, "%.1f MB • %s%s", sizeInMb, extension, favBadge)
+
+        val loadTarget: Any = if (video.path.startsWith("content://")) {
+            Uri.parse(video.path)
+        } else {
+            File(video.path)
+        }
 
         Glide.with(context)
-            .load(File(video.path))
+            .load(loadTarget)
             .placeholder(android.R.color.darker_gray)
             .centerCrop()
             .into(holder.imgThumbnail)
@@ -61,15 +71,15 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         }
 
         holder.btnOptions.setOnClickListener { view ->
-            val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-            val isFav = prefs.getBoolean("fav_${video.path}", false)
+            val currentFav = prefs.getBoolean("fav_${video.path}", false)
 
             val popup = PopupMenu(context, view)
             popup.menu.add(0, 1, 0, "Play Video")
             popup.menu.add(0, 2, 1, "Convert to MP3")
             popup.menu.add(0, 3, 2, "Move to Vault (Hide)")
-            popup.menu.add(0, 4, 3, if (isFav) "Remove from Favorites" else "Add to Favorites")
+            popup.menu.add(0, 4, 3, if (currentFav) "Remove from Favorites" else "Add to Favorites")
             popup.menu.add(0, 5, 4, "Share Video")
+            popup.menu.add(0, 6, 5, "File Details")
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -89,10 +99,11 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                         true
                     }
                     4 -> {
-                        prefs.edit().putBoolean("fav_${video.path}", !isFav).apply()
+                        prefs.edit().putBoolean("fav_${video.path}", !currentFav).apply()
+                        notifyItemChanged(holder.adapterPosition)
                         Toast.makeText(
                             context,
-                            if (!isFav) "Added to Favorites" else "Removed from Favorites",
+                            if (!currentFav) "Added to Favorites" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
                         true
@@ -108,6 +119,19 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                         } catch (e: Exception) {
                             Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                         }
+                        true
+                    }
+                    6 -> {
+                        AlertDialog.Builder(context)
+                            .setTitle("Video Properties")
+                            .setMessage(
+                                "Name: ${video.title}\n\n" +
+                                    "Size: ${String.format(Locale.US, "%.2f MB", sizeInMb)}\n\n" +
+                                    "Duration: ${formatDuration(video.duration)}\n\n" +
+                                    "Location: ${video.path}"
+                            )
+                            .setPositiveButton("OK", null)
+                            .show()
                         true
                     }
                     else -> false
