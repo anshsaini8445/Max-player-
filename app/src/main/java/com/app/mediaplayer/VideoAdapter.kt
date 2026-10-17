@@ -47,21 +47,21 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         holder.tvDuration.text = formatDuration(video.duration)
 
         val sizeInMb = video.size / (1024.0 * 1024.0)
-        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "HD" }
+        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "VIDEO" }
         val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val isFav = prefs.getBoolean("fav_${video.path}", false)
-        val favBadge = if (isFav) " ★" else ""
+        val favStar = if (isFav) " ★" else ""
 
-        holder.tvSizeFormat.text = String.format(Locale.US, "%.1f MB • %s%s", sizeInMb, extension, favBadge)
+        holder.tvSizeFormat.text = String.format(Locale.US, "%.2f MB • (%s)%s", sizeInMb, extension, favStar)
 
-        val loadTarget: Any = if (video.path.startsWith("content://")) {
+        val glideModel: Any = if (video.path.startsWith("content://")) {
             Uri.parse(video.path)
         } else {
             File(video.path)
         }
 
         Glide.with(context)
-            .load(loadTarget)
+            .load(glideModel)
             .placeholder(android.R.color.darker_gray)
             .centerCrop()
             .into(holder.imgThumbnail)
@@ -123,14 +123,14 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                     }
                     6 -> {
                         AlertDialog.Builder(context)
-                            .setTitle("Video Properties")
+                            .setTitle("Video Information")
                             .setMessage(
-                                "Name: ${video.title}\n\n" +
+                                "Title: ${video.title}\n\n" +
                                     "Size: ${String.format(Locale.US, "%.2f MB", sizeInMb)}\n\n" +
                                     "Duration: ${formatDuration(video.duration)}\n\n" +
-                                    "Location: ${video.path}"
+                                    "Path: ${video.path}"
                             )
-                            .setPositiveButton("OK", null)
+                            .setPositiveButton("Close", null)
                             .show()
                         true
                     }
