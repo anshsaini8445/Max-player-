@@ -8,14 +8,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,11 +40,20 @@ class VideoFragment : Fragment() {
     private lateinit var tvTabFolder: TextView
     private lateinit var tvTabPlaylist: TextView
 
-    private var rvHistoryOptional: RecyclerView? = null
-    private var rootLinearContainer: LinearLayout? = null
-    private var dynamicControlHeader: LinearLayout? = null
-    private var permissionBanner: LinearLayout? = null
-    private var tvVideoSummaryCount: TextView? = null
+    private var llVideoRootContainer: LinearLayout? = null
+    private var llPermissionBanner: LinearLayout? = null
+    private var btnGrantVideoPermission: TextView? = null
+    private var llHistoryContainer: LinearLayout? = null
+    private var rvHistory: RecyclerView? = null
+    private var tvClearHistory: TextView? = null
+    private var llMainVideoTabs: LinearLayout? = null
+    private var hsvFilterChips: HorizontalScrollView? = null
+
+    private var btnSortVideos: TextView? = null
+    private var btnToggleGridView: TextView? = null
+    private var btnCustomizeVideoLayout: TextView? = null
+
+    private val filterChipsList = mutableListOf<TextView>()
 
     private lateinit var videoAdapter: VideoAdapter
     private lateinit var folderAdapter: FolderAdapter
@@ -80,23 +87,42 @@ class VideoFragment : Fragment() {
         tvTabFolder = view.findViewById(R.id.tvTabFolder)
         tvTabPlaylist = view.findViewById(R.id.tvTabPlaylist)
 
-        val historyId = resources.getIdentifier("rvHistory", "id", requireContext().packageName)
-        if (historyId != 0) {
-            rvHistoryOptional = view.findViewById(historyId)
-            rvHistoryOptional?.layoutManager =
-                LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        llVideoRootContainer = view.findViewById(R.id.llVideoRootContainer)
+        llPermissionBanner = view.findViewById(R.id.llPermissionBanner)
+        btnGrantVideoPermission = view.findViewById(R.id.btnGrantVideoPermission)
+        llHistoryContainer = view.findViewById(R.id.llHistoryContainer)
+        rvHistory = view.findViewById(R.id.rvHistory)
+        tvClearHistory = view.findViewById(R.id.tvClearHistory)
+        llMainVideoTabs = view.findViewById(R.id.llMainVideoTabs)
+        hsvFilterChips = view.findViewById(R.id.hsvFilterChips)
+
+        btnSortVideos = view.findViewById(R.id.btnSortVideos)
+        btnToggleGridView = view.findViewById(R.id.btnToggleGridView)
+        btnCustomizeVideoLayout = view.findViewById(R.id.btnCustomizeVideoLayout)
+
+        filterChipsList.clear()
+        listOf(
+            R.id.chipAllVideos,
+            R.id.chipRecentVideos,
+            R.id.chipHdLarge,
+            R.id.chipMovies,
+            R.id.chipShortClips,
+            R.id.chipFavorites
+        ).forEach { id ->
+            view.findViewById<TextView>(id)?.let { filterChipsList.add(it) }
         }
+
+        rvHistory?.layoutManager =
+            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        rvFolders.layoutManager = LinearLayoutManager(requireContext())
 
         val prefs = requireContext().getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
         isGridView = prefs.getBoolean("video_grid_mode", false)
         sortModeIndex = prefs.getInt("video_sort_mode", 0)
 
         applyVideoLayoutManager()
-        rvFolders.layoutManager = LinearLayoutManager(requireContext())
-
-        injectDynamicToolbarAndCustomizer(view)
-        applyCustomSectionOrder()
-        setupTabClicks()
+        applySavedSectionPositions()
+        setupAllClickListeners()
         reloadVideosNow()
 
         return view
@@ -108,7 +134,7 @@ class VideoFragment : Fragment() {
     }
 
     fun reloadVideosNow() {
-        updatePermissionBannerVisibility()
+        updatePermissionBanner()
         loadMediaDataSafely()
     }
 
@@ -116,360 +142,33 @@ class VideoFragment : Fragment() {
         val ctx = context ?: return
         if (isGridView) {
             rvMainVideos.layoutManager = GridLayoutManager(ctx, 2)
+            btnToggleGridView?.text = "List"
         } else {
             rvMainVideos.layoutManager = LinearLayoutManager(ctx)
+            btnToggleGridView?.text = "Grid"
         }
     }
 
-    private fun injectDynamicToolbarAndCustomizer(rootView: View) {
-        val ctx = context ?: return
-        val parentLinear = rootView as? LinearLayout ?: return
-        rootLinearContainer = parentLinear
-
-        // Permission Helper Banner (Shown only if permission is missing)
-        val banner = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dpToPx(14), dpToPx(10), dpToPx(14), dpToPx(10))
-            background = createRoundedBg("#1F2833", "#00FFFF", 10)
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.setMargins(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(4))
-            layoutParams = lp
-            visibility = View.GONE
-        }
-
-        val tvPermMsg = TextView(ctx).apply {
-            text = "Allow Video Storage Permission to load all device videos"
-            setTextColor(Color.WHITE)
-            textSize = 12.5f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val btnGrantNow = TextView(ctx).apply {
-            text = "ALLOW"
-            setTextColor(Color.BLACK)
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6))
-            background = createRoundedBg("#00FFFF", "#00FFFF", 16)
-            setOnClickListener {
-                (activity as? MainActivity)?.checkAndRequestPermissions()
-                requestPermissionsFromFragment()
-            }
-        }
-
-        banner.addView(tvPermMsg)
-        banner.addView(btnGrantNow)
-        permissionBanner = banner
-        parentLinear.addView(banner, 0)
-
-        // Dynamic PLAYit-style Filter Chips + Sort + Layout Mode + Customize UI Bar
-        val controlContainer = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dpToPx(12), dpToPx(4), dpToPx(12), dpToPx(6))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val topActionRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val tvCount = TextView(ctx).apply {
-            text = "All Videos (0)"
-            setTextColor(Color.parseColor("#CCCCCC"))
-            textSize = 12.5f
-            typeface = Typeface.DEFAULT_BOLD
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        tvVideoSummaryCount = tvCount
-
-        val btnSort = createSleekPillButton(ctx, "Sort ⇅") {
-            showSortDialog()
-        }
-        val btnViewToggle = createSleekPillButton(ctx, if (isGridView) "List ☰" else "Grid ⊞") { btn ->
-            isGridView = !isGridView
-            ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("video_grid_mode", isGridView)
-                .apply()
-            btn.text = if (isGridView) "List ☰" else "Grid ⊞"
-            applyVideoLayoutManager()
-            refreshDisplayedVideos()
-        }
-        val btnCustomizeUi = createSleekPillButton(ctx, "Customize UI ⚙") {
-            showCustomizeVideoLayoutDialog()
-        }
-
-        topActionRow.addView(tvCount)
-        topActionRow.addView(btnSort)
-        topActionRow.addView(btnViewToggle)
-        topActionRow.addView(btnCustomizeUi)
-
-        // Filter Chips Horizontal ScrollView
-        val chipScroll = HorizontalScrollView(ctx).apply {
-            isHorizontalScrollBarEnabled = false
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.topMargin = dpToPx(6)
-            layoutParams = lp
-        }
-
-        val chipRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val chipNames = listOf("All Videos", "Recent", "HD / Large", "Movies", "WhatsApp / Clips", "Favorites")
-        val chipViews = mutableListOf<TextView>()
-
-        chipNames.forEachIndexed { index, title ->
-            val chip = TextView(ctx).apply {
-                text = title
-                textSize = 12f
-                setPadding(dpToPx(14), dpToPx(6), dpToPx(14), dpToPx(6))
-                val lp = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                lp.marginEnd = dpToPx(8)
-                layoutParams = lp
-                setOnClickListener {
-                    activeFilterIndex = index
-                    updateChipStyles(chipViews)
-                    refreshDisplayedVideos()
-                }
-            }
-            chipViews.add(chip)
-            chipRow.addView(chip)
-        }
-        updateChipStyles(chipViews)
-
-        chipScroll.addView(chipRow)
-        controlContainer.addView(topActionRow)
-        controlContainer.addView(chipScroll)
-
-        dynamicControlHeader = controlContainer
-        val insertIndex = (parentLinear.childCount - 1).coerceAtLeast(0)
-        parentLinear.addView(controlContainer, insertIndex)
-    }
-
-    private fun updateChipStyles(chips: List<TextView>) {
-        chips.forEachIndexed { i, tv ->
-            if (i == activeFilterIndex) {
-                tv.setTextColor(Color.BLACK)
-                tv.typeface = Typeface.DEFAULT_BOLD
-                tv.background = createRoundedBg("#00FFFF", "#00FFFF", 18)
-            } else {
-                tv.setTextColor(Color.parseColor("#BBBBBB"))
-                tv.typeface = Typeface.DEFAULT
-                tv.background = createRoundedBg("#161622", "#2A2A3A", 18)
-            }
-        }
-    }
-
-    private fun createSleekPillButton(
-        ctx: Context,
-        label: String,
-        onClick: (TextView) -> Unit
-    ): TextView {
-        return TextView(ctx).apply {
-            text = label
-            setTextColor(Color.parseColor("#00FFFF"))
-            textSize = 11.5f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(dpToPx(10), dpToPx(5), dpToPx(10), dpToPx(5))
-            background = createRoundedBg("#14141F", "#00FFFF", 14)
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginStart = dpToPx(6)
-            layoutParams = lp
-            setOnClickListener { onClick(this) }
-        }
-    }
-
-    private fun showSortDialog() {
-        val ctx = context ?: return
-        val options = arrayOf(
-            "Newest First (Date Added)",
-            "Title (A to Z)",
-            "Size (Largest First)",
-            "Duration (Longest First)"
-        )
-        AlertDialog.Builder(ctx)
-            .setTitle("Sort Videos By")
-            .setSingleChoiceItems(options, sortModeIndex) { dialog, which ->
-                sortModeIndex = which
-                ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
-                    .edit()
-                    .putInt("video_sort_mode", sortModeIndex)
-                    .apply()
-                refreshDisplayedVideos()
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun showCustomizeVideoLayoutDialog() {
-        val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
-        val showHistory = prefs.getBoolean("show_history_section", true)
-        val showFilterBar = prefs.getBoolean("show_filter_bar", true)
-        val tabsAtBottom = prefs.getBoolean("tabs_at_bottom", false)
-
-        val items = arrayOf(
-            if (showHistory) "✓ Show History Bar at Top" else "✗ Hide History Bar at Top",
-            if (showFilterBar) "✓ Show Quick Filter & Sort Bar" else "✗ Hide Quick Filter & Sort Bar",
-            if (tabsAtBottom) "Move [Video | Folder | Playlist] Tabs to Top" else "Move [Video | Folder | Playlist] Tabs to Bottom",
-            "Switch Video List / Grid Mode",
-            "Deep Scan All Folders & Unindexed Videos",
-            "Reset Video Layout to Default"
-        )
-
-        AlertDialog.Builder(ctx)
-            .setTitle("Customize Video Section Layout")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> {
-                        prefs.edit().putBoolean("show_history_section", !showHistory).apply()
-                        applyCustomSectionOrder()
-                    }
-                    1 -> {
-                        prefs.edit().putBoolean("show_filter_bar", !showFilterBar).apply()
-                        applyCustomSectionOrder()
-                    }
-                    2 -> {
-                        prefs.edit().putBoolean("tabs_at_bottom", !tabsAtBottom).apply()
-                        applyCustomSectionOrder()
-                    }
-                    3 -> {
-                        isGridView = !isGridView
-                        prefs.edit().putBoolean("video_grid_mode", isGridView).apply()
-                        applyVideoLayoutManager()
-                        refreshDisplayedVideos()
-                    }
-                    4 -> {
-                        Toast.makeText(ctx, "Deep Scanning Storage...", Toast.LENGTH_SHORT).show()
-                        loadMediaDataSafely()
-                    }
-                    5 -> {
-                        prefs.edit()
-                            .putBoolean("show_history_section", true)
-                            .putBoolean("show_filter_bar", true)
-                            .putBoolean("tabs_at_bottom", false)
-                            .putBoolean("video_grid_mode", false)
-                            .apply()
-                        isGridView = false
-                        applyVideoLayoutManager()
-                        applyCustomSectionOrder()
-                        refreshDisplayedVideos()
-                    }
-                }
-            }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
-    private fun applyCustomSectionOrder() {
-        val ctx = context ?: return
-        val parent = rootLinearContainer ?: return
-        val prefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
-
-        val showHistory = prefs.getBoolean("show_history_section", true)
-        val showFilterBar = prefs.getBoolean("show_filter_bar", true)
-        val tabsAtBottom = prefs.getBoolean("tabs_at_bottom", false)
-
-        val historyContainerId = resources.getIdentifier("llHistoryContainer", "id", ctx.packageName)
-        val historyContainer = if (historyContainerId != 0) parent.findViewById<View>(historyContainerId) else null
-        historyContainer?.visibility = if (showHistory) View.VISIBLE else View.GONE
-        rvHistoryOptional?.visibility = if (showHistory) View.VISIBLE else View.GONE
-
-        dynamicControlHeader?.visibility = if (showFilterBar) View.VISIBLE else View.GONE
-
-        val tabsRow = tvTabVideo.parent as? View
-        if (tabsRow != null && tabsRow.parent == parent) {
-            parent.removeView(tabsRow)
-            if (tabsAtBottom) {
-                parent.addView(tabsRow)
-            } else {
-                val targetIdx = if (historyContainer != null && historyContainer.parent == parent) {
-                    parent.indexOfChild(historyContainer) + 1
-                } else {
-                    1.coerceAtMost(parent.childCount)
-                }
-                parent.addView(tabsRow, targetIdx)
-            }
-        }
-    }
-
-    private fun hasVideoPermission(): Boolean {
-        val ctx = context ?: return false
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                ctx,
-                Manifest.permission.READ_MEDIA_VIDEO
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                ctx,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    private fun updatePermissionBannerVisibility() {
-        permissionBanner?.visibility = if (hasVideoPermission()) View.GONE else View.VISIBLE
-    }
-
-    private fun requestPermissionsFromFragment() {
-        val ctx = context ?: return
-        val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-        } else {
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-        try {
-            requestPermissions(perms, 2002)
-        } catch (e: Exception) {
-            try {
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", ctx.packageName, null)
-                }
-                startActivity(intent)
-            } catch (ex: Exception) {
-                ex.printStackTrace()
-            }
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        updatePermissionBannerVisibility()
-        loadMediaDataSafely()
-    }
-
-    private fun setupTabClicks() {
+    private fun setupAllClickListeners() {
         val activeColor = Color.parseColor("#00FFFF")
         val inactiveColor = Color.parseColor("#888888")
+
+        btnGrantVideoPermission?.setOnClickListener {
+            (activity as? MainActivity)?.checkAndRequestPermissions()
+            requestPermissionsFromFragment()
+        }
+
+        tvClearHistory?.setOnClickListener {
+            val ctx = context ?: return@setOnClickListener
+            val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            allVideosList.forEach { video ->
+                editor.remove("history_time_${video.path}")
+            }
+            editor.apply()
+            refreshHistoryList()
+            Toast.makeText(ctx, "Playback history cleared", Toast.LENGTH_SHORT).show()
+        }
 
         tvTabVideo.setOnClickListener {
             currentTab = 0
@@ -492,7 +191,7 @@ class VideoFragment : Fragment() {
 
             rvMainVideos.visibility = View.GONE
             rvFolders.visibility = View.VISIBLE
-            llPlaylistsEmpty.visibility = View.GONE
+            llPlaylistsEmpty.visibility = if (allFoldersList.isEmpty()) View.VISIBLE else View.GONE
         }
 
         tvTabPlaylist.setOnClickListener {
@@ -503,6 +202,219 @@ class VideoFragment : Fragment() {
 
             showFavoritesAndBookmarksPlaylist()
         }
+
+        btnSortVideos?.setOnClickListener {
+            showSortDialog()
+        }
+
+        btnToggleGridView?.setOnClickListener {
+            val ctx = context ?: return@setOnClickListener
+            isGridView = !isGridView
+            ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("video_grid_mode", isGridView)
+                .apply()
+            applyVideoLayoutManager()
+            refreshDisplayedVideos()
+        }
+
+        btnCustomizeVideoLayout?.setOnClickListener {
+            showCustomizeVideoLayoutDialog()
+        }
+
+        filterChipsList.forEachIndexed { index, chip ->
+            chip.setOnClickListener {
+                activeFilterIndex = index
+                updateFilterChipColors()
+                if (currentTab != 0) {
+                    tvTabVideo.performClick()
+                } else {
+                    refreshDisplayedVideos()
+                }
+            }
+        }
+    }
+
+    private fun updateFilterChipColors() {
+        filterChipsList.forEachIndexed { index, chip ->
+            if (index == activeFilterIndex) {
+                chip.setBackgroundColor(Color.parseColor("#00FFFF"))
+                chip.setTextColor(Color.BLACK)
+                chip.typeface = Typeface.DEFAULT_BOLD
+            } else {
+                chip.setBackgroundColor(Color.parseColor("#161622"))
+                chip.setTextColor(Color.parseColor("#CCCCCC"))
+                chip.typeface = Typeface.DEFAULT
+            }
+        }
+    }
+
+    private fun showSortDialog() {
+        val ctx = context ?: return
+        val options = arrayOf(
+            "Date Added (Newest First)",
+            "Title (A to Z)",
+            "File Size (Largest First)",
+            "Duration (Longest First)"
+        )
+        AlertDialog.Builder(ctx)
+            .setTitle("Sort Videos By")
+            .setSingleChoiceItems(options, sortModeIndex) { dialog, which ->
+                sortModeIndex = which
+                ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("video_sort_mode", sortModeIndex)
+                    .apply()
+                refreshDisplayedVideos()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showCustomizeVideoLayoutDialog() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
+        val showHistory = prefs.getBoolean("show_history_section", true)
+        val showFilters = prefs.getBoolean("show_filter_bar", true)
+        val tabsAtBottom = prefs.getBoolean("tabs_at_bottom", false)
+
+        val options = arrayOf(
+            if (showHistory) "Hide Top History Section" else "Show Top History Section",
+            if (showFilters) "Hide Filter Chips Bar" else "Show Filter Chips Bar",
+            if (tabsAtBottom) "Move [Video | Folder | Playlist] Tabs to Top" else "Move [Video | Folder | Playlist] Tabs to Bottom",
+            if (isGridView) "Switch to Classic List View" else "Switch to 2-Column Grid View",
+            "Grant All-Files Access (For Hidden / Unindexed MKV & AVI)",
+            "Reset Video Section Layout to Default"
+        )
+
+        AlertDialog.Builder(ctx)
+            .setTitle("Customize Video Section Layout")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        prefs.edit().putBoolean("show_history_section", !showHistory).apply()
+                        applySavedSectionPositions()
+                    }
+                    1 -> {
+                        prefs.edit().putBoolean("show_filter_bar", !showFilters).apply()
+                        applySavedSectionPositions()
+                    }
+                    2 -> {
+                        prefs.edit().putBoolean("tabs_at_bottom", !tabsAtBottom).apply()
+                        applySavedSectionPositions()
+                    }
+                    3 -> {
+                        isGridView = !isGridView
+                        prefs.edit().putBoolean("video_grid_mode", isGridView).apply()
+                        applyVideoLayoutManager()
+                        refreshDisplayedVideos()
+                    }
+                    4 -> {
+                        (activity as? MainActivity)?.requestAllFilesAccessForDeepScan()
+                        loadMediaDataSafely()
+                    }
+                    5 -> {
+                        prefs.edit()
+                            .putBoolean("show_history_section", true)
+                            .putBoolean("show_filter_bar", true)
+                            .putBoolean("tabs_at_bottom", false)
+                            .putBoolean("video_grid_mode", false)
+                            .apply()
+                        isGridView = false
+                        applyVideoLayoutManager()
+                        applySavedSectionPositions()
+                        refreshDisplayedVideos()
+                    }
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun applySavedSectionPositions() {
+        val ctx = context ?: return
+        val root = llVideoRootContainer ?: return
+        val prefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
+
+        val showHistory = prefs.getBoolean("show_history_section", true)
+        val showFilters = prefs.getBoolean("show_filter_bar", true)
+        val tabsAtBottom = prefs.getBoolean("tabs_at_bottom", false)
+
+        llHistoryContainer?.visibility = if (showHistory) View.VISIBLE else View.GONE
+        hsvFilterChips?.visibility = if (showFilters) View.VISIBLE else View.GONE
+
+        val tabsView = llMainVideoTabs ?: return
+        if (tabsView.parent == root) {
+            root.removeView(tabsView)
+            if (tabsAtBottom) {
+                root.addView(tabsView)
+            } else {
+                val historyIdx = if (llHistoryContainer != null) root.indexOfChild(llHistoryContainer) else 0
+                val insertPos = (historyIdx + 1).coerceIn(0, root.childCount)
+                root.addView(tabsView, insertPos)
+            }
+        }
+    }
+
+    private fun hasVideoPermission(): Boolean {
+        val ctx = context ?: return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                ctx,
+                Manifest.permission.READ_MEDIA_VIDEO
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(
+                ctx,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun updatePermissionBanner() {
+        llPermissionBanner?.visibility = if (hasVideoPermission()) View.GONE else View.VISIBLE
+    }
+
+    private fun requestPermissionsFromFragment() {
+        val ctx = context ?: return
+        val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        try {
+            requestPermissions(perms, 2005)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", ctx.packageName, null)
+                }
+                startActivity(intent)
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        updatePermissionBanner()
+        loadMediaDataSafely()
+    }
+
+    private fun refreshHistoryList() {
+        val ctx = context ?: return
+        val historyRecycler = rvHistory ?: return
+        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val recentList = allVideosList.sortedByDescending {
+            prefs.getLong("history_time_${it.path}", 0L)
+        }.take(15)
+        historyRecycler.adapter = VideoAdapter(ctx, recentList)
     }
 
     private fun refreshDisplayedVideos() {
@@ -511,7 +423,7 @@ class VideoFragment : Fragment() {
         val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
 
         val baseFiltered = when (activeFilterIndex) {
-            1 -> allVideosList.take(25)
+            1 -> allVideosList.take(30)
             2 -> allVideosList.filter { it.size >= 50L * 1024L * 1024L }
             3 -> allVideosList.filter { it.duration >= 15L * 60L * 1000L || it.size >= 150L * 1024L * 1024L }
             4 -> allVideosList.filter {
@@ -536,14 +448,17 @@ class VideoFragment : Fragment() {
         filteredVideosList.clear()
         filteredVideosList.addAll(sorted)
 
-        tvVideoSummaryCount?.text = "Videos (${filteredVideosList.size})"
-
         if (currentTab == 0) {
             videoAdapter = VideoAdapter(ctx, filteredVideosList)
             rvMainVideos.adapter = videoAdapter
-            rvMainVideos.visibility = View.VISIBLE
             rvFolders.visibility = View.GONE
-            llPlaylistsEmpty.visibility = View.GONE
+            if (filteredVideosList.isEmpty()) {
+                rvMainVideos.visibility = View.GONE
+                llPlaylistsEmpty.visibility = View.VISIBLE
+            } else {
+                llPlaylistsEmpty.visibility = View.GONE
+                rvMainVideos.visibility = View.VISIBLE
+            }
         } else if (currentTab == 2) {
             showFavoritesAndBookmarksPlaylist()
         }
@@ -583,7 +498,7 @@ class VideoFragment : Fragment() {
                     isScanning = false
                     if (!isAdded || context == null) return@runOnUiThread
 
-                    updatePermissionBannerVisibility()
+                    updatePermissionBanner()
 
                     allVideosList.clear()
                     allVideosList.addAll(fetchedVideos)
@@ -594,20 +509,14 @@ class VideoFragment : Fragment() {
                     folderAdapter = FolderAdapter(requireContext(), allFoldersList)
                     rvFolders.adapter = folderAdapter
 
-                    rvHistoryOptional?.let { historyRv ->
-                        val prefs = requireContext().getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                        val recentList = allVideosList.sortedByDescending {
-                            prefs.getLong("history_time_${it.path}", 0L)
-                        }.take(15)
-                        historyRv.adapter = VideoAdapter(requireContext(), recentList)
-                    }
+                    refreshHistoryList()
 
                     when (currentTab) {
                         0 -> refreshDisplayedVideos()
                         1 -> {
                             rvMainVideos.visibility = View.GONE
                             rvFolders.visibility = View.VISIBLE
-                            llPlaylistsEmpty.visibility = View.GONE
+                            llPlaylistsEmpty.visibility = if (allFoldersList.isEmpty()) View.VISIBLE else View.GONE
                         }
                         2 -> showFavoritesAndBookmarksPlaylist()
                     }
@@ -638,13 +547,13 @@ class VideoFragment : Fragment() {
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
-        val urisToQuery = listOf(
+        val uris = listOf(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             MediaStore.Video.Media.INTERNAL_CONTENT_URI
         )
 
-        // Stage 1: MediaStore Video External + Internal
-        for (uri in urisToQuery) {
+        // Stage 1: Standard MediaStore.Video Query
+        for (uri in uris) {
             try {
                 contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
                     val idCol = cursor.getColumnIndex(MediaStore.Video.Media._ID)
@@ -695,7 +604,7 @@ class VideoFragment : Fragment() {
             }
         }
 
-        // Stage 2: MediaStore.Files Query for MKV / AVI / TS / WebM / Unindexed Video MIME types
+        // Stage 2: MediaStore.Files Query for MKV, AVI, TS, WebM & Unindexed Videos
         try {
             val filesUri = MediaStore.Files.getContentUri("external")
             val fileProj = arrayOf(
@@ -705,7 +614,8 @@ class VideoFragment : Fragment() {
                 MediaStore.Files.FileColumns.SIZE,
                 MediaStore.Files.FileColumns.MIME_TYPE
             )
-            val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MIME_TYPE} LIKE ?"
+            val selection =
+                "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MIME_TYPE} LIKE ?"
             val selectionArgs = arrayOf(
                 MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
                 "video/%"
@@ -721,7 +631,11 @@ class VideoFragment : Fragment() {
                     val path = if (dataCol != -1) cursor.getString(dataCol) else null
                     if (path.isNullOrEmpty()) continue
 
-                    val title = if (nameCol != -1) cursor.getString(nameCol) ?: File(path).name else File(path).name
+                    val title = if (nameCol != -1) {
+                        cursor.getString(nameCol) ?: File(path).name
+                    } else {
+                        File(path).name
+                    }
                     val size = if (sizeCol != -1) cursor.getLong(sizeCol).coerceAtLeast(0L) else 0L
                     val parent = File(path).parentFile
                     val bucketId = parent?.absolutePath ?: "0"
@@ -741,7 +655,7 @@ class VideoFragment : Fragment() {
             e.printStackTrace()
         }
 
-        // Stage 3: Direct File System Scan for All Common Video Folders
+        // Stage 3: Direct Storage Directory Scan (Android 5 to Android 16)
         try {
             val rootDir = Environment.getExternalStorageDirectory()
             if (rootDir != null && rootDir.exists()) {
@@ -789,19 +703,5 @@ class VideoFragment : Fragment() {
                 }
             }
         }
-    }
-
-    private fun createRoundedBg(fillHex: String, strokeHex: String, radiusDp: Int): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = dpToPx(radiusDp).toFloat()
-            setColor(Color.parseColor(fillHex))
-            setStroke(dpToPx(1), Color.parseColor(strokeHex))
-        }
-    }
-
-    private fun dpToPx(dp: Int): Int {
-        val density = resources.displayMetrics.density
-        return (dp * density).toInt()
     }
 }
