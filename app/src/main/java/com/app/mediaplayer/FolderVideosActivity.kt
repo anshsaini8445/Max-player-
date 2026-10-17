@@ -1,5 +1,6 @@
 package com.app.mediaplayer
 
+import android.content.ContentUris
 import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.ImageView
@@ -63,7 +64,12 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun fetchVideosByBucketOrPath(bucketId: String, folderPath: String): List<VideoModel> {
         val videos = mutableListOf<VideoModel>()
         val seenPaths = HashSet<String>()
-        var detectedFolderDir: File? = if (folderPath.isNotEmpty()) File(folderPath) else null
+        var detectedFolderDir: File? = if (folderPath.isNotEmpty()) {
+            val f = File(folderPath)
+            if (f.isDirectory) f else f.parentFile
+        } else {
+            null
+        }
 
         if (detectedFolderDir == null && bucketId.startsWith("/")) {
             val possibleDir = File(bucketId)
@@ -91,25 +97,28 @@ class FolderVideosActivity : AppCompatActivity() {
                 selectionArgs,
                 sortOrder
             )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val idCol = cursor.getColumnIndex(MediaStore.Video.Media._ID)
+                val nameCol = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+                val dataCol = cursor.getColumnIndex(MediaStore.Video.Media.DATA)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
+                val durCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val path = cursor.getString(dataCol) ?: continue
-                    val file = File(path)
-                    if (!file.exists() || file.length() <= 0L) continue
-
-                    if (detectedFolderDir == null) {
-                        detectedFolderDir = file.parentFile
+                    val id = if (idCol != -1) cursor.getLong(idCol) else 0L
+                    val rawPath = if (dataCol != -1) cursor.getString(dataCol) else null
+                    val path = if (!rawPath.isNullOrEmpty()) {
+                        rawPath
+                    } else {
+                        ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id).toString()
                     }
 
-                    val title = cursor.getString(nameCol) ?: file.name
-                    val size = cursor.getLong(sizeCol).coerceAtLeast(file.length())
-                    val duration = cursor.getLong(durCol).coerceAtLeast(0L)
+                    if (detectedFolderDir == null && !rawPath.isNullOrEmpty()) {
+                        detectedFolderDir = File(rawPath).parentFile
+                    }
+
+                    val title = if (nameCol != -1) cursor.getString(nameCol) ?: "Video_$id" else "Video_$id"
+                    val size = if (sizeCol != -1) cursor.getLong(sizeCol).coerceAtLeast(0L) else 0L
+                    val duration = if (durCol != -1) cursor.getLong(durCol).coerceAtLeast(0L) else 0L
 
                     if (seenPaths.add(path)) {
                         videos.add(VideoModel(id, title, path, size, duration))
@@ -120,7 +129,6 @@ class FolderVideosActivity : AppCompatActivity() {
             e.printStackTrace()
         }
 
-        // Scan physical directory for any unindexed video files (.mkv, .avi, .ts, .mp4, etc.)
         try {
             val dir = detectedFolderDir
             if (dir != null && dir.exists() && dir.isDirectory) {
