@@ -313,7 +313,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- STRAIGHT WAVEFORM SEEKBAR SECTION (Matches Red-Circled Screenshot 8) -->
+        <!-- STRAIGHT WAVEFORM SEEKBAR SECTION -->
         <LinearLayout
             android:id="@+id/llWaveformSeekSection"
             android:layout_width="match_parent"
@@ -353,7 +353,7 @@
                 android:id="@+id/imgStraightWaveformBar"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android: contentDescription="Waveform SeekBar" />
+                android:contentDescription="Waveform SeekBar" />
         </LinearLayout>
 
         <!-- MAIN PLAYBACK CONTROLS: Shuffle, Previous, Play/Pause Circle, Next, Repeat -->
@@ -557,7 +557,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- TOP CAMERA VOLUME NOTIFICATION HUD (Matches Screenshot 9: 80% + Bar with 4 Dots) -->
+    <!-- TOP CAMERA VOLUME NOTIFICATION HUD (80% + Bar with 4 Dots) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardTopVolumeHud"
         android:layout_width="290dp"
@@ -599,7 +599,7 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Custom Progress Bar + 4 Trailing Dots (Matches Screenshot 9) -->
+            <!-- Custom Progress Bar + 4 Trailing Dots -->
             <ImageView
                 android:id="@+id/imgTopVolumeBarWithDots"
                 android:layout_width="match_parent"
