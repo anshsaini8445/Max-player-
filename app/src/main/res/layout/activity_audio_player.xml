@@ -16,7 +16,7 @@
         android:paddingTop="14dp"
         android:paddingBottom="18dp">
 
-        <!-- TOP BAR: Minimize Arrow, Song Title & Artist, Live Timer Pill, Share Icon -->
+        <!-- TOP BAR: Minimize Arrow, Song Title & Artist, Share Icon -->
         <LinearLayout
             android:id="@+id/topBarAudio"
             android:layout_width="match_parent"
@@ -66,7 +66,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:text="Unknown"
-                    android:textColor="#9999AA"
+                    android:textColor="#BBBBCC"
                     android:textSize="12sp" />
             </LinearLayout>
 
@@ -80,7 +80,7 @@
                 app:tint="#FFFFFF" />
         </LinearLayout>
 
-        <!-- STATUS BADGES ROW: Live Countdown Timer & Shake Sensor Status -->
+        <!-- LIVE MILLISECOND SLEEP TIMER ROW (Visible only when Sleep Timer is active) -->
         <LinearLayout
             android:id="@+id/llStatusBadgesRow"
             android:layout_width="match_parent"
@@ -93,31 +93,18 @@
             <TextView
                 android:id="@+id/tvLiveTimerCountdown"
                 android:layout_width="wrap_content"
-                android:layout_height="26dp"
-                android:layout_marginEnd="8dp"
-                android:background="#1A00FFFF"
+                android:layout_height="28dp"
+                android:background="#2400FFFF"
                 android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Timer: 00:00"
+                android:paddingHorizontal="14dp"
+                android:text="15:00.00"
                 android:textColor="#00FFFF"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tvShakeModeBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="26dp"
-                android:background="#18FFFFFF"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="2x Shake: ON"
-                android:textColor="#00FFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- CENTER STAGE: Vinyl Disc / Album Box + Tonearm + Slide-Out Drawer Handle -->
+        <!-- CENTER STAGE: Vinyl Disc / Album Box + Tonearm + Sleek Sweet Edge Handle -->
         <FrameLayout
             android:id="@+id/flCenterVinylStage"
             android:layout_width="match_parent"
@@ -126,7 +113,6 @@
             android:layout_below="@id/llStatusBadgesRow"
             android:layout_marginVertical="8dp">
 
-            <!-- Rotating Vinyl / Swipable Album Art Container -->
             <LinearLayout
                 android:id="@+id/llCenterArtContainer"
                 android:layout_width="match_parent"
@@ -146,11 +132,11 @@
                 <!-- Outer Vinyl Disc / Album Art Card -->
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardCenterVinylDisc"
-                    android:layout_width="250dp"
-                    android:layout_height="250dp"
-                    app:cardBackgroundColor="#141420"
-                    app:cardCornerRadius="125dp"
-                    app:cardElevation="12dp">
+                    android:layout_width="256dp"
+                    android:layout_height="256dp"
+                    app:cardBackgroundColor="#141422"
+                    app:cardCornerRadius="128dp"
+                    app:cardElevation="14dp">
 
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -166,7 +152,7 @@
                             android:layout_width="112dp"
                             android:layout_height="112dp"
                             android:layout_gravity="center"
-                            app:cardBackgroundColor="#242436"
+                            app:cardBackgroundColor="#242438"
                             app:cardCornerRadius="56dp"
                             app:cardElevation="0dp">
 
@@ -180,26 +166,17 @@
                         </androidx.cardview.widget.CardView>
                     </FrameLayout>
                 </androidx.cardview.widget.CardView>
-
-                <TextView
-                    android:id="@+id/tvSwipeHint"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="Swipe up/down for Volume • Swipe left from edge for Songs"
-                    android:textColor="#666677"
-                    android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- RIGHT EDGE SLIDE-OUT HANDLE TAB (Pull/Tap to slide out Song Drawer Box) -->
+            <!-- SWEET MINIMAL SLIDE-OUT PILL HANDLE (No "SONGS" text) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardSlideOutTabHandle"
-                android:layout_width="34dp"
-                android:layout_height="92dp"
+                android:layout_width="26dp"
+                android:layout_height="64dp"
                 android:layout_gravity="end|center_vertical"
                 android:layout_marginEnd="-6dp"
-                app:cardBackgroundColor="#1E1E30"
-                app:cardCornerRadius="14dp"
+                app:cardBackgroundColor="#242438"
+                app:cardCornerRadius="13dp"
                 app:cardElevation="10dp">
 
                 <LinearLayout
@@ -209,25 +186,14 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:src="@android:drawable/ic_media_previous"
-                        app:tint="#00FFFF" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:gravity="center"
-                        android:text="S\nO\nN\nG\nS"
-                        android:textColor="#FFFFFF"
-                        android:textSize="8sp"
-                        android:textStyle="bold" />
+                        android:id="@+id/imgSlideHandleArrow"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </FrameLayout>
 
-        <!-- MIDDLE ACTION BAR: Equalizer, A-B Repeat, Speed/Timer, Favorite Heart, Far-Right 3-Dots -->
+        <!-- MIDDLE ACTION BAR: Equalizer, A-B Repeat, Timer/Speed, Favorite Heart, Far-Right 3-Dots -->
         <LinearLayout
             android:id="@+id/llMiddleFeaturesRow"
             android:layout_width="match_parent"
@@ -333,7 +299,7 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:text="0:00"
-                    android:textColor="#CCCCCC"
+                    android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -343,12 +309,11 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:text="0:00"
-                    android:textColor="#CCCCCC"
+                    android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </RelativeLayout>
 
-            <!-- Custom Straight Waveform Interactive Bar -->
             <ImageView
                 android:id="@+id/imgStraightWaveformBar"
                 android:layout_width="match_parent"
@@ -400,10 +365,10 @@
 
                 <ImageView
                     android:id="@+id/btnAudioPlayPause"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
+                    android:layout_width="66dp"
+                    android:layout_height="66dp"
                     android:layout_gravity="center"
-                    android:padding="14dp" />
+                    android:padding="12dp" />
             </FrameLayout>
 
             <FrameLayout
@@ -493,7 +458,7 @@
 
     </RelativeLayout>
 
-    <!-- SLIDE-OUT SONG DRAWER BOX (Slide from Right or Tap Handle/Queue to pick songs) -->
+    <!-- SLIDE-OUT SONG DRAWER BOX -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardSlideSongDrawer"
         android:layout_width="300dp"
@@ -502,7 +467,7 @@
         android:layout_marginVertical="48dp"
         android:layout_marginEnd="8dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#F212121E"
+        app:cardBackgroundColor="#F512121E"
         app:cardCornerRadius="22dp"
         app:cardElevation="24dp">
 
@@ -524,7 +489,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Quick Song Box (0)"
+                    android:text="Playing Queue (0)"
                     android:textColor="#00FFFF"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -536,7 +501,7 @@
                     android:background="#26FFFFFF"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="4dp"
-                    android:text="HIDE ✕"
+                    android:text="CLOSE ✕"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -557,15 +522,15 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- TOP CAMERA VOLUME NOTIFICATION HUD (80% + Bar with 4 Dots) -->
+    <!-- TOP CAMERA VOLUME NOTIFICATION HUD (Clean Full Bar Without 4 Dots) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardTopVolumeHud"
-        android:layout_width="290dp"
+        android:layout_width="280dp"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
         android:layout_marginTop="16dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#F5050508"
+        app:cardBackgroundColor="#F510101A"
         app:cardCornerRadius="22dp"
         app:cardElevation="28dp">
 
@@ -595,15 +560,14 @@
                     android:layout_marginStart="10dp"
                     android:text="80%"
                     android:textColor="#FFFFFF"
-                    android:textSize="22sp"
+                    android:textSize="21sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Custom Progress Bar + 4 Trailing Dots -->
             <ImageView
                 android:id="@+id/imgTopVolumeBarWithDots"
                 android:layout_width="match_parent"
-                android:layout_height="20dp"
+                android:layout_height="16dp"
                 android:layout_marginTop="10dp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
