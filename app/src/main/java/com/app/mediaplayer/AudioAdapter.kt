@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.app.AlertDialog
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -10,10 +11,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
@@ -31,7 +32,8 @@ class AudioAdapter(
         val artist: String,
         val path: String,
         val size: Long,
-        val duration: Long
+        val duration: Long,
+        val albumId: Long = 0L
     )
 
     class AudioViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -63,32 +65,57 @@ class AudioAdapter(
             favBadge
         )
 
+        // Load Custom Saved Song Photo OR Embedded Album Art at the start of each song item
+        val customPhotoUri = prefs.getString("custom_art_${track.path}", null)
+        val albumArtUri = when {
+            !customPhotoUri.isNullOrEmpty() -> Uri.parse(customPhotoUri)
+            track.albumId > 0L -> ContentUris.withAppendedId(
+                Uri.parse("content://media/external/audio/albumart"),
+                track.albumId
+            )
+            else -> null
+        }
+
+        if (albumArtUri != null) {
+            holder.imgAudioThumb.setPadding(0, 0, 0, 0)
+            holder.imgAudioThumb.clearColorFilter()
+            Glide.with(context)
+                .load(albumArtUri)
+                .placeholder(android.R.drawable.ic_lock_silent_mode_off)
+                .error(android.R.drawable.ic_lock_silent_mode_off)
+                .centerCrop()
+                .into(holder.imgAudioThumb)
+        } else {
+            val pad = (10 * context.resources.displayMetrics.density).toInt()
+            holder.imgAudioThumb.setPadding(pad, pad, pad, pad)
+            holder.imgAudioThumb.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+            holder.imgAudioThumb.setColorFilter(Color.parseColor("#00FFFF"))
+        }
+
         holder.itemView.setOnClickListener {
             openAudioPlayer(position)
         }
 
-        holder.btnAudioItemMore.setOnClickListener { anchor ->
+        // High-Contrast Crystal-Clear Custom 3-Dots Dialog for each Song Item
+        holder.btnAudioItemMore.setOnClickListener {
             val currentFav = prefs.getBoolean("fav_audio_${track.path}", false)
-            val popup = PopupMenu(context, anchor)
-            popup.menu.add(0, 1, 0, "Play Now")
-            popup.menu.add(0, 2, 1, "Add to Playlist")
-            popup.menu.add(0, 3, 2, if (currentFav) "Remove from Favorites" else "Add to Favorites")
-            popup.menu.add(0, 4, 3, "Share Song")
-            popup.menu.add(0, 5, 4, "Song Info")
+            val menuItems = arrayOf(
+                "▶ Play Song Now",
+                "➕ Add to Playlist",
+                if (currentFav) "💔 Remove from Favorites" else "❤️ Add to Favorites",
+                "📤 Share Audio File",
+                "ℹ️ Song Information"
+            )
 
-            popup.setOnMenuItemClickListener { item ->
-                when (item.itemId) {
+            MusicFragment.showBrightStyledMenuDialog(context, track.title, menuItems) { which ->
+                when (which) {
+                    0 -> openAudioPlayer(position)
                     1 -> {
-                        openAudioPlayer(position)
-                        true
-                    }
-                    2 -> {
                         showAddToPlaylistDialog(context, track.path, track.title) {
                             onDataChanged?.invoke()
                         }
-                        true
                     }
-                    3 -> {
+                    2 -> {
                         prefs.edit().putBoolean("fav_audio_${track.path}", !currentFav).apply()
                         notifyItemChanged(position)
                         onDataChanged?.invoke()
@@ -97,9 +124,8 @@ class AudioAdapter(
                             if (!currentFav) "Added to Favorites" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
-                        true
                     }
-                    4 -> {
+                    3 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "audio/*"
@@ -110,26 +136,22 @@ class AudioAdapter(
                         } catch (e: Exception) {
                             Toast.makeText(context, "Unable to share song", Toast.LENGTH_SHORT).show()
                         }
-                        true
                     }
-                    5 -> {
+                    4 -> {
                         AlertDialog.Builder(context)
                             .setTitle("Song Details")
                             .setMessage(
                                 "Title: ${track.title}\n\n" +
-                                    "Artist: ${track.artist}\n\n" +
+                                    "Singer / Artist: ${track.artist}\n\n" +
                                     "Duration: ${formatDuration(track.duration)}\n\n" +
                                     "Size: ${String.format(Locale.US, "%.2f MB", sizeMb)}\n\n" +
                                     "Location: ${track.path}"
                             )
                             .setPositiveButton("OK", null)
                             .show()
-                        true
                     }
-                    else -> false
                 }
             }
-            popup.show()
         }
     }
 
@@ -139,10 +161,13 @@ class AudioAdapter(
         val paths = ArrayList<String>(tracks.size)
         val titles = ArrayList<String>(tracks.size)
         val artists = ArrayList<String>(tracks.size)
+        val albumIds = ArrayList<String>(tracks.size)
+
         for (item in tracks) {
             paths.add(item.path)
             titles.add(item.title)
             artists.add(item.artist)
+            albumIds.add(item.albumId.toString())
         }
 
         val intent = Intent(context, AudioPlayerActivity::class.java).apply {
@@ -151,10 +176,12 @@ class AudioAdapter(
             putExtra("AUDIO_ARTIST", chosen.artist)
             putExtra("AUDIO_DURATION", chosen.duration)
             putExtra("AUDIO_ID", chosen.id)
+            putExtra("AUDIO_ALBUM_ID", chosen.albumId)
             putExtra("AUDIO_POSITION", safePos)
             putStringArrayListExtra("AUDIO_LIST_PATHS", paths)
             putStringArrayListExtra("AUDIO_LIST_TITLES", titles)
             putStringArrayListExtra("AUDIO_LIST_ARTISTS", artists)
+            putStringArrayListExtra("AUDIO_LIST_ALBUM_IDS", albumIds)
         }
         context.startActivity(intent)
     }
@@ -204,36 +231,38 @@ class AudioAdapter(
             val options = mutableListOf("+ Create New Playlist")
             options.addAll(existing)
 
-            AlertDialog.Builder(context)
-                .setTitle("Add '$songTitle' to Playlist")
-                .setItems(options.toTypedArray()) { _, which ->
-                    if (which == 0) {
-                        val input = EditText(context).apply {
-                            hint = "Playlist Name (e.g. Favorites, Driving)"
-                            setTextColor(Color.BLACK)
-                            setPadding(40, 30, 40, 30)
-                        }
-                        AlertDialog.Builder(context)
-                            .setTitle("Create & Add to Playlist")
-                            .setView(input)
-                            .setPositiveButton("Save") { _, _ ->
-                                val name = input.text.toString().trim()
-                                if (name.isNotEmpty()) {
-                                    addSongToPlaylist(context, name, songPath)
-                                    onAdded?.invoke()
-                                    Toast.makeText(context, "Added to '$name'", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            .setNegativeButton("Cancel", null)
-                            .show()
-                    } else {
-                        val chosenPlaylist = existing[which - 1]
-                        addSongToPlaylist(context, chosenPlaylist, songPath)
-                        onAdded?.invoke()
-                        Toast.makeText(context, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
+            MusicFragment.showBrightStyledMenuDialog(
+                context,
+                "Add '$songTitle' to Playlist",
+                options.toTypedArray()
+            ) { which ->
+                if (which == 0) {
+                    val input = EditText(context).apply {
+                        hint = "Playlist Name (e.g. Favorites, Driving)"
+                        setHintTextColor(Color.parseColor("#888899"))
+                        setTextColor(Color.WHITE)
+                        setPadding(45, 35, 45, 35)
                     }
+                    AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Create & Add to Playlist")
+                        .setView(input)
+                        .setPositiveButton("Save") { _, _ ->
+                            val name = input.text.toString().trim()
+                            if (name.isNotEmpty()) {
+                                addSongToPlaylist(context, name, songPath)
+                                onAdded?.invoke()
+                                Toast.makeText(context, "Added to '$name'", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    val chosenPlaylist = existing[which - 1]
+                    addSongToPlaylist(context, chosenPlaylist, songPath)
+                    onAdded?.invoke()
+                    Toast.makeText(context, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
                 }
-                .show()
+            }
         }
     }
 }
