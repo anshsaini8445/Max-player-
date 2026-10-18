@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -8,18 +9,19 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
@@ -29,26 +31,34 @@ import kotlin.concurrent.thread
 
 class MusicFragment : Fragment() {
 
-    private lateinit var rvMusicList: RecyclerView
-    private lateinit var llMusicEmptyState: LinearLayout
     private lateinit var tvMusicTabSongs: TextView
-    private lateinit var tvMusicTabFolders: TextView
     private lateinit var tvMusicTabPlaylists: TextView
-    private lateinit var btnToggleMusicLayout: ImageView
-    private lateinit var llMusicQuickActions: LinearLayout
-    private lateinit var tvTotalSongsCount: TextView
+    private lateinit var tvMusicTabArtists: TextView
+    private lateinit var tvMusicTabFavorites: TextView
+    private lateinit var btnMusicMoreMenu: ImageView
 
-    private val allSongsList = mutableListOf<AudioItemModel>()
-    private val displayedSongsList = mutableListOf<AudioItemModel>()
+    private lateinit var btnShufflePlayAll: LinearLayout
+    private lateinit var tvShuffleAllCount: TextView
+    private lateinit var btnNewPlaylist: TextView
+
+    private lateinit var rvMusicTracks: RecyclerView
+    private lateinit var llMusicEmptyState: LinearLayout
+    private lateinit var tvMusicEmptyTitle: TextView
+    private lateinit var tvMusicEmptyDesc: TextView
+
+    private lateinit var cardMiniAudioPlayer: CardView
+    private lateinit var tvMiniPlayerTitle: TextView
+    private lateinit var tvMiniPlayerArtist: TextView
+    private lateinit var btnMiniPlayOpen: ImageView
+
+    private val allTracksList = mutableListOf<AudioAdapter.MusicTrack>()
+    private val displayedTracksList = mutableListOf<AudioAdapter.MusicTrack>()
     private lateinit var audioAdapter: AudioAdapter
 
-    private var isGridMode = false
-    private var currentTab = 0
+    private var currentTab = 0 // 0: Songs, 1: Playlists, 2: Artists, 3: Favorites
+    private var sortMode = 0
+    private var selectedPlaylistFilter: String? = null
     private var isScanning = false
-
-    private val supportedAudioExtensions = setOf(
-        "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma"
-    )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -57,290 +67,408 @@ class MusicFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_music, container, false)
 
-        rvMusicList = view.findViewById(R.id.rvMusicList)
-        llMusicEmptyState = view.findViewById(R.id.llMusicEmptyState)
         tvMusicTabSongs = view.findViewById(R.id.tvMusicTabSongs)
-        tvMusicTabFolders = view.findViewById(R.id.tvMusicTabFolders)
         tvMusicTabPlaylists = view.findViewById(R.id.tvMusicTabPlaylists)
-        btnToggleMusicLayout = view.findViewById(R.id.btnToggleMusicLayout)
-        llMusicQuickActions = view.findViewById(R.id.llMusicQuickActions)
-        tvTotalSongsCount = view.findViewById(R.id.tvTotalSongsCount)
+        tvMusicTabArtists = view.findViewById(R.id.tvMusicTabArtists)
+        tvMusicTabFavorites = view.findViewById(R.id.tvMusicTabFavorites)
+        btnMusicMoreMenu = view.findViewById(R.id.btnMusicMoreMenu)
 
-        val prefs = requireContext().getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        isGridMode = prefs.getBoolean("music_grid_mode", false)
-        applyLayoutManager()
+        btnShufflePlayAll = view.findViewById(R.id.btnShufflePlayAll)
+        tvShuffleAllCount = view.findViewById(R.id.tvShuffleAllCount)
+        btnNewPlaylist = view.findViewById(R.id.btnNewPlaylist)
 
-        audioAdapter = AudioAdapter(requireContext(), displayedSongsList)
-        rvMusicList.adapter = audioAdapter
+        rvMusicTracks = view.findViewById(R.id.rvMusicTracks)
+        llMusicEmptyState = view.findViewById(R.id.llMusicEmptyState)
+        tvMusicEmptyTitle = view.findViewById(R.id.tvMusicEmptyTitle)
+        tvMusicEmptyDesc = view.findViewById(R.id.tvMusicEmptyDesc)
+
+        cardMiniAudioPlayer = view.findViewById(R.id.cardMiniAudioPlayer)
+        tvMiniPlayerTitle = view.findViewById(R.id.tvMiniPlayerTitle)
+        tvMiniPlayerArtist = view.findViewById(R.id.tvMiniPlayerArtist)
+        btnMiniPlayOpen = view.findViewById(R.id.btnMiniPlayOpen)
+
+        rvMusicTracks.layoutManager = LinearLayoutManager(requireContext())
+        audioAdapter = AudioAdapter(requireContext(), displayedTracksList) {
+            refreshMusicTabsUI()
+        }
+        rvMusicTracks.adapter = audioAdapter
 
         setupClicks()
-        ensurePermissionsAndLoadAudio()
+        checkAudioPermissionAndLoad()
 
         return view
     }
 
     override fun onResume() {
         super.onResume()
-        loadAudioFilesSafely()
+        updateMiniPlayerBar()
+        loadAllAudioFast()
     }
 
-    private fun applyLayoutManager() {
+    private fun checkAudioPermissionAndLoad() {
         val ctx = context ?: return
-        if (isGridMode) {
-            rvMusicList.layoutManager = GridLayoutManager(ctx, 2)
-            btnToggleMusicLayout.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                ctx,
+                Manifest.permission.READ_MEDIA_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
         } else {
-            rvMusicList.layoutManager = LinearLayoutManager(ctx)
-            btnToggleMusicLayout.setImageResource(android.R.drawable.ic_dialog_dialer)
+            ContextCompat.checkSelfPermission(
+                ctx,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
         }
+
+        if (!hasPerm) {
+            val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO)
+            } else {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            requestPermissions(perms, 3001)
+        }
+        loadAllAudioFast()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        loadAllAudioFast()
     }
 
     private fun setupClicks() {
-        val activeColor = Color.parseColor("#00FFFF")
-        val inactiveColor = Color.parseColor("#888888")
+        val tabs = listOf(tvMusicTabSongs, tvMusicTabPlaylists, tvMusicTabArtists, tvMusicTabFavorites)
 
-        btnToggleMusicLayout.setOnClickListener {
-            isGridMode = !isGridMode
-            requireContext().getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean("music_grid_mode", isGridMode)
-                .apply()
-            applyLayoutManager()
-            audioAdapter.notifyDataSetChanged()
-            Toast.makeText(
-                requireContext(),
-                if (isGridMode) "Switched to Grid Layout" else "Switched to List Layout",
-                Toast.LENGTH_SHORT
-            ).show()
+        tabs.forEachIndexed { index, tabView ->
+            tabView.setOnClickListener {
+                currentTab = index
+                selectedPlaylistFilter = null
+                tabs.forEachIndexed { i, tv ->
+                    tv.setTextColor(
+                        if (i == currentTab) Color.parseColor("#00FFFF") else Color.parseColor("#888888")
+                    )
+                }
+                if (currentTab == 1) {
+                    showPlaylistPickerOrSongs()
+                } else {
+                    refreshMusicTabsUI()
+                }
+            }
         }
 
-        tvMusicTabSongs.setOnClickListener {
-            currentTab = 0
-            tvMusicTabSongs.setTextColor(activeColor)
-            tvMusicTabFolders.setTextColor(inactiveColor)
-            tvMusicTabPlaylists.setTextColor(inactiveColor)
-            refreshDisplayedSongs()
-        }
-
-        tvMusicTabFolders.setOnClickListener {
-            currentTab = 1
-            tvMusicTabSongs.setTextColor(inactiveColor)
-            tvMusicTabFolders.setTextColor(activeColor)
-            tvMusicTabPlaylists.setTextColor(inactiveColor)
-            refreshDisplayedSongs()
-        }
-
-        tvMusicTabPlaylists.setOnClickListener {
-            currentTab = 2
-            tvMusicTabSongs.setTextColor(inactiveColor)
-            tvMusicTabFolders.setTextColor(inactiveColor)
-            tvMusicTabPlaylists.setTextColor(activeColor)
-            refreshDisplayedSongs()
-        }
-
-        llMusicQuickActions.setOnClickListener {
-            if (displayedSongsList.isEmpty()) {
+        btnShufflePlayAll.setOnClickListener {
+            if (displayedTracksList.isEmpty()) {
                 Toast.makeText(requireContext(), "No songs available to play", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val first = displayedSongsList[0]
-            val paths = ArrayList<String>(displayedSongsList.size)
-            val titles = ArrayList<String>(displayedSongsList.size)
-            val artists = ArrayList<String>(displayedSongsList.size)
+            val shuffled = displayedTracksList.shuffled()
+            launchAudioPlayerWithList(shuffled, 0, true)
+        }
 
-            for (song in displayedSongsList) {
-                paths.add(song.path)
-                titles.add(song.title)
-                artists.add(song.artist)
-            }
+        btnNewPlaylist.setOnClickListener {
+            showCreateNewPlaylistDialog()
+        }
 
-            val intent = Intent(requireContext(), AudioPlayerActivity::class.java).apply {
-                putExtra("AUDIO_PATH", first.path)
-                putExtra("AUDIO_TITLE", first.title)
-                putExtra("AUDIO_ARTIST", first.artist)
-                putExtra("AUDIO_INDEX", 0)
-                putStringArrayListExtra("AUDIO_LIST", paths)
-                putStringArrayListExtra("AUDIO_TITLES", titles)
-                putStringArrayListExtra("AUDIO_ARTISTS", artists)
+        btnMusicMoreMenu.setOnClickListener { anchor ->
+            val ctx = context ?: return@setOnClickListener
+            val popup = PopupMenu(ctx, anchor)
+            popup.menu.add(0, 1, 0, "Sort: Newest Added")
+            popup.menu.add(0, 2, 1, "Sort: Title (A to Z)")
+            popup.menu.add(0, 3, 2, "Sort: Artist Name")
+            popup.menu.add(0, 4, 3, "Sort: Longest Duration")
+            popup.menu.add(0, 5, 4, "Create New Playlist")
+            popup.menu.add(0, 6, 5, "Rescan Music Library")
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1, 2, 3, 4 -> {
+                        sortMode = item.itemId - 1
+                        refreshMusicTabsUI()
+                        true
+                    }
+                    5 -> {
+                        showCreateNewPlaylistDialog()
+                        true
+                    }
+                    6 -> {
+                        loadAllAudioFast()
+                        Toast.makeText(ctx, "Music library refreshed", Toast.LENGTH_SHORT).show()
+                        true
+                    }
+                    else -> false
+                }
             }
-            startActivity(intent)
+            popup.show()
+        }
+
+        val openLastPlayed = View.OnClickListener {
+            val ctx = context ?: return@OnClickListener
+            val prefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+            val lastPath = prefs.getString("last_audio_path", null) ?: return@OnClickListener
+            val targetIdx = allTracksList.indexOfFirst { it.path == lastPath }.coerceAtLeast(0)
+            if (allTracksList.isNotEmpty()) {
+                launchAudioPlayerWithList(allTracksList, targetIdx, false)
+            }
+        }
+        cardMiniAudioPlayer.setOnClickListener(openLastPlayed)
+        btnMiniPlayOpen.setOnClickListener(openLastPlayed)
+    }
+
+    private fun showCreateNewPlaylistDialog() {
+        val ctx = context ?: return
+        val input = EditText(ctx).apply {
+            hint = "Enter playlist name (e.g. Gym, Bass Boost)"
+            setTextColor(Color.BLACK)
+            setPadding(40, 30, 40, 30)
+        }
+        AlertDialog.Builder(ctx)
+            .setTitle("Create New Playlist")
+            .setView(input)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    AudioAdapter.savePlaylistName(ctx, name)
+                    Toast.makeText(ctx, "Playlist '$name' created!", Toast.LENGTH_SHORT).show()
+                    if (currentTab == 1) {
+                        showPlaylistPickerOrSongs()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showPlaylistPickerOrSongs() {
+        val ctx = context ?: return
+        val playlists = AudioAdapter.getAllPlaylists(ctx).toList()
+        if (playlists.isEmpty()) {
+            displayedTracksList.clear()
+            audioAdapter.notifyDataSetChanged()
+            rvMusicTracks.visibility = View.GONE
+            llMusicEmptyState.visibility = View.VISIBLE
+            tvMusicEmptyTitle.text = "No Custom Playlists Yet"
+            tvMusicEmptyDesc.text = "Tap '+ New Playlist' above or use the 3-dots menu on any song to add to a playlist."
+            return
+        }
+
+        val items = playlists.map { plName ->
+            val count = AudioAdapter.getPlaylistSongs(ctx, plName).size
+            "$plName ($count songs)"
+        }.toTypedArray()
+
+        AlertDialog.Builder(ctx)
+            .setTitle("Select Playlist to Open")
+            .setItems(items) { _, which ->
+                selectedPlaylistFilter = playlists[which]
+                refreshMusicTabsUI()
+            }
+            .setPositiveButton("+ New Playlist") { _, _ ->
+                showCreateNewPlaylistDialog()
+            }
+            .setNegativeButton("Show All Playlist Songs") { _, _ ->
+                selectedPlaylistFilter = null
+                refreshMusicTabsUI()
+            }
+            .show()
+    }
+
+    private fun updateMiniPlayerBar() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val lastTitle = prefs.getString("last_audio_title", null)
+        val lastArtist = prefs.getString("last_audio_artist", null)
+        if (!lastTitle.isNullOrEmpty()) {
+            cardMiniAudioPlayer.visibility = View.VISIBLE
+            tvMiniPlayerTitle.text = lastTitle
+            tvMiniPlayerArtist.text = lastArtist ?: "Unknown Artist"
+        } else {
+            cardMiniAudioPlayer.visibility = View.GONE
         }
     }
 
-    private fun refreshDisplayedSongs() {
+    private fun launchAudioPlayerWithList(
+        list: List<AudioAdapter.MusicTrack>,
+        startIndex: Int,
+        shuffleStart: Boolean
+    ) {
         val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val chosen = list[startIndex.coerceIn(0, list.size - 1)]
+        val paths = ArrayList<String>(list.size)
+        val titles = ArrayList<String>(list.size)
+        val artists = ArrayList<String>(list.size)
+        list.forEach {
+            paths.add(it.path)
+            titles.add(it.title)
+            artists.add(it.artist)
+        }
+        val intent = Intent(ctx, AudioPlayerActivity::class.java).apply {
+            putExtra("AUDIO_PATH", chosen.path)
+            putExtra("AUDIO_TITLE", chosen.title)
+            putExtra("AUDIO_ARTIST", chosen.artist)
+            putExtra("AUDIO_DURATION", chosen.duration)
+            putExtra("AUDIO_ID", chosen.id)
+            putExtra("AUDIO_POSITION", startIndex)
+            putExtra("AUDIO_SHUFFLE_START", shuffleStart)
+            putStringArrayListExtra("AUDIO_LIST_PATHS", paths)
+            putStringArrayListExtra("AUDIO_LIST_TITLES", titles)
+            putStringArrayListExtra("AUDIO_LIST_ARTISTS", artists)
+        }
+        ctx.startActivity(intent)
+    }
 
-        displayedSongsList.clear()
-        when (currentTab) {
-            0 -> displayedSongsList.addAll(allSongsList)
-            1 -> displayedSongsList.addAll(allSongsList.sortedBy { it.folderName.lowercase(Locale.getDefault()) })
-            2 -> {
-                val favs = allSongsList.filter { prefs.getBoolean("fav_audio_${it.path}", false) }
-                displayedSongsList.addAll(favs)
+    private fun refreshMusicTabsUI() {
+        if (!isAdded || context == null) return
+        val ctx = requireContext()
+        val prefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+
+        val baseList = when (currentTab) {
+            1 -> {
+                val plFilter = selectedPlaylistFilter
+                if (plFilter != null) {
+                    val savedPaths = AudioAdapter.getPlaylistSongs(ctx, plFilter)
+                    allTracksList.filter { savedPaths.contains(it.path) }
+                } else {
+                    val allPlPaths = mutableSetOf<String>()
+                    AudioAdapter.getAllPlaylists(ctx).forEach { pl ->
+                        allPlPaths.addAll(AudioAdapter.getPlaylistSongs(ctx, pl))
+                    }
+                    allTracksList.filter { allPlPaths.contains(it.path) }
+                }
+            }
+            2 -> allTracksList.sortedBy { it.artist.lowercase(Locale.getDefault()) }
+            3 -> allTracksList.filter { prefs.getBoolean("fav_audio_${it.path}", false) }
+            else -> allTracksList
+        }
+
+        val sorted = if (currentTab == 2) {
+            baseList
+        } else {
+            when (sortMode) {
+                1 -> baseList.sortedBy { it.title.lowercase(Locale.getDefault()) }
+                2 -> baseList.sortedBy { it.artist.lowercase(Locale.getDefault()) }
+                3 -> baseList.sortedByDescending { it.duration }
+                else -> baseList
             }
         }
 
-        tvTotalSongsCount.text = "${displayedSongsList.size} Songs"
+        displayedTracksList.clear()
+        displayedTracksList.addAll(sorted)
         audioAdapter.notifyDataSetChanged()
 
-        if (displayedSongsList.isEmpty()) {
-            rvMusicList.visibility = View.GONE
+        tvShuffleAllCount.text = "Shuffle All (${displayedTracksList.size})"
+
+        if (displayedTracksList.isEmpty()) {
+            rvMusicTracks.visibility = View.GONE
             llMusicEmptyState.visibility = View.VISIBLE
+            when (currentTab) {
+                1 -> {
+                    tvMusicEmptyTitle.text = "Playlist is Empty"
+                    tvMusicEmptyDesc.text = "Tap the 3-dots on any song and choose 'Add to Playlist'."
+                }
+                3 -> {
+                    tvMusicEmptyTitle.text = "No Favorite Songs Yet"
+                    tvMusicEmptyDesc.text = "Tap the heart icon in the player or 3-dots on any song to mark as Favorite."
+                }
+                else -> {
+                    tvMusicEmptyTitle.text = "No Audio Files Found"
+                    tvMusicEmptyDesc.text = "Allow audio storage permission to load your songs."
+                }
+            }
         } else {
             llMusicEmptyState.visibility = View.GONE
-            rvMusicList.visibility = View.VISIBLE
+            rvMusicTracks.visibility = View.VISIBLE
         }
     }
 
-    private fun ensurePermissionsAndLoadAudio() {
-        val ctx = context ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissions(arrayOf(Manifest.permission.READ_MEDIA_AUDIO), 3001)
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 3001)
-            }
-        }
-        loadAudioFilesSafely()
-    }
-
-    private fun loadAudioFilesSafely() {
+    private fun loadAllAudioFast() {
         if (isScanning) return
         isScanning = true
 
         thread {
             try {
-                val fetched = fetchAllAudioFromDevice()
+                val loaded = mutableListOf<AudioAdapter.MusicTrack>()
+                val resolver = context?.contentResolver
+                if (resolver != null) {
+                    val proj = arrayOf(
+                        MediaStore.Audio.Media._ID,
+                        MediaStore.Audio.Media.TITLE,
+                        MediaStore.Audio.Media.DISPLAY_NAME,
+                        MediaStore.Audio.Media.ARTIST,
+                        MediaStore.Audio.Media.DATA,
+                        MediaStore.Audio.Media.SIZE,
+                        MediaStore.Audio.Media.DURATION
+                    )
+                    val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
+                    resolver.query(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        proj,
+                        null,
+                        null,
+                        sortOrder
+                    )?.use { cursor ->
+                        val idC = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+                        val titleC = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                        val nameC = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
+                        val artistC = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+                        val dataC = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                        val sizeC = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
+                        val durC = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+
+                        while (cursor.moveToNext()) {
+                            val id = if (idC != -1) cursor.getLong(idC) else 0L
+                            val rawPath = if (dataC != -1) cursor.getString(dataC) else null
+                            val path = if (!rawPath.isNullOrEmpty()) {
+                                rawPath
+                            } else {
+                                ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
+                            }
+                            val rawTitle = if (titleC != -1) cursor.getString(titleC) else null
+                            val displayName = if (nameC != -1) cursor.getString(nameC) else null
+                            val title = when {
+                                !rawTitle.isNullOrEmpty() -> rawTitle
+                                !displayName.isNullOrEmpty() -> displayName
+                                else -> File(path).name
+                            }
+                            val rawArtist = if (artistC != -1) cursor.getString(artistC) else null
+                            val artist = if (rawArtist.isNullOrEmpty() || rawArtist == "<unknown>") {
+                                "Unknown"
+                            } else {
+                                rawArtist
+                            }
+                            val size = if (sizeC != -1) cursor.getLong(sizeC).coerceAtLeast(0L) else 0L
+                            val duration = if (durC != -1) cursor.getLong(durC).coerceAtLeast(0L) else 0L
+
+                            if (duration >= 1000L || size > 10240L) {
+                                loaded.add(
+                                    AudioAdapter.MusicTrack(
+                                        id = id,
+                                        title = title,
+                                        artist = artist,
+                                        path = path,
+                                        size = size,
+                                        duration = duration
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 activity?.runOnUiThread {
                     isScanning = false
                     if (!isAdded || context == null) return@runOnUiThread
-
-                    allSongsList.clear()
-                    allSongsList.addAll(fetched)
-                    refreshDisplayedSongs()
+                    allTracksList.clear()
+                    allTracksList.addAll(loaded)
+                    updateMiniPlayerBar()
+                    refreshMusicTabsUI()
                 }
             } catch (e: Exception) {
                 isScanning = false
                 e.printStackTrace()
-            }
-        }
-    }
-
-    private fun fetchAllAudioFromDevice(): List<AudioItemModel> {
-        val output = mutableListOf<AudioItemModel>()
-        val seenPaths = HashSet<String>()
-        val resolver = context?.contentResolver ?: return output
-
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.SIZE,
-            MediaStore.Audio.Media.DURATION
-        )
-
-        val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
-
-        try {
-            resolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                null,
-                null,
-                sortOrder
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val rawPath = cursor.getString(dataCol)
-                    val path = if (!rawPath.isNullOrEmpty()) {
-                        rawPath
-                    } else {
-                        ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
-                    }
-
-                    val title = cursor.getString(titleCol)
-                        ?: cursor.getString(nameCol)
-                        ?: "Audio_$id"
-                    val rawArtist = cursor.getString(artistCol) ?: "Unknown Artist"
-                    val cleanArtist = if (rawArtist.contains("<unknown>", ignoreCase = true)) {
-                        "MAX Audio"
-                    } else {
-                        rawArtist
-                    }
-
-                    val size = cursor.getLong(sizeCol).coerceAtLeast(0L)
-                    val duration = cursor.getLong(durCol).coerceAtLeast(0L)
-                    val folderName = File(path).parentFile?.name ?: "Music"
-
-                    if (seenPaths.add(path)) {
-                        output.add(AudioItemModel(id, title, cleanArtist, path, size, duration, folderName))
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        try {
-            val rootDir = Environment.getExternalStorageDirectory()
-            if (rootDir != null && rootDir.exists()) {
-                scanDirectoryForUnindexedAudio(rootDir, seenPaths, output)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return output
-    }
-
-    private fun scanDirectoryForUnindexedAudio(
-        dir: File,
-        seenPaths: HashSet<String>,
-        output: MutableList<AudioItemModel>
-    ) {
-        val files = dir.listFiles() ?: return
-        for (file in files) {
-            if (file.name.startsWith(".")) continue
-            if (file.isDirectory) {
-                val lower = file.name.lowercase(Locale.getDefault())
-                if (lower == "android" || lower == "data" || lower == "obb") continue
-                scanDirectoryForUnindexedAudio(file, seenPaths, output)
-            } else if (file.isFile && file.length() > 10240L) {
-                val ext = file.extension.lowercase(Locale.getDefault())
-                if (supportedAudioExtensions.contains(ext)) {
-                    val path = file.absolutePath
-                    if (seenPaths.add(path)) {
-                        val folderName = file.parentFile?.name ?: "Music"
-                        output.add(
-                            AudioItemModel(
-                                path.hashCode().toLong(),
-                                file.nameWithoutExtension,
-                                folderName,
-                                path,
-                                file.length(),
-                                0L,
-                                folderName
-                            )
-                        )
-                    }
-                }
             }
         }
     }
