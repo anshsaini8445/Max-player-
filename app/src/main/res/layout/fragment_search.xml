@@ -1,64 +1,188 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/max_dark_bg"
-    android:padding="16dp">
+    android:background="#0A0A10">
 
-    <EditText
-        android:id="@+id/etSearch"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="#15151E"
-        android:hint="Search videos, music, files..."
-        android:textColorHint="@color/max_gray"
-        android:textColor="@color/white"
-        android:paddingHorizontal="16dp"
-        android:drawableStart="@android:drawable/ic_menu_search"
-        android:drawablePadding="8dp"
-        android:singleLine="true" />
-
-    <HorizontalScrollView
+    <!-- Top Header: Title & Quick Categories -->
+    <LinearLayout
+        android:id="@+id/layoutSearchTopHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:layout_marginTop="16dp">
+        android:layout_alignParentTop="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp">
 
-        <LinearLayout
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:text="Search & Discover"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tagAllMedia"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#00FFFF"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="All Files"
+                    android:textColor="#000000"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tagVideos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#161622"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="Videos"
+                    android:textColor="#CCCCCC"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tagAudios"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#161622"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="Music"
+                    android:textColor="#CCCCCC"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tagLargeFiles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:background="#161622"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="HD & Large"
+                    android:textColor="#CCCCCC"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <!-- Center Content: Search Results List or Empty State -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/layoutBottomSearchBar"
+        android:layout_below="@id/layoutSearchTopHeader"
+        android:layout_marginTop="10dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSearchResults"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="12dp" />
+
+        <LinearLayout
+            android:id="@+id/llSearchInitialState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp">
+
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@android:drawable/ic_menu_search"
+                app:tint="#00FFFF" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="8K"
-                android:textColor="@color/max_cyan"
-                android:background="#111111"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginTop="14dp"
+                android:text="Search your device"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Hindi Songs"
-                android:textColor="@color/max_cyan"
-                android:background="#111111"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:layout_marginEnd="8dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Movies"
-                android:textColor="@color/max_cyan"
-                android:background="#111111"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="8dp"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="Type any video name, song title, or keyword in the bottom search bar below."
+                android:textColor="#888888"
+                android:textSize="13sp" />
         </LinearLayout>
-    </HorizontalScrollView>
-</LinearLayout>
+    </FrameLayout>
+
+    <!-- BOTTOM FIXED SEARCH BAR (Gemini / Modern Style) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/layoutBottomSearchBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        app:cardBackgroundColor="#181824"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@android:drawable/ic_menu_search"
+                app:tint="#00FFFF" />
+
+            <EditText
+                android:id="@+id/etBottomSearchBox"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginHorizontal="10dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Search videos, music, files..."
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:singleLine="true"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#777777"
+                android:textSize="15sp" />
+
+            <ImageView
+                android:id="@+id/btnClearSearchText"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="6dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:visibility="gone"
+                app:tint="#AAAAAA" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</RelativeLayout>
