@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="#0A0A10">
 
-    <!-- Top Header: Title & Quick Categories -->
+    <!-- Top Header & Filter Pills -->
     <LinearLayout
         android:id="@+id/layoutSearchTopHeader"
         android:layout_width="match_parent"
@@ -13,12 +13,13 @@
         android:layout_alignParentTop="true"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingTop="16dp">
+        android:paddingTop="14dp"
+        android:paddingBottom="6dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Search & Discover"
+            android:text="Search Media"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -26,12 +27,13 @@
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
@@ -78,28 +80,29 @@
                     android:background="#161622"
                     android:gravity="center"
                     android:paddingHorizontal="16dp"
-                    android:text="HD & Large"
+                    android:text="HD / Large"
                     android:textColor="#CCCCCC"
                     android:textSize="12sp" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>
 
-    <!-- Center Content: Search Results List or Empty State -->
+    <!-- Center Results Area -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/layoutBottomSearchBar"
         android:layout_below="@id/layoutSearchTopHeader"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="4dp">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvSearchResults"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="12dp"
-            android:paddingBottom="12dp" />
+            android:paddingHorizontal="10dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/llSearchInitialState"
@@ -107,51 +110,55 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="32dp">
+            android:padding="32dp"
+            android:visibility="visible">
 
             <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:src="@android:drawable/ic_menu_search"
                 app:tint="#00FFFF" />
 
             <TextView
+                android:id="@+id/tvSearchEmptyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="Search your device"
+                android:layout_marginTop="12dp"
+                android:text="Instant Media Search"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/tvSearchEmptySubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:gravity="center"
-                android:text="Type any video name, song title, or keyword in the bottom search bar below."
+                android:text="Use the bottom search bar below to find any song, video, or artist instantly."
                 android:textColor="#888888"
                 android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
 
-    <!-- BOTTOM FIXED SEARCH BAR (Gemini / Modern Style) -->
+    <!-- Gemini-Style Bottom Docked Search Bar -->
     <androidx.cardview.widget.CardView
         android:id="@+id/layoutBottomSearchBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_margin="12dp"
-        app:cardBackgroundColor="#181824"
-        app:cardCornerRadius="26dp"
-        app:cardElevation="8dp">
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="#181826"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="10dp">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="52dp"
+            android:layout_height="54dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp">
+            android:paddingHorizontal="18dp">
 
             <ImageView
                 android:layout_width="22dp"
@@ -163,15 +170,15 @@
                 android:id="@+id/etBottomSearchBox"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_marginHorizontal="10dp"
+                android:layout_marginHorizontal="12dp"
                 android:layout_weight="1"
                 android:background="@null"
-                android:hint="Search videos, music, files..."
+                android:hint="Search songs, videos, artists..."
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:singleLine="true"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#777777"
+                android:textColorHint="#888899"
                 android:textSize="15sp" />
 
             <ImageView
@@ -181,7 +188,7 @@
                 android:padding="6dp"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
                 android:visibility="gone"
-                app:tint="#AAAAAA" />
+                app:tint="#BBBBBB" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
