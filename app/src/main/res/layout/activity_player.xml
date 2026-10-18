@@ -14,9 +14,10 @@
         app:keep_content_on_player_reset="true"
         app:resize_mode="fit"
         app:show_buffering="when_playing"
+        app:surface_type="texture_view"
         app:use_controller="false" />
 
-    <!-- Night Mode & HDR Visual Filter Overlay -->
+    <!-- Visual Enhancer Filter Overlay (HDR, Clear, Ultra Clear, Arctic Blue, Warm Glow, Cinematic, Night) -->
     <View
         android:id="@+id/viewVisualOverlay"
         android:layout_width="match_parent"
@@ -25,13 +26,110 @@
         android:clickable="false"
         android:focusable="false" />
 
-    <!-- Rounded Press & Hold Speed Boost Pill (4x / 6x / 8x) -->
+    <!-- Night Mode Dimmer Overlay -->
+    <View
+        android:id="@+id/viewNightOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#00000000"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <!-- BACKGROUND AUDIO MODE VIEW (Rotating Vinyl + Back to Video + Convert to MP3) -->
+    <LinearLayout
+        android:id="@+id/layoutBgAudioStage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F208080E"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardBgVinylDisc"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            app:cardBackgroundColor="#181824"
+            app:cardCornerRadius="90dp"
+            app:cardElevation="12dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:id="@+id/imgBgVinylRings"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:layout_gravity="center"
+                    app:cardBackgroundColor="#00E676"
+                    app:cardCornerRadius="38dp"
+                    app:cardElevation="0dp">
+
+                    <View
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/circle_bg" />
+                </androidx.cardview.widget.CardView>
+            </FrameLayout>
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="Audio can be background played while using\nother apps or lock screen"
+            android:textColor="#D0D0E0"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnBackToVideoMode"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginEnd="12dp"
+                android:background="#00C853"
+                android:gravity="center"
+                android:paddingHorizontal="20dp"
+                android:text="▶  Back to video"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnSaveToMp3Mode"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="#00C853"
+                android:gravity="center"
+                android:paddingHorizontal="20dp"
+                android:text="⬇  Convert to MP3"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Rounded Press & Hold Speed Boost Pill -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardSpeedBoostBadge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="66dp"
+        android:layout_marginTop="64dp"
         android:visibility="gone"
         app:cardBackgroundColor="#E60A0A10"
         app:cardCornerRadius="20dp"
@@ -44,18 +142,18 @@
             android:paddingHorizontal="18dp"
             android:paddingVertical="7dp"
             android:text="4.0x Fast Play ⏩"
-            android:textColor="#00FFFF"
+            android:textColor="#00E676"
             android:textSize="13sp"
             android:textStyle="bold" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Rounded 600% Pinch-to-Zoom Reset Pill -->
+    <!-- Rounded Pinch-to-Zoom Reset Pill -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardZoomResetPill"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="66dp"
+        android:layout_marginTop="64dp"
         android:visibility="gone"
         app:cardBackgroundColor="#CC0A0A10"
         app:cardCornerRadius="20dp"
@@ -68,19 +166,19 @@
             android:paddingHorizontal="16dp"
             android:paddingVertical="6dp"
             android:text="Zoom: 100% • Reset"
-            android:textColor="#00FFFF"
+            android:textColor="#00E676"
             android:textSize="12sp"
             android:textStyle="bold" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Main Custom Controls Container -->
+    <!-- MAIN CUSTOM CONTROLS CONTAINER -->
     <RelativeLayout
         android:id="@+id/layoutAllControls"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#22000000">
+        android:background="#1A000000">
 
-        <!-- TOP BAR: Back, Title, HDR, CC, Audio Only, Queue, 3-Dots More -->
+        <!-- TOP BAR: Back, Title, HDR (+ NEW badge), CC, Headphone BgAudio, Queue, 3-Dots -->
         <LinearLayout
             android:id="@+id/topBarPlayer"
             android:layout_width="match_parent"
@@ -93,11 +191,9 @@
 
             <ImageView
                 android:id="@+id/btnPlayerBack"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="7dp"
-                android:src="@android:drawable/ic_menu_revert"
-                app:tint="#FFFFFF" />
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:padding="8dp" />
 
             <TextView
                 android:id="@+id/tvPlayerTitle"
@@ -105,14 +201,18 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="10dp"
                 android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
+                android:ellipsize="marquee"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
                 android:text="Video Title"
                 android:textColor="#FFFFFF"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
-            <!-- Rounded HDR Pill with NEW Badge -->
+            <!-- HDR Button with One-Time NEW Badge -->
             <FrameLayout
                 android:id="@+id/frameHdrContainer"
                 android:layout_width="wrap_content"
@@ -123,7 +223,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="26dp"
                     android:layout_gravity="bottom"
-                    app:cardBackgroundColor="#26FFFFFF"
+                    app:cardBackgroundColor="#2EFFFFFF"
                     app:cardCornerRadius="6dp"
                     app:cardElevation="0dp">
 
@@ -132,7 +232,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:paddingHorizontal="8dp"
+                        android:paddingHorizontal="9dp"
                         android:text="HDR"
                         android:textColor="#FFFFFF"
                         android:textSize="11sp"
@@ -140,6 +240,7 @@
                 </androidx.cardview.widget.CardView>
 
                 <androidx.cardview.widget.CardView
+                    android:id="@+id/cardHdrNewBadge"
                     android:layout_width="wrap_content"
                     android:layout_height="13dp"
                     android:layout_gravity="top|end"
@@ -159,13 +260,13 @@
                 </androidx.cardview.widget.CardView>
             </FrameLayout>
 
-            <!-- Rounded CC Pill -->
+            <!-- CC Subtitles Pill -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardSubtitlesCc"
                 android:layout_width="wrap_content"
                 android:layout_height="26dp"
                 android:layout_marginEnd="8dp"
-                app:cardBackgroundColor="#26FFFFFF"
+                app:cardBackgroundColor="#2EFFFFFF"
                 app:cardCornerRadius="6dp"
                 app:cardElevation="0dp">
 
@@ -174,7 +275,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:gravity="center"
-                    android:paddingHorizontal="8dp"
+                    android:paddingHorizontal="9dp"
                     android:text="CC"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
@@ -183,29 +284,23 @@
 
             <ImageView
                 android:id="@+id/btnBgAudio"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginEnd="4dp"
-                android:padding="7dp"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="#FFFFFF" />
+                android:padding="7dp" />
 
             <ImageView
                 android:id="@+id/btnVideoQueue"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginEnd="4dp"
-                android:padding="7dp"
-                android:src="@android:drawable/ic_menu_sort_by_size"
-                app:tint="#FFFFFF" />
+                android:padding="7dp" />
 
             <ImageView
                 android:id="@+id/btnMoreMenu"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="7dp"
-                android:src="@android:drawable/ic_menu_more"
-                app:tint="#FFFFFF" />
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:padding="7dp" />
         </LinearLayout>
 
         <!-- LEFT FLOATING CONTROLS: Mute & Lock -->
@@ -220,25 +315,21 @@
 
             <ImageView
                 android:id="@+id/btnMuteToggle"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:layout_marginBottom="14dp"
                 android:background="@drawable/circle_bg"
-                android:padding="9dp"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="#FFFFFF" />
+                android:padding="9dp" />
 
             <ImageView
                 android:id="@+id/btnLockScreen"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:background="@drawable/circle_bg"
-                android:padding="9dp"
-                android:src="@android:drawable/ic_lock_lock"
-                app:tint="#FFFFFF" />
+                android:padding="9dp" />
         </LinearLayout>
 
-        <!-- RIGHT FLOATING CONTROLS: Cut & Rotate -->
+        <!-- RIGHT FLOATING CONTROLS: One-Tap Screenshot & Rotate -->
         <LinearLayout
             android:id="@+id/rightSideControlsGroup"
             android:layout_width="wrap_content"
@@ -250,25 +341,21 @@
 
             <ImageView
                 android:id="@+id/btnSideCut"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:layout_marginBottom="14dp"
                 android:background="@drawable/circle_bg"
-                android:padding="9dp"
-                android:src="@android:drawable/ic_menu_crop"
-                app:tint="#FFFFFF" />
+                android:padding="9dp" />
 
             <ImageView
                 android:id="@+id/btnRotateScreen"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:background="@drawable/circle_bg"
-                android:padding="9dp"
-                android:src="@android:drawable/ic_menu_always_landscape_portrait"
-                app:tint="#FFFFFF" />
+                android:padding="9dp" />
         </LinearLayout>
 
-        <!-- BOTTOM BAR: Clean Dockable Row (Hidden unless enabled), SeekBar, Playback Buttons -->
+        <!-- BOTTOM BAR: SeekBar & Main Playback Controls -->
         <LinearLayout
             android:id="@+id/bottomBarPlayer"
             android:layout_width="match_parent"
@@ -279,7 +366,6 @@
             android:paddingHorizontal="16dp"
             android:paddingVertical="10dp">
 
-            <!-- Optional Docked Side Controls Row (Visible only when user moves side icons to bottom) -->
             <HorizontalScrollView
                 android:id="@+id/hsvDockedBottomTools"
                 android:layout_width="match_parent"
@@ -308,14 +394,15 @@
                     android:layout_height="wrap_content"
                     android:text="00:00"
                     android:textColor="#FFFFFF"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <SeekBar
                     android:id="@+id/seekBarPlayer"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:progressTint="#00FFFF"
+                    android:progressTint="#00E676"
                     android:thumbTint="#FFFFFF" />
 
                 <TextView
@@ -324,7 +411,8 @@
                     android:layout_height="wrap_content"
                     android:text="00:00"
                     android:textColor="#FFFFFF"
-                    android:textSize="12sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout
@@ -336,30 +424,23 @@
 
                 <ImageView
                     android:id="@+id/btnPlayerPlayPause"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:background="@drawable/circle_bg"
-                    android:padding="9dp"
-                    android:src="@android:drawable/ic_media_pause"
-                    app:tint="#00FFFF" />
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:padding="6dp" />
 
                 <ImageView
                     android:id="@+id/btnPlayerPrev"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_marginStart="18dp"
-                    android:padding="6dp"
-                    android:src="@android:drawable/ic_media_previous"
-                    app:tint="#FFFFFF" />
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="16dp"
+                    android:padding="6dp" />
 
                 <ImageView
                     android:id="@+id/btnPlayerNext"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_marginStart="14dp"
-                    android:padding="6dp"
-                    android:src="@android:drawable/ic_media_next"
-                    app:tint="#FFFFFF" />
+                    android:padding="6dp" />
 
                 <View
                     android:layout_width="0dp"
@@ -379,38 +460,32 @@
 
                 <ImageView
                     android:id="@+id/btnAspectRatio"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_marginEnd="14dp"
-                    android:padding="6dp"
-                    android:src="@android:drawable/ic_menu_view"
-                    app:tint="#FFFFFF" />
+                    android:padding="6dp" />
 
                 <ImageView
                     android:id="@+id/btnPipMode"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:padding="6dp"
-                    android:src="@android:drawable/ic_menu_slideshow"
-                    app:tint="#FFFFFF" />
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp" />
             </LinearLayout>
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- UNLOCK BUTTON (Visible only when screen is locked) -->
+    <!-- UNLOCK BUTTON (Appears in same left-side position when locked) -->
     <ImageView
         android:id="@+id/btnUnlockOverlay"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
         android:layout_gravity="center_vertical|start"
-        android:layout_marginStart="20dp"
+        android:layout_marginStart="16dp"
         android:background="@drawable/circle_bg"
-        android:padding="11dp"
-        android:src="@android:drawable/ic_lock_lock"
-        android:visibility="gone"
-        app:tint="#00FFFF" />
+        android:padding="10dp"
+        android:visibility="gone" />
 
-    <!-- PREMIUM ROUNDED GESTURE HUD (Volume / Brightness / Seek / Zoom) -->
+    <!-- GESTURE HUD (300% Volume / Persistent Brightness / Nanosecond Seek) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardGestureFeedback"
         android:layout_width="wrap_content"
@@ -419,54 +494,457 @@
         android:visibility="gone"
         app:cardBackgroundColor="#D90A0A10"
         app:cardCornerRadius="18dp"
-        app:cardElevation="14dp">
+        app:cardElevation="16dp">
 
         <LinearLayout
             android:id="@+id/layoutGestureFeedback"
-            android:layout_width="130dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
+            android:minWidth="150dp"
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingVertical="18dp">
+            android:paddingVertical="16dp">
 
             <ImageView
                 android:id="@+id/imgGestureIcon"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="#00FFFF" />
+                android:layout_width="32dp"
+                android:layout_height="32dp" />
 
             <TextView
                 android:id="@+id/tvGestureValue"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
+                android:gravity="center"
                 android:text="100%"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <ProgressBar
                 android:id="@+id/pbGestureLevel"
                 style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
+                android:layout_width="130dp"
                 android:layout_height="5dp"
                 android:layout_marginTop="8dp"
-                android:max="100"
-                android:progress="50"
-                android:progressTint="#00FFFF" />
+                android:max="300"
+                android:progress="100"
+                android:progressTint="#00E676" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- PLAYIT STYLE ADVANCED SETTINGS BOTTOM SHEET OVERLAY -->
+    <!-- OUTSIDE SCRIM FOR DISMISSING HALF-SCREEN OVERLAYS -->
+    <View
+        android:id="@+id/viewOverlayOutsideScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#44000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+    <!-- 1. SPEED RULER OVERLAY (0.25X to 8.0X with Tick Marks, Matches Screenshots 75 & 76) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardSpeedRulerOverlay"
+        android:layout_width="360dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        app:cardBackgroundColor="#D91C1C26"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="18dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnSpeedMinus"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/circle_bg"
+                    android:gravity="center"
+                    android:text="−"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvSpeedRulerValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1.00 X"
+                        android:textColor="#00E676"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnSpeedResetOne"
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_marginStart="10dp"
+                        android:background="@drawable/circle_bg"
+                        android:gravity="center"
+                        android:text="↺"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btnSpeedPlus"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/circle_bg"
+                    android:gravity="center"
+                    android:text="+"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/imgSpeedRulerTicks"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 2. VISUAL ENHANCER (HDR) HALF-SCREEN PANEL (Matches Screenshot 74) -->
+    <LinearLayout
+        android:id="@+id/panelVisualEnhancer"
+        android:layout_width="match_parent"
+        android:layout_height="410dp"
+        android:layout_gravity="bottom"
+        android:background="#F2101018"
+        android:clickable="true"
+        android:elevation="24dp"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:id="@+id/btnCloseVisualEnhancer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="12dp"
+                android:text="←"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Visual Enhancer"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/llEnhancerCardsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Apply to all"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchApplyEnhancerAll"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 3. SUBTITLE HALF-SCREEN PANEL (Matches Screenshot 83 + Size Slider + Online Search) -->
+    <LinearLayout
+        android:id="@+id/panelSubtitlesHalfScreen"
+        android:layout_width="match_parent"
+        android:layout_height="360dp"
+        android:layout_gravity="bottom"
+        android:background="#F212121A"
+        android:clickable="true"
+        android:elevation="24dp"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:id="@+id/btnCloseSubtitlesPanel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="10dp"
+                android:text="‹"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Subtitle"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Dynamic Downloaded / Embedded Tracks Container at the very top -->
+                <LinearLayout
+                    android:id="@+id/llDownloadedSubtitlesList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/btnSubOptionNone"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:gravity="center_vertical"
+                    android:text="None"
+                    android:textColor="#00E676"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <TextView
+                    android:id="@+id/btnSubOptionSelectFiles"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:gravity="center_vertical"
+                    android:text="Select files (.srt / .vtt)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <TextView
+                    android:id="@+id/btnSubOptionOnline"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:gravity="center_vertical"
+                    android:text="Online subtitles (Search &amp; Download)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <!-- Subtitle Text Size Adjuster (Small to Large) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSubtitleSizeLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Subtitle Text Size (Medium - 18sp)"
+                        android:textColor="#BBBBCC"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="A-"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <SeekBar
+                            android:id="@+id/seekBarSubtitleSize"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="24"
+                            android:progress="8"
+                            android:progressTint="#00E676"
+                            android:thumbTint="#FFFFFF" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="A+"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- 4. PLAYING QUEUE HALF-SCREEN PANEL (Matches Screenshots 79 & 80) -->
+    <LinearLayout
+        android:id="@+id/panelPlayingQueueHalfScreen"
+        android:layout_width="match_parent"
+        android:layout_height="380dp"
+        android:layout_gravity="bottom"
+        android:background="#F212121A"
+        android:clickable="true"
+        android:elevation="24dp"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:padding="14dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnCloseQueuePanel"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:paddingEnd="10dp"
+                android:text="‹"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvQueueHeaderCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="All (1/10)"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Single Cycling Loop/Shuffle Button (Order -> Repeat 1 -> Shuffle) -->
+            <LinearLayout
+                android:id="@+id/btnQueueCycleLoopMode"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <TextView
+                    android:id="@+id/tvQueueLoopModeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:text="Order"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/imgQueueLoopModeIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvVideoPlayingQueue"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1"
+            android:clipToPadding="false" />
+    </LinearLayout>
+
+    <!-- 5. 3-DOTS ADVANCED SETTINGS HALF-SCREEN OVERLAY (Matches Screenshots 77 & 78) -->
     <ScrollView
         android:id="@+id/layoutAdvancedSettings"
         android:layout_width="match_parent"
-        android:layout_height="420dp"
+        android:layout_height="400dp"
         android:layout_gravity="bottom"
-        android:background="#F512121A"
+        android:background="#F214141E"
+        android:clickable="true"
         android:elevation="24dp"
+        android:focusable="true"
         android:visibility="gone">
 
         <LinearLayout
@@ -478,12 +956,12 @@
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp">
+                android:layout_marginBottom="10dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Player Options"
+                    android:text="Player Settings"
                     android:textColor="#AAAAAA"
                     android:textSize="13sp" />
 
@@ -493,8 +971,8 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:paddingHorizontal="8dp"
-                    android:text="CLOSE"
-                    android:textColor="#00FFFF"
+                    android:text="CLOSE ✕"
+                    android:textColor="#00E676"
                     android:textSize="13sp"
                     android:textStyle="bold" />
             </RelativeLayout>
@@ -513,7 +991,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -526,7 +1004,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Audio track"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -537,7 +1015,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -550,7 +1028,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Equalizer"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -561,7 +1039,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -574,7 +1052,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Cast"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -585,7 +1063,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -598,7 +1076,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Share"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
@@ -618,7 +1096,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -631,7 +1109,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Cut"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -642,7 +1120,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:id="@+id/imgFavoriteIcon"
                         android:layout_width="42dp"
@@ -656,7 +1134,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Favorite"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -667,7 +1145,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -680,7 +1158,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Bookmark"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -691,7 +1169,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -704,7 +1182,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="VR"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
@@ -737,7 +1215,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -751,7 +1229,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="AB Repeat"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -762,7 +1240,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -775,7 +1253,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Night mode"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -786,7 +1264,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -799,7 +1277,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Mirror mode"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -810,7 +1288,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="42dp"
                         android:layout_height="42dp"
@@ -824,7 +1302,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Timer"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
@@ -842,7 +1320,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                app:cardBackgroundColor="#1F1F2E"
+                app:cardBackgroundColor="#252536"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="0dp">
 
@@ -879,7 +1357,7 @@
                         android:layout_width="0dp"
                         android:layout_height="match_parent"
                         android:layout_weight="1"
-                        android:background="#00FFFF"
+                        android:background="#00E676"
                         android:gravity="center"
                         android:text="Sequence"
                         android:textColor="#000000"
@@ -929,7 +1407,7 @@
                     android:layout_weight="1"
                     android:max="100"
                     android:progress="75"
-                    android:progressTint="#00FFFF"
+                    android:progressTint="#00E676"
                     android:thumbTint="#FFFFFF" />
 
                 <TextView
@@ -967,7 +1445,7 @@
                     android:layout_marginEnd="28dp"
                     android:paddingVertical="6dp"
                     android:text="HW Decoder"
-                    android:textColor="#00FFFF"
+                    android:textColor="#00E676"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -987,7 +1465,7 @@
                 android:layout_marginVertical="12dp"
                 android:background="#22FFFFFF" />
 
-            <!-- MORE SECTION: Edit Player, Tutorials, File Info, Feedback -->
+            <!-- MORE SECTION -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -1009,7 +1487,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -1022,7 +1500,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Edit player"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -1033,7 +1511,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -1046,7 +1524,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Tutorials"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -1057,7 +1535,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -1070,7 +1548,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="File info"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -1081,7 +1559,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
@@ -1094,7 +1572,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="Feedback"
-                        android:textColor="#DDDDDD"
+                        android:textColor="#EEEEEE"
                         android:textSize="11sp" />
                 </LinearLayout>
             </LinearLayout>
