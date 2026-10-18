@@ -3,8 +3,13 @@ package com.app.mediaplayer
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
@@ -12,22 +17,29 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -37,13 +49,16 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.PopupMenu
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
+import androidx.core.app.NotificationCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -58,25 +73,37 @@ import kotlin.math.sqrt
 
 class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
+    companion object {
+        private var sharedPlayer: ExoPlayer? = null
+        private var sharedEqualizer: Equalizer? = null
+        private var sharedBassBoost: BassBoost? = null
+
+        private const val NOTIF_CHANNEL_ID = "max_player_audio_channel"
+        private const val NOTIF_ID = 8801
+
+        private const val ACTION_PREV = "com.app.mediaplayer.ACTION_AUDIO_PREV"
+        private const val ACTION_PLAY_PAUSE = "com.app.mediaplayer.ACTION_AUDIO_PLAY_PAUSE"
+        private const val ACTION_NEXT = "com.app.mediaplayer.ACTION_AUDIO_NEXT"
+        private const val ACTION_SHUFFLE = "com.app.mediaplayer.ACTION_AUDIO_SHUFFLE"
+        private const val ACTION_CLOSE = "com.app.mediaplayer.ACTION_AUDIO_CLOSE"
+    }
+
     private var exoPlayer: ExoPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    private var customEqualizer: Equalizer? = null
-    private var customBassBoost: BassBoost? = null
 
     private lateinit var rootAudioPlayerFrame: FrameLayout
     private lateinit var btnAudioMinimize: ImageView
     private lateinit var tvAudioPlayerTitle: TextView
     private lateinit var tvAudioPlayerArtist: TextView
     private lateinit var btnAudioShareTop: ImageView
-
     private lateinit var tvLiveTimerCountdown: TextView
-    private lateinit var tvShakeModeBadge: TextView
 
     private lateinit var imgVinylTonearm: ImageView
     private lateinit var cardCenterVinylDisc: CardView
     private lateinit var imgVinylSurface: ImageView
     private lateinit var imgCenterMusicNote: ImageView
     private lateinit var cardSlideOutTabHandle: CardView
+    private lateinit var imgSlideHandleArrow: ImageView
 
     private lateinit var btnAudioEqualizer: LinearLayout
     private lateinit var imgBtnEqualizer: ImageView
@@ -133,9 +160,10 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
     private var vinylAnimator: ObjectAnimator? = null
 
     private lateinit var audioManager: AudioManager
+    private lateinit var notificationManager: NotificationManager
     private lateinit var gestureDetector: GestureDetector
     private lateinit var waveformDrawable: StraightWaveformDrawable
-    private lateinit var topVolumeBarDrawable: TopVolumeBarDotsDrawable
+    private lateinit var topVolumeBarDrawable: TopVolumeBarCleanDrawable
 
     // Double-Shake Pocket Sensor Variables
     private var sensorManager: SensorManager? = null
@@ -144,6 +172,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
     private var firstShakeTimestamp = 0L
     private var lastTriggerTimestamp = 0L
     private var shakeCount = 0
+    private var isReceiverRegistered = false
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -170,7 +199,33 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            handler.postDelayed(this, 200)
+            handler.postDelayed(this, 150)
+        }
+    }
+
+    // Lock Screen & Notification Panel Action Receiver
+    private val mediaNotificationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                ACTION_PREV -> playPreviousTrack()
+                ACTION_PLAY_PAUSE -> {
+                    exoPlayer?.let { player ->
+                        if (player.isPlaying) player.pause() else player.play()
+                        updateMediaNotification()
+                    }
+                }
+                ACTION_NEXT -> playNextTrack()
+                ACTION_SHUFFLE -> {
+                    isShuffleEnabled = !isShuffleEnabled
+                    exoPlayer?.shuffleModeEnabled = isShuffleEnabled
+                    updateShuffleAndRepeatIcons()
+                    updateMediaNotification()
+                }
+                ACTION_CLOSE -> {
+                    exoPlayer?.pause()
+                    notificationManager.cancel(NOTIF_ID)
+                }
+            }
         }
     }
 
@@ -179,6 +234,10 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         setContentView(R.layout.activity_audio_player)
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        createNotificationChannel()
+        registerMediaControlReceiver()
         acquirePocketWakeLock()
         bindViews()
         setupSleekPlayerIcons()
@@ -191,6 +250,15 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         setupDoubleShakeSensor()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.hasExtra("AUDIO_PATH") || intent.hasExtra("AUDIO_LIST_PATHS")) {
+            readIncomingIntent(intent)
+            initializeAudioPlayer()
+        }
+    }
+
     private fun acquirePocketWakeLock() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -199,7 +267,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 "MAXPlayerPro::PocketAudioShakeLock"
             ).apply {
                 setReferenceCounted(false)
-                acquire(4 * 60 * 60 * 1000L)
+                acquire(6 * 60 * 60 * 1000L)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -212,15 +280,14 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         tvAudioPlayerTitle = findViewById(R.id.tvAudioPlayerTitle)
         tvAudioPlayerArtist = findViewById(R.id.tvAudioPlayerArtist)
         btnAudioShareTop = findViewById(R.id.btnAudioShareTop)
-
         tvLiveTimerCountdown = findViewById(R.id.tvLiveTimerCountdown)
-        tvShakeModeBadge = findViewById(R.id.tvShakeModeBadge)
 
         imgVinylTonearm = findViewById(R.id.imgVinylTonearm)
         cardCenterVinylDisc = findViewById(R.id.cardCenterVinylDisc)
         imgVinylSurface = findViewById(R.id.imgVinylSurface)
         imgCenterMusicNote = findViewById(R.id.imgCenterMusicNote)
         cardSlideOutTabHandle = findViewById(R.id.cardSlideOutTabHandle)
+        imgSlideHandleArrow = findViewById(R.id.imgSlideHandleArrow)
 
         btnAudioEqualizer = findViewById(R.id.btnAudioEqualizer)
         imgBtnEqualizer = findViewById(R.id.imgBtnEqualizer)
@@ -264,29 +331,45 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
     private fun setupSleekPlayerIcons() {
         val d = resources.displayMetrics.density
-        imgVinylTonearm.setImageDrawable(AudioVectorDrawable("TONEARM", d))
-        imgVinylSurface.setImageDrawable(AudioVectorDrawable("VINYL_GROOVES", d))
+        imgVinylTonearm.setImageDrawable(AudioVectorDrawable("TONEARM", d, Color.WHITE))
+        imgVinylSurface.setImageDrawable(AudioVectorDrawable("VINYL_GROOVES", d, Color.WHITE))
+        imgSlideHandleArrow.setImageDrawable(AudioVectorDrawable("SLIDE_HANDLE", d, Color.parseColor("#00FFFF")))
 
-        imgBtnEqualizer.setImageDrawable(AudioVectorDrawable("EQUALIZER", d))
-        imgBtnTimerGauge.setImageDrawable(AudioVectorDrawable("GAUGE_TIMER", d))
-        imgBtnFavoriteHeart.setImageDrawable(AudioVectorDrawable("HEART_OUTLINE", d))
-        imgBtnMoreDots.setImageDrawable(AudioVectorDrawable("THREE_DOTS", d))
+        imgBtnEqualizer.setImageDrawable(AudioVectorDrawable("EQUALIZER", d, Color.WHITE))
+        imgBtnTimerGauge.setImageDrawable(AudioVectorDrawable("GAUGE_TIMER", d, Color.WHITE))
+        imgBtnFavoriteHeart.setImageDrawable(AudioVectorDrawable("HEART_OUTLINE", d, Color.WHITE))
+        imgBtnMoreDots.setImageDrawable(AudioVectorDrawable("THREE_DOTS", d, Color.WHITE))
 
-        btnAudioShuffle.setImageDrawable(AudioVectorDrawable("SHUFFLE", d))
-        btnAudioPrev.setImageDrawable(AudioVectorDrawable("PREV", d))
-        btnAudioPlayPause.setImageDrawable(AudioVectorDrawable("PAUSE_CIRCLE", d))
-        btnAudioNext.setImageDrawable(AudioVectorDrawable("NEXT", d))
-        btnAudioRepeat.setImageDrawable(AudioVectorDrawable("REPEAT", d))
+        btnAudioShuffle.setImageDrawable(AudioVectorDrawable("SHUFFLE_OFF", d, Color.WHITE))
+        btnAudioPrev.setImageDrawable(AudioVectorDrawable("PREV", d, Color.WHITE))
+        btnAudioPlayPause.setImageDrawable(AudioVectorDrawable("PAUSE_CIRCLE", d, Color.WHITE))
+        btnAudioNext.setImageDrawable(AudioVectorDrawable("NEXT", d, Color.WHITE))
+        btnAudioRepeat.setImageDrawable(AudioVectorDrawable("REPEAT_ALL", d, Color.parseColor("#00FFFF")))
 
-        imgLyricsIcon.setImageDrawable(AudioVectorDrawable("LYRICS", d))
-        imgQueueIcon.setImageDrawable(AudioVectorDrawable("QUEUE", d))
+        imgLyricsIcon.setImageDrawable(AudioVectorDrawable("LYRICS", d, Color.WHITE))
+        imgQueueIcon.setImageDrawable(AudioVectorDrawable("QUEUE", d, Color.WHITE))
 
-        imgTopVolumeSpeaker.setImageDrawable(AudioVectorDrawable("SPEAKER", d))
-        topVolumeBarDrawable = TopVolumeBarDotsDrawable(d)
+        imgTopVolumeSpeaker.setImageDrawable(AudioVectorDrawable("SPEAKER", d, Color.parseColor("#00FFFF")))
+        topVolumeBarDrawable = TopVolumeBarCleanDrawable(d)
         imgTopVolumeBarWithDots.setImageDrawable(topVolumeBarDrawable)
 
         waveformDrawable = StraightWaveformDrawable(d)
         imgStraightWaveformBar.setImageDrawable(waveformDrawable)
+    }
+
+    private fun animateIconTap(view: View) {
+        view.animate()
+            .scaleX(0.82f)
+            .scaleY(0.82f)
+            .setDuration(85)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(110)
+                    .start()
+            }
+            .start()
     }
 
     private fun readIncomingIntent(incomingIntent: Intent?) {
@@ -325,7 +408,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
         isDoubleShakeEnabled = prefs.getBoolean("double_shake_enabled", true)
         isSquareAlbumStyle = prefs.getBoolean("square_album_style", false)
-        updateShakeBadgeUi()
         applyVinylOrSquareBoxStyle()
         setupSlideDrawerRecyclerView()
     }
@@ -342,12 +424,12 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         val d = resources.displayMetrics.density
         if (isSquareAlbumStyle) {
             imgVinylTonearm.visibility = View.GONE
-            cardCenterVinylDisc.radius = 22f * d
+            cardCenterVinylDisc.radius = 24f * d
             cardCenterVinylDisc.rotation = 0f
             vinylAnimator?.cancel()
         } else {
             imgVinylTonearm.visibility = View.VISIBLE
-            cardCenterVinylDisc.radius = 125f * d
+            cardCenterVinylDisc.radius = 128f * d
             if (exoPlayer?.isPlaying == true) {
                 vinylAnimator?.start()
             }
@@ -356,34 +438,58 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
     private fun initializeAudioPlayer() {
         try {
-            exoPlayer?.release()
-            exoPlayer = ExoPlayer.Builder(this).build().also { player ->
-                val mediaItems = songPaths.map { path ->
-                    val uri = if (path.startsWith("content://") || path.startsWith("http")) {
-                        Uri.parse(path)
-                    } else {
-                        Uri.fromFile(File(path))
-                    }
-                    MediaItem.fromUri(uri)
-                }
+            if (sharedPlayer == null) {
+                val audioAttrs = androidx.media3.common.AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build()
 
-                if (mediaItems.isNotEmpty()) {
+                sharedPlayer = ExoPlayer.Builder(applicationContext)
+                    .setAudioAttributes(audioAttrs, true)
+                    .setHandleAudioBecomingNoisy(true)
+                    .build()
+            }
+
+            exoPlayer = sharedPlayer
+
+            exoPlayer?.let { player ->
+                if (songPaths.isNotEmpty()) {
+                    val mediaItems = songPaths.mapIndexed { idx, path ->
+                        val uri = if (path.startsWith("content://") || path.startsWith("http")) {
+                            Uri.parse(path)
+                        } else {
+                            Uri.fromFile(File(path))
+                        }
+                        val title = songTitles.getOrElse(idx) { File(path).name }
+                        val artist = songArtists.getOrElse(idx) { "Unknown" }
+
+                        MediaItem.Builder()
+                            .setUri(uri)
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(title)
+                                    .setArtist(artist)
+                                    .build()
+                            )
+                            .build()
+                    }
+
                     player.setMediaItems(mediaItems, currentTrackIndex, 0L)
+                    player.shuffleModeEnabled = isShuffleEnabled
+                    player.repeatMode = repeatModeState
+                    player.prepare()
+                    player.playWhenReady = true
                 }
-                player.shuffleModeEnabled = isShuffleEnabled
-                player.repeatMode = repeatModeState
-                player.prepare()
-                player.playWhenReady = true
 
                 updateCurrentSongMetadata(currentTrackIndex)
                 updateShuffleAndRepeatIcons()
+                updatePlayPauseIcon(player.isPlaying)
+                updateMediaNotification()
 
-                val d = resources.displayMetrics.density
                 player.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        btnAudioPlayPause.setImageDrawable(
-                            AudioVectorDrawable(if (isPlaying) "PAUSE_CIRCLE" else "PLAY_CIRCLE", d)
-                        )
+                        updatePlayPauseIcon(isPlaying)
+                        updateMediaNotification()
                         if (!isSquareAlbumStyle) {
                             if (isPlaying) {
                                 if (vinylAnimator?.isStarted == true) vinylAnimator?.resume() else vinylAnimator?.start()
@@ -403,20 +509,34 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                             tvBtnAbRepeat.setTextColor(Color.WHITE)
                             updateCurrentSongMetadata(currentTrackIndex)
                             rvSlideDrawerSongs.adapter?.notifyDataSetChanged()
+                            updateMediaNotification()
                         }
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_READY) {
                             tvAudioTotalTime.text = formatDuration(player.duration.coerceAtLeast(0L))
+                            updateMediaNotification()
                         }
                     }
                 })
             }
+            handler.removeCallbacks(progressUpdateRunnable)
             handler.post(progressUpdateRunnable)
         } catch (e: Exception) {
             Toast.makeText(this, "Unable to play audio file", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun updatePlayPauseIcon(isPlaying: Boolean) {
+        val d = resources.displayMetrics.density
+        btnAudioPlayPause.setImageDrawable(
+            AudioVectorDrawable(
+                if (isPlaying) "PAUSE_CIRCLE" else "PLAY_CIRCLE",
+                d,
+                if (isPlaying) Color.parseColor("#00FFFF") else Color.WHITE
+            )
+        )
     }
 
     private fun updateCurrentSongMetadata(index: Int) {
@@ -428,7 +548,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         tvAudioPlayerTitle.text = title
         tvAudioPlayerArtist.text = artist
         tvPlayingQueueCount.text = "Playing Queue (${songPaths.size})"
-        tvDrawerHeaderTitle.text = "Quick Song Box (${songPaths.size})"
+        tvDrawerHeaderTitle.text = "Playing Queue (${songPaths.size})"
 
         waveformDrawable.setSeedFromSong(title.hashCode())
 
@@ -478,7 +598,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
 
-            // Strictly Volume + Song Swipe/Drawer (No Double-Tap 10s seek and No Brightness gesture)
             override fun onScroll(
                 e1: MotionEvent?,
                 e2: MotionEvent,
@@ -486,7 +605,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 distanceY: Float
             ): Boolean {
                 if (e1 == null) return false
-
                 if (abs(distanceY) > abs(distanceX)) {
                     adjustVolumeWithTopCameraHud(distanceY)
                     return true
@@ -507,7 +625,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 if (abs(diffX) > abs(diffY) && abs(diffX) > 110) {
                     val screenWidth = resources.displayMetrics.widthPixels
                     if (diffX < 0 && e1.x > screenWidth * 0.65f) {
-                        // Slide out Song Drawer from right side
                         openSongDrawerBox()
                     } else if (diffX < 0) {
                         playNextTrack()
@@ -579,17 +696,18 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun setupAllButtonClicks() {
-        btnAudioMinimize.setOnClickListener { finish() }
+        btnAudioMinimize.setOnClickListener {
+            animateIconTap(it)
+            finish()
+        }
 
         btnAudioShareTop.setOnClickListener {
+            animateIconTap(it)
             shareCurrentSong()
         }
 
-        tvShakeModeBadge.setOnClickListener {
-            toggleDoubleShakeMode()
-        }
-
         cardSlideOutTabHandle.setOnClickListener {
+            animateIconTap(it)
             openSongDrawerBox()
         }
 
@@ -598,14 +716,17 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         }
 
         btnAudioEqualizer.setOnClickListener {
+            animateIconTap(imgBtnEqualizer)
             openSystemOrCustomEqualizer()
         }
 
         btnAudioAbRepeat.setOnClickListener {
+            animateIconTap(tvBtnAbRepeat)
             cycleAbRepeatMode()
         }
 
         btnAudioTimerAndSpeed.setOnClickListener {
+            animateIconTap(imgBtnTimerGauge)
             showLiveSleepTimerAndSpeedDialog()
         }
 
@@ -614,6 +735,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         }
 
         btnAudioFavorite.setOnClickListener {
+            animateIconTap(imgBtnFavoriteHeart)
             if (currentTrackIndex !in songPaths.indices) return@setOnClickListener
             val path = songPaths[currentTrackIndex]
             isFavorite = !isFavorite
@@ -629,36 +751,44 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             ).show()
         }
 
-        btnAudioFarRightDots.setOnClickListener { anchor ->
-            showFarRightThreeDotsMenu(anchor)
+        btnAudioFarRightDots.setOnClickListener {
+            animateIconTap(imgBtnMoreDots)
+            showPremiumWhiteThreeDotsDialog()
         }
 
         btnAudioPlayPause.setOnClickListener {
+            animateIconTap(it)
             exoPlayer?.let { player ->
                 if (player.isPlaying) player.pause() else player.play()
+                updateMediaNotification()
             }
         }
 
         btnAudioPrev.setOnClickListener {
+            animateIconTap(it)
             playPreviousTrack()
         }
 
         btnAudioNext.setOnClickListener {
+            animateIconTap(it)
             playNextTrack()
         }
 
         btnAudioShuffle.setOnClickListener {
+            animateIconTap(it)
             isShuffleEnabled = !isShuffleEnabled
             exoPlayer?.shuffleModeEnabled = isShuffleEnabled
             updateShuffleAndRepeatIcons()
+            updateMediaNotification()
             Toast.makeText(
                 this,
-                if (isShuffleEnabled) "Shuffle ON" else "Shuffle OFF",
+                if (isShuffleEnabled) "Shuffle / Random Play: ON" else "Shuffle: OFF",
                 Toast.LENGTH_SHORT
             ).show()
         }
 
         btnAudioRepeat.setOnClickListener {
+            animateIconTap(it)
             repeatModeState = when (repeatModeState) {
                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
                 Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF
@@ -667,7 +797,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             exoPlayer?.repeatMode = repeatModeState
             updateShuffleAndRepeatIcons()
             val modeText = when (repeatModeState) {
-                Player.REPEAT_MODE_ONE -> "Repeat One Song"
+                Player.REPEAT_MODE_ONE -> "Repeat Current Song (1)"
                 Player.REPEAT_MODE_OFF -> "Repeat OFF"
                 else -> "Loop All Songs"
             }
@@ -675,10 +805,12 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         }
 
         btnAudioLyrics.setOnClickListener {
+            animateIconTap(it)
             showLyricsDialog()
         }
 
         btnAudioPlayingQueue.setOnClickListener {
+            animateIconTap(it)
             openSongDrawerBox()
         }
     }
@@ -730,6 +862,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                     exoPlayer?.seekToDefaultPosition(position)
                     exoPlayer?.play()
                     updateCurrentSongMetadata(position)
+                    updateMediaNotification()
                     notifyDataSetChanged()
                 }
             }
@@ -753,6 +886,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 player.seekToDefaultPosition(0)
                 player.play()
             }
+            updateMediaNotification()
         }
     }
 
@@ -765,6 +899,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 player.seekTo(0)
                 player.play()
             }
+            updateMediaNotification()
         }
     }
 
@@ -772,17 +907,21 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         val d = resources.displayMetrics.density
         btnAudioShuffle.setImageDrawable(
             AudioVectorDrawable(
-                "SHUFFLE",
+                if (isShuffleEnabled) "SHUFFLE_ON" else "SHUFFLE_OFF",
                 d,
                 if (isShuffleEnabled) Color.parseColor("#00FFFF") else Color.WHITE
             )
         )
         val repeatColor = if (repeatModeState == Player.REPEAT_MODE_OFF) {
-            Color.parseColor("#777788")
+            Color.WHITE
         } else {
             Color.parseColor("#00FFFF")
         }
-        val repeatType = if (repeatModeState == Player.REPEAT_MODE_ONE) "REPEAT_ONE" else "REPEAT"
+        val repeatType = when (repeatModeState) {
+            Player.REPEAT_MODE_ONE -> "REPEAT_ONE"
+            Player.REPEAT_MODE_OFF -> "REPEAT_OFF"
+            else -> "REPEAT_ALL"
+        }
         btnAudioRepeat.setImageDrawable(AudioVectorDrawable(repeatType, d, repeatColor))
     }
 
@@ -815,50 +954,50 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
-    // Live Ticking Countdown Clock (e.g. 29:59, 29:58...) + Speed Control
+    // Live High-Speed Millisecond Reverse Countdown Clock (e.g., 14:18.84) + Speed Control
     private fun showLiveSleepTimerAndSpeedDialog() {
         val options = arrayOf(
             "Sleep Timer: OFF",
-            "Sleep Timer: 10 Minutes (Live Clock)",
-            "Sleep Timer: 20 Minutes (Live Clock)",
-            "Sleep Timer: 30 Minutes (Live Clock)",
-            "Sleep Timer: 40 Minutes (Live Clock)",
-            "Sleep Timer: 60 Minutes (Live Clock)",
+            "Sleep Timer: 10 Minutes (Live Millisecond Clock)",
+            "Sleep Timer: 15 Minutes (Live Millisecond Clock)",
+            "Sleep Timer: 30 Minutes (Live Millisecond Clock)",
+            "Sleep Timer: 45 Minutes (Live Millisecond Clock)",
+            "Sleep Timer: 60 Minutes (Live Millisecond Clock)",
             "Custom Minutes Sleep Timer...",
             "Playback Speed: 0.75x",
             "Playback Speed: 1.0x (Normal)",
             "Playback Speed: 1.25x",
             "Playback Speed: 1.5x",
-            "Playback Speed: 2.0x"
+            "Playback Speed: 2.0x (Fast)",
+            "Playback Speed: 3.0x (Super Fast)"
         )
 
-        AlertDialog.Builder(this)
-            .setTitle("Live Sleep Timer & Audio Speed")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> cancelSleepTimer()
-                    1 -> startLiveSleepTimer(10)
-                    2 -> startLiveSleepTimer(20)
-                    3 -> startLiveSleepTimer(30)
-                    4 -> startLiveSleepTimer(40)
-                    5 -> startLiveSleepTimer(60)
-                    6 -> promptCustomSleepMinutes()
-                    7 -> applyAudioSpeed(0.75f)
-                    8 -> applyAudioSpeed(1.0f)
-                    9 -> applyAudioSpeed(1.25f)
-                    10 -> applyAudioSpeed(1.5f)
-                    11 -> applyAudioSpeed(2.0f)
-                }
+        showStyledWhiteListDialog("Live Sleep Timer & Audio Speed", options) { which ->
+            when (which) {
+                0 -> cancelSleepTimer()
+                1 -> startLiveSleepTimer(10)
+                2 -> startLiveSleepTimer(15)
+                3 -> startLiveSleepTimer(30)
+                4 -> startLiveSleepTimer(45)
+                5 -> startLiveSleepTimer(60)
+                6 -> promptCustomSleepMinutes()
+                7 -> applyAudioSpeed(0.75f)
+                8 -> applyAudioSpeed(1.0f)
+                9 -> applyAudioSpeed(1.25f)
+                10 -> applyAudioSpeed(1.5f)
+                11 -> applyAudioSpeed(2.0f)
+                12 -> applyAudioSpeed(3.0f)
             }
-            .show()
+        }
     }
 
     private fun promptCustomSleepMinutes() {
         val input = EditText(this).apply {
-            hint = "Enter minutes (e.g. 45)"
+            hint = "Enter minutes (e.g. 15)"
+            setHintTextColor(Color.parseColor("#888899"))
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setTextColor(Color.BLACK)
-            setPadding(40, 30, 40, 30)
+            setTextColor(Color.WHITE)
+            setPadding(45, 35, 45, 35)
         }
         AlertDialog.Builder(this)
             .setTitle("Set Custom Timer Minutes")
@@ -877,18 +1016,32 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         sleepTimer?.cancel()
         val totalMillis = minutes * 60L * 1000L
         tvLiveTimerCountdown.visibility = View.VISIBLE
+        imgBtnTimerGauge.setImageDrawable(
+            AudioVectorDrawable("GAUGE_TIMER", resources.displayMetrics.density, Color.parseColor("#00FFFF"))
+        )
 
-        sleepTimer = object : CountDownTimer(totalMillis, 1000L) {
+        // Updates every 40ms so milliseconds/hundredths visibly tick down (e.g. 14:18.84)
+        sleepTimer = object : CountDownTimer(totalMillis, 40L) {
             override fun onTick(millisUntilFinished: Long) {
-                val totalSecs = millisUntilFinished / 1000L
-                val m = totalSecs / 60L
-                val s = totalSecs % 60L
-                tvLiveTimerCountdown.text = String.format(Locale.US, "⏱ %02d:%02d", m, s)
+                val mins = millisUntilFinished / 60000L
+                val secs = (millisUntilFinished % 60000L) / 1000L
+                val hundredths = (millisUntilFinished % 1000L) / 10L
+                tvLiveTimerCountdown.text = String.format(
+                    Locale.US,
+                    "⏱ %02d:%02d.%02d",
+                    mins,
+                    secs,
+                    hundredths
+                )
             }
 
             override fun onFinish() {
                 exoPlayer?.pause()
                 tvLiveTimerCountdown.visibility = View.GONE
+                imgBtnTimerGauge.setImageDrawable(
+                    AudioVectorDrawable("GAUGE_TIMER", resources.displayMetrics.density, Color.WHITE)
+                )
+                updateMediaNotification()
                 Toast.makeText(
                     this@AudioPlayerActivity,
                     "Sleep Timer Finished • Music Paused",
@@ -903,77 +1056,58 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
     private fun cancelSleepTimer() {
         sleepTimer?.cancel()
         tvLiveTimerCountdown.visibility = View.GONE
+        imgBtnTimerGauge.setImageDrawable(
+            AudioVectorDrawable("GAUGE_TIMER", resources.displayMetrics.density, Color.WHITE)
+        )
         Toast.makeText(this, "Sleep Timer turned OFF", Toast.LENGTH_SHORT).show()
     }
 
     private fun applyAudioSpeed(speed: Float) {
         currentSpeed = speed
         exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
-        Toast.makeText(this, "Audio Speed: ${currentSpeed}x", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Playback Speed: ${currentSpeed}x", Toast.LENGTH_SHORT).show()
     }
 
-    private fun showFarRightThreeDotsMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
+    // Custom Crystal-Clear White-on-Dark 3-Dots Advanced Menu (No Black-on-Black Popup Issues)
+    private fun showPremiumWhiteThreeDotsDialog() {
         val path = songPaths.getOrElse(currentTrackIndex) { "" }
         val title = songTitles.getOrElse(currentTrackIndex) { "Song" }
+        val is2xActive = abs(currentSpeed - 2.0f) < 0.05f
 
-        popup.menu.add(0, 1, 0, "Add to Playlist")
-        popup.menu.add(
-            0,
-            2,
-            1,
-            if (isDoubleShakeEnabled) "Double-Shake to Play Next: ON ✓" else "Double-Shake to Play Next: OFF"
+        val menuItems = arrayOf(
+            if (is2xActive) "⚡ 2x Fast Speed: ON (Tap for 1.0x Normal)" else "⚡ Instant 2x Fast Speed Boost",
+            "🎚️ Playback Speed (${currentSpeed}x) - All Speeds",
+            if (isDoubleShakeEnabled) "📳 Pocket 2x Shake Next Song: ON ✓" else "📳 Pocket 2x Shake Next Song: OFF",
+            "⏱️ Live Sleep Timer (Millisecond Countdown)",
+            "➕ Add Song to Playlist",
+            "🎛️ Equalizer & Dolby Bass Boost",
+            "🔁 A-B Repeat Scene Loop",
+            if (isSquareAlbumStyle) "💿 Switch to Rotating Vinyl Disc" else "🖼️ Switch to Square Album Art Box",
+            "📂 Open Slide-Out Song Queue",
+            "📤 Share Current Audio",
+            "ℹ️ Song File Information"
         )
-        popup.menu.add(0, 3, 2, "Sleep Timer (Live Countdown)")
-        popup.menu.add(
-            0,
-            4,
-            3,
-            if (isSquareAlbumStyle) "Switch to Rotating Vinyl Disc" else "Switch to Square Album Art Box"
-        )
-        popup.menu.add(0, 5, 4, "Open Slide-Out Song Box")
-        popup.menu.add(0, 6, 5, "Equalizer & Bass Boost")
-        popup.menu.add(0, 7, 6, "Share Song")
-        popup.menu.add(0, 8, 7, "Song Details")
 
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                1 -> {
-                    if (path.isNotEmpty()) {
-                        showAddToPlaylistDialogInternal(path, title)
-                    }
-                    true
-                }
-                2 -> {
-                    toggleDoubleShakeMode()
-                    true
-                }
-                3 -> {
-                    showLiveSleepTimerAndSpeedDialog()
-                    true
-                }
-                4 -> {
+        showStyledWhiteListDialog("Audio Player Options", menuItems) { which ->
+            when (which) {
+                0 -> applyAudioSpeed(if (is2xActive) 1.0f else 2.0f)
+                1 -> showSpeedSelectorDialog()
+                2 -> toggleDoubleShakeMode()
+                3 -> showLiveSleepTimerAndSpeedDialog()
+                4 -> if (path.isNotEmpty()) showAddToPlaylistDialogInternal(path, title)
+                5 -> openSystemOrCustomEqualizer()
+                6 -> cycleAbRepeatMode()
+                7 -> {
                     isSquareAlbumStyle = !isSquareAlbumStyle
                     getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
                         .edit()
                         .putBoolean("square_album_style", isSquareAlbumStyle)
                         .apply()
                     applyVinylOrSquareBoxStyle()
-                    true
                 }
-                5 -> {
-                    openSongDrawerBox()
-                    true
-                }
-                6 -> {
-                    openSystemOrCustomEqualizer()
-                    true
-                }
-                7 -> {
-                    shareCurrentSong()
-                    true
-                }
-                8 -> {
+                8 -> openSongDrawerBox()
+                9 -> shareCurrentSong()
+                10 -> {
                     val f = File(path)
                     val sizeMb = if (f.exists()) f.length() / (1024.0 * 1024.0) else 0.0
                     AlertDialog.Builder(this)
@@ -982,17 +1116,110 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                             "Title: $title\n\n" +
                                 "Artist: ${tvAudioPlayerArtist.text}\n\n" +
                                 "Duration: ${tvAudioTotalTime.text}\n\n" +
+                                "Speed: ${currentSpeed}x\n\n" +
                                 "Size: ${String.format(Locale.US, "%.2f MB", sizeMb)}\n\n" +
                                 "Path: $path"
                         )
                         .setPositiveButton("Close", null)
                         .show()
-                    true
                 }
-                else -> false
             }
         }
-        popup.show()
+    }
+
+    private fun showSpeedSelectorDialog() {
+        val labels = arrayOf(
+            "0.5x (Slow)",
+            "0.75x",
+            "1.0x (Normal)",
+            "1.25x",
+            "1.5x",
+            "2.0x (Fast)",
+            "2.5x",
+            "3.0x (Super Fast)",
+            "4.0x (Ultra Fast)"
+        )
+        val speeds = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f)
+        showStyledWhiteListDialog("Select Playback Speed", labels) { idx ->
+            applyAudioSpeed(speeds[idx])
+        }
+    }
+
+    private fun showStyledWhiteListDialog(
+        headerTitle: String,
+        items: Array<String>,
+        onSelect: (Int) -> Unit
+    ) {
+        val d = resources.displayMetrics.density
+        val rootCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#141422"))
+                cornerRadius = 22f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#3300FFFF"))
+            }
+        }
+
+        val tvHeader = TextView(this).apply {
+            text = headerTitle
+            setTextColor(Color.parseColor("#00FFFF"))
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+        }
+        rootCard.addView(tvHeader)
+
+        val dividerTop = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (1 * d).toInt()
+            )
+            setBackgroundColor(Color.parseColor("#26FFFFFF"))
+        }
+        rootCard.addView(dividerTop)
+
+        val scrollView = ScrollView(this)
+        val listLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(rootCard)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        items.forEachIndexed { index, textLabel ->
+            val itemTv = TextView(this).apply {
+                text = textLabel
+                setTextColor(Color.WHITE)
+                textSize = 14.5f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding((12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt())
+                setOnClickListener {
+                    dialog.dismiss()
+                    onSelect(index)
+                }
+            }
+            listLayout.addView(itemTv)
+
+            if (index < items.size - 1) {
+                val line = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (1 * d).toInt()
+                    )
+                    setBackgroundColor(Color.parseColor("#15FFFFFF"))
+                }
+                listLayout.addView(line)
+            }
+        }
+
+        scrollView.addView(listLayout)
+        rootCard.addView(scrollView)
+        dialog.show()
     }
 
     private fun showAddToPlaylistDialogInternal(songPath: String, songTitle: String) {
@@ -1002,34 +1229,32 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         val options = mutableListOf("+ Create New Playlist")
         options.addAll(existingList)
 
-        AlertDialog.Builder(this)
-            .setTitle("Add '$songTitle' to Playlist")
-            .setItems(options.toTypedArray()) { _, which ->
-                if (which == 0) {
-                    val input = EditText(this).apply {
-                        hint = "Playlist Name (e.g. Favorites, Gym)"
-                        setTextColor(Color.BLACK)
-                        setPadding(40, 30, 40, 30)
-                    }
-                    AlertDialog.Builder(this)
-                        .setTitle("Create & Add to Playlist")
-                        .setView(input)
-                        .setPositiveButton("Save") { _, _ ->
-                            val name = input.text.toString().trim()
-                            if (name.isNotEmpty()) {
-                                saveSongToCustomPlaylist(name, songPath)
-                                Toast.makeText(this, "Added to '$name'", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        .setNegativeButton("Cancel", null)
-                        .show()
-                } else {
-                    val chosenPlaylist = existingList[which - 1]
-                    saveSongToCustomPlaylist(chosenPlaylist, songPath)
-                    Toast.makeText(this, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
+        showStyledWhiteListDialog("Add '$songTitle' to Playlist", options.toTypedArray()) { which ->
+            if (which == 0) {
+                val input = EditText(this).apply {
+                    hint = "Playlist Name (e.g. Favorites, Gym)"
+                    setHintTextColor(Color.parseColor("#888899"))
+                    setTextColor(Color.BLACK)
+                    setPadding(40, 30, 40, 30)
                 }
+                AlertDialog.Builder(this)
+                    .setTitle("Create & Add to Playlist")
+                    .setView(input)
+                    .setPositiveButton("Save") { _, _ ->
+                        val name = input.text.toString().trim()
+                        if (name.isNotEmpty()) {
+                            saveSongToCustomPlaylist(name, songPath)
+                            Toast.makeText(this, "Added to '$name'", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            } else {
+                val chosenPlaylist = existingList[which - 1]
+                saveSongToCustomPlaylist(chosenPlaylist, songPath)
+                Toast.makeText(this, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
             }
-            .show()
+        }
     }
 
     private fun saveSongToCustomPlaylist(playlistName: String, songPath: String) {
@@ -1064,11 +1289,11 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
     private fun showBuiltInEqualizerDialog(sessionId: Int) {
         try {
-            if (customEqualizer == null && sessionId != 0) {
-                customEqualizer = Equalizer(0, sessionId).apply { enabled = true }
+            if (sharedEqualizer == null && sessionId != 0) {
+                sharedEqualizer = Equalizer(0, sessionId).apply { enabled = true }
             }
-            if (customBassBoost == null && sessionId != 0) {
-                customBassBoost = BassBoost(0, sessionId).apply { enabled = true }
+            if (sharedBassBoost == null && sessionId != 0) {
+                sharedBassBoost = BassBoost(0, sessionId).apply { enabled = true }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1079,7 +1304,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             setPadding(48, 32, 48, 24)
         }
 
-        val eq = customEqualizer
+        val eq = sharedEqualizer
         if (eq != null) {
             val numPresets = eq.numberOfPresets.toInt()
             if (numPresets > 0) {
@@ -1090,21 +1315,18 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                     textSize = 14f
                     setPadding(0, 0, 0, 24)
                     setOnClickListener {
-                        AlertDialog.Builder(this@AudioPlayerActivity)
-                            .setTitle("Select Equalizer Preset")
-                            .setItems(presetNames) { _, idx ->
-                                try {
-                                    eq.usePreset(idx.toShort())
-                                    Toast.makeText(
-                                        this@AudioPlayerActivity,
-                                        "Preset: ${presetNames[idx]}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                } catch (ex: Exception) {
-                                    ex.printStackTrace()
-                                }
+                        showStyledWhiteListDialog("Select Equalizer Preset", presetNames) { idx ->
+                            try {
+                                eq.usePreset(idx.toShort())
+                                Toast.makeText(
+                                    this@AudioPlayerActivity,
+                                    "Preset: ${presetNames[idx]}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } catch (ex: Exception) {
+                                ex.printStackTrace()
                             }
-                            .show()
+                        }
                     }
                 }
                 container.addView(tvPreset)
@@ -1119,7 +1341,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         val sbBass = SeekBar(this).apply {
             max = 1000
             progress = try {
-                customBassBoost?.roundedStrength?.toInt() ?: 400
+                sharedBassBoost?.roundedStrength?.toInt() ?: 400
             } catch (e: Exception) {
                 400
             }
@@ -1127,7 +1349,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                     if (fromUser) {
                         try {
-                            customBassBoost?.setStrength(progress.toShort())
+                            sharedBassBoost?.setStrength(progress.toShort())
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -1205,7 +1427,116 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             .show()
     }
 
-    // DOUBLE-SHAKE POCKET SENSOR (Shake phone twice to play/switch song even in pocket)
+    // NOTIFICATION PANEL & LOCK SCREEN MEDIA CONTROLS
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NOTIF_CHANNEL_ID,
+                "MAX Audio Playback",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Lock screen and notification panel music controls"
+                setShowBadge(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun registerMediaControlReceiver() {
+        if (isReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(ACTION_PREV)
+            addAction(ACTION_PLAY_PAUSE)
+            addAction(ACTION_NEXT)
+            addAction(ACTION_SHUFFLE)
+            addAction(ACTION_CLOSE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mediaNotificationReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(mediaNotificationReceiver, filter)
+        }
+        isReceiverRegistered = true
+    }
+
+    private fun buildActionPendingIntent(action: String, reqCode: Int): PendingIntent {
+        val intent = Intent(action).setPackage(packageName)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        return PendingIntent.getBroadcast(this, reqCode, intent, flags)
+    }
+
+    private fun updateMediaNotification() {
+        try {
+            val player = exoPlayer ?: return
+            val title = songTitles.getOrElse(currentTrackIndex) { "Playing Audio" }
+            val artist = songArtists.getOrElse(currentTrackIndex) { "MAX Player Pro" }
+            val isPlaying = player.isPlaying
+
+            val openIntent = Intent(this, AudioPlayerActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val contentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            val contentPi = PendingIntent.getActivity(this, 90, openIntent, contentFlags)
+
+            val shuffleLabel = if (isShuffleEnabled) "Shuffle: ON" else "Shuffle"
+            val playPauseIcon = if (isPlaying) {
+                android.R.drawable.ic_media_pause
+            } else {
+                android.R.drawable.ic_media_play
+            }
+
+            val builder = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
+                .setSmallIcon(playPauseIcon)
+                .setContentTitle(title)
+                .setContentText("$artist • ${if (isShuffleEnabled) "Shuffle ON" else "Sequential"}")
+                .setSubText("MAX Player Pro")
+                .setContentIntent(contentPi)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(isPlaying)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .addAction(
+                    android.R.drawable.ic_menu_rotate,
+                    shuffleLabel,
+                    buildActionPendingIntent(ACTION_SHUFFLE, 1)
+                )
+                .addAction(
+                    android.R.drawable.ic_media_previous,
+                    "Prev",
+                    buildActionPendingIntent(ACTION_PREV, 2)
+                )
+                .addAction(
+                    playPauseIcon,
+                    if (isPlaying) "Pause" else "Play",
+                    buildActionPendingIntent(ACTION_PLAY_PAUSE, 3)
+                )
+                .addAction(
+                    android.R.drawable.ic_media_next,
+                    "Next",
+                    buildActionPendingIntent(ACTION_NEXT, 4)
+                )
+                .addAction(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    "Stop",
+                    buildActionPendingIntent(ACTION_CLOSE, 5)
+                )
+
+            notificationManager.notify(NOTIF_ID, builder.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // DOUBLE-SHAKE POCKET SENSOR
     private fun setupDoubleShakeSensor() {
         try {
             sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -1228,7 +1559,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             .edit()
             .putBoolean("double_shake_enabled", isDoubleShakeEnabled)
             .apply()
-        updateShakeBadgeUi()
 
         if (isDoubleShakeEnabled) {
             accelerometer?.let {
@@ -1242,16 +1572,6 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         } else {
             sensorManager?.unregisterListener(this)
             Toast.makeText(this, "Pocket Double-Shake OFF", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun updateShakeBadgeUi() {
-        if (isDoubleShakeEnabled) {
-            tvShakeModeBadge.text = "2x Shake: ON"
-            tvShakeModeBadge.setTextColor(Color.parseColor("#00FFFF"))
-        } else {
-            tvShakeModeBadge.text = "2x Shake: OFF"
-            tvShakeModeBadge.setTextColor(Color.parseColor("#777788"))
         }
     }
 
@@ -1302,24 +1622,24 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onDestroy() {
         super.onDestroy()
-        sleepTimer?.cancel()
         vinylAnimator?.cancel()
         handler.removeCallbacks(progressUpdateRunnable)
         handler.removeCallbacks(hideVolumeHudRunnable)
-        try {
-            sensorManager?.unregisterListener(this)
-            if (wakeLock?.isHeld == true) {
-                wakeLock?.release()
+        // Note: sharedPlayer is intentionally NOT released here so background audio continues seamlessly!
+        if (exoPlayer?.isPlaying != true) {
+            try {
+                sensorManager?.unregisterListener(this)
+                if (isReceiverRegistered) {
+                    unregisterReceiver(mediaNotificationReceiver)
+                    isReceiverRegistered = false
+                }
+                if (wakeLock?.isHeld == true) {
+                    wakeLock?.release()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            customEqualizer?.release()
-            customEqualizer = null
-            customBassBoost?.release()
-            customBassBoost = null
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
-        exoPlayer?.release()
-        exoPlayer = null
     }
 
     // 1. Custom Straight Vertical-Bars Waveform Drawable
@@ -1331,17 +1651,17 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         private var pointBFraction = -1f
 
         private val playedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#00A8FF")
+            setColor(Color.parseColor("#00E5FF"))
             style = Paint.Style.FILL
         }
 
         private val unplayedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#3A3A4E")
+            setColor(Color.parseColor("#4A4A62"))
             style = Paint.Style.FILL
         }
 
         private val abPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#00E676")
+            setColor(Color.parseColor("#00E676"))
             style = Paint.Style.FILL
         }
 
@@ -1418,18 +1738,23 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    // 2. Top Camera Volume Bar with 4 Trailing Dots
-    private class TopVolumeBarDotsDrawable(private val density: Float) : Drawable() {
+    // 2. Clean Full-Width Top Camera Volume Bar (4 Dots Removed as requested)
+    private class TopVolumeBarCleanDrawable(private val density: Float) : Drawable() {
 
         private var percent = 80
 
         private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#44444E")
+            setColor(Color.parseColor("#38384A"))
             style = Paint.Style.FILL
         }
 
         private val activePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
+            setColor(Color.parseColor("#00FFFF"))
+            style = Paint.Style.FILL
+        }
+
+        private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            setColor(Color.WHITE)
             style = Paint.Style.FILL
         }
 
@@ -1446,29 +1771,19 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
             val cy = h / 2f
             val barHeight = 8.5f * density
-            val dotRadius = 4.2f * density
-            val dotSpacing = 14f * density
 
-            // 4 Trailing Dots on Right Side
-            val dotsTotalWidth = 4 * dotSpacing
-            val barMaxRight = (w - dotsTotalWidth - 6f * density).coerceAtLeast(w * 0.65f)
-
-            // Background Track
-            val trackRect = RectF(0f, cy - barHeight / 2f, barMaxRight, cy + barHeight / 2f)
+            // Full Smooth Background Track
+            val trackRect = RectF(0f, cy - barHeight / 2f, w, cy + barHeight / 2f)
             canvas.drawRoundRect(trackRect, barHeight / 2f, barHeight / 2f, trackPaint)
 
-            // Active White Fill Pill
-            val fillWidth = (barMaxRight * (percent / 100f)).coerceAtLeast(barHeight)
+            // Active Cyan/White Fill Pill
+            val fillWidth = (w * (percent / 100f)).coerceAtLeast(barHeight)
             val fillRect = RectF(0f, cy - barHeight / 2f, fillWidth, cy + barHeight / 2f)
             canvas.drawRoundRect(fillRect, barHeight / 2f, barHeight / 2f, activePaint)
 
-            // Draw the 4 Dots on the right
-            for (i in 0 until 4) {
-                val dotCenterX = barMaxRight + 10f * density + (i * dotSpacing)
-                val threshold = 80 + (i + 1) * 5
-                val dotPaint = if (percent >= threshold) activePaint else trackPaint
-                canvas.drawCircle(dotCenterX, cy, dotRadius, dotPaint)
-            }
+            // Crisp White Thumb Indicator
+            val thumbX = fillWidth.coerceIn(barHeight / 2f, w - barHeight / 2f)
+            canvas.drawCircle(thumbX, cy, 5.5f * density, thumbPaint)
         }
 
         override fun setAlpha(alpha: Int) {}
@@ -1478,23 +1793,23 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    // 3. Sleek Vector Icon Drawable for Audio Player Controls
+    // 3. Pure White & Cyan Vector Icon Drawable (Fixed setColor so icons are never black)
     private class AudioVectorDrawable(
         private val type: String,
         private val density: Float,
-        private val color: Int = Color.WHITE
+        private val iconColor: Int = Color.WHITE
     ) : Drawable() {
 
         private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color
+            setColor(iconColor)
             style = Paint.Style.STROKE
-            strokeWidth = 1.9f * density
+            strokeWidth = 2.2f * density
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
 
         private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color
+            setColor(iconColor)
             style = Paint.Style.FILL
         }
 
@@ -1508,18 +1823,21 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             val r = w.coerceAtMost(h) * 0.36f
             val path = Path()
 
+            strokePaint.setColor(iconColor)
+            fillPaint.setColor(iconColor)
+
             when (type) {
                 "TONEARM" -> {
-                    fillPaint.color = Color.parseColor("#CCCCCC")
+                    fillPaint.setColor(Color.parseColor("#E0E0E0"))
                     canvas.drawCircle(w * 0.18f, h * 0.45f, 9f * density, fillPaint)
-                    strokePaint.color = Color.parseColor("#DDDDDD")
+                    strokePaint.setColor(Color.WHITE)
                     strokePaint.strokeWidth = 3f * density
                     path.moveTo(w * 0.18f, h * 0.45f)
                     path.quadTo(w * 0.55f, h * 0.50f, w * 0.86f, h * 0.85f)
                     canvas.drawPath(path, strokePaint)
                 }
                 "VINYL_GROOVES" -> {
-                    strokePaint.color = Color.parseColor("#252538")
+                    strokePaint.setColor(Color.parseColor("#2A2A40"))
                     strokePaint.strokeWidth = 1.2f * density
                     val maxR = w.coerceAtMost(h) * 0.46f
                     var curR = maxR * 0.52f
@@ -1528,19 +1846,25 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                         curR += 6f * density
                     }
                 }
+                "SLIDE_HANDLE" -> {
+                    path.moveTo(cx + r * 0.35f, cy - r * 0.65f)
+                    path.lineTo(cx - r * 0.35f, cy)
+                    path.lineTo(cx + r * 0.35f, cy + r * 0.65f)
+                    canvas.drawPath(path, strokePaint)
+                }
                 "EQUALIZER" -> {
                     canvas.drawLine(cx - r * 0.65f, cy - r * 0.8f, cx - r * 0.65f, cy + r * 0.8f, strokePaint)
                     canvas.drawLine(cx, cy - r * 0.8f, cx, cy + r * 0.8f, strokePaint)
                     canvas.drawLine(cx + r * 0.65f, cy - r * 0.8f, cx + r * 0.65f, cy + r * 0.8f, strokePaint)
-                    canvas.drawCircle(cx - r * 0.65f, cy - r * 0.25f, 2.5f * density, fillPaint)
-                    canvas.drawCircle(cx, cy + r * 0.3f, 2.5f * density, fillPaint)
-                    canvas.drawCircle(cx + r * 0.65f, cy - r * 0.15f, 2.5f * density, fillPaint)
+                    canvas.drawCircle(cx - r * 0.65f, cy - r * 0.25f, 2.8f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.3f, 2.8f * density, fillPaint)
+                    canvas.drawCircle(cx + r * 0.65f, cy - r * 0.15f, 2.8f * density, fillPaint)
                 }
                 "GAUGE_TIMER" -> {
                     val arcRect = RectF(cx - r * 0.85f, cy - r * 0.75f, cx + r * 0.85f, cy + r * 0.85f)
                     canvas.drawArc(arcRect, 165f, 210f, false, strokePaint)
                     canvas.drawLine(cx, cy + r * 0.15f, cx + r * 0.42f, cy - r * 0.35f, strokePaint)
-                    canvas.drawCircle(cx, cy + r * 0.15f, 2f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.15f, 2.4f * density, fillPaint)
                 }
                 "HEART_OUTLINE", "HEART_FILLED" -> {
                     path.moveTo(cx, cy + r * 0.75f)
@@ -1553,20 +1877,20 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                     }
                 }
                 "THREE_DOTS" -> {
-                    canvas.drawCircle(cx, cy - r * 0.65f, 2.1f * density, fillPaint)
-                    canvas.drawCircle(cx, cy, 2.1f * density, fillPaint)
-                    canvas.drawCircle(cx, cy + r * 0.65f, 2.1f * density, fillPaint)
+                    canvas.drawCircle(cx, cy - r * 0.68f, 2.5f * density, fillPaint)
+                    canvas.drawCircle(cx, cy, 2.5f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.68f, 2.5f * density, fillPaint)
                 }
                 "PLAY_CIRCLE" -> {
-                    canvas.drawCircle(cx, cy, w * 0.45f, strokePaint)
-                    path.moveTo(cx - r * 0.35f, cy - r * 0.6f)
+                    canvas.drawCircle(cx, cy, w * 0.44f, strokePaint)
+                    path.moveTo(cx - r * 0.3f, cy - r * 0.58f)
                     path.lineTo(cx + r * 0.65f, cy)
-                    path.lineTo(cx - r * 0.35f, cy + r * 0.6f)
+                    path.lineTo(cx - r * 0.3f, cy + r * 0.58f)
                     path.close()
                     canvas.drawPath(path, fillPaint)
                 }
                 "PAUSE_CIRCLE" -> {
-                    canvas.drawCircle(cx, cy, w * 0.45f, strokePaint)
+                    canvas.drawCircle(cx, cy, w * 0.44f, strokePaint)
                     canvas.drawLine(cx - r * 0.35f, cy - r * 0.55f, cx - r * 0.35f, cy + r * 0.55f, strokePaint)
                     canvas.drawLine(cx + r * 0.35f, cy - r * 0.55f, cx + r * 0.35f, cy + r * 0.55f, strokePaint)
                 }
@@ -1586,15 +1910,24 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
                     path.close()
                     canvas.drawPath(path, fillPaint)
                 }
-                "SHUFFLE" -> {
+                "SHUFFLE_OFF", "SHUFFLE_ON" -> {
                     canvas.drawLine(cx - r * 0.75f, cy - r * 0.45f, cx + r * 0.75f, cy + r * 0.45f, strokePaint)
                     canvas.drawLine(cx - r * 0.75f, cy + r * 0.45f, cx + r * 0.75f, cy - r * 0.45f, strokePaint)
+                    // Arrowheads
+                    canvas.drawLine(cx + r * 0.45f, cy - r * 0.45f, cx + r * 0.75f, cy - r * 0.45f, strokePaint)
+                    canvas.drawLine(cx + r * 0.45f, cy + r * 0.45f, cx + r * 0.75f, cy + r * 0.45f, strokePaint)
+                    if (type == "SHUFFLE_ON") {
+                        canvas.drawCircle(cx, cy + r * 0.82f, 2.5f * density, fillPaint)
+                    }
                 }
-                "REPEAT", "REPEAT_ONE" -> {
+                "REPEAT_ALL", "REPEAT_ONE", "REPEAT_OFF" -> {
                     val rect = RectF(cx - r * 0.75f, cy - r * 0.48f, cx + r * 0.75f, cy + r * 0.48f)
                     canvas.drawRoundRect(rect, 4f * density, 4f * density, strokePaint)
                     if (type == "REPEAT_ONE") {
                         canvas.drawLine(cx, cy - r * 0.25f, cx, cy + r * 0.25f, strokePaint)
+                        canvas.drawCircle(cx, cy + r * 0.82f, 2.5f * density, fillPaint)
+                    } else if (type == "REPEAT_OFF") {
+                        canvas.drawLine(cx - r * 0.85f, cy + r * 0.65f, cx + r * 0.85f, cy - r * 0.65f, strokePaint)
                     }
                 }
                 "LYRICS" -> {
