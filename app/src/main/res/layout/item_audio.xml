@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardAudioItemRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
@@ -16,10 +17,10 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <!-- Album / Disc Icon Box -->
+        <!-- Song Photo / Album Art Box -->
         <androidx.cardview.widget.CardView
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             app:cardBackgroundColor="#1E1E2E"
             app:cardCornerRadius="10dp"
             app:cardElevation="0dp">
@@ -28,12 +29,11 @@
                 android:id="@+id/imgAudioThumb"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="11dp"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="#00FFFF" />
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_lock_silent_mode_off" />
         </androidx.cardview.widget.CardView>
 
-        <!-- Song Title, Artist & Duration -->
+        <!-- Song Title, Singer Name & Duration -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -61,7 +61,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Unknown Artist • 03:45"
-                android:textColor="#888899"
+                android:textColor="#B0B0C4"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -72,7 +72,7 @@
             android:layout_height="36dp"
             android:padding="7dp"
             android:src="@android:drawable/ic_menu_more"
-            app:tint="#AAAAAA" />
+            app:tint="#FFFFFF" />
 
     </LinearLayout>
 
