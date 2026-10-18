@@ -47,21 +47,21 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         holder.tvDuration.text = formatDuration(video.duration)
 
         val sizeInMb = video.size / (1024.0 * 1024.0)
-        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "VIDEO" }
+        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "MP4" }
         val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val isFav = prefs.getBoolean("fav_${video.path}", false)
         val favStar = if (isFav) " ★" else ""
 
-        holder.tvSizeFormat.text = String.format(Locale.US, "%.2f MB • (%s)%s", sizeInMb, extension, favStar)
+        holder.tvSizeFormat.text = String.format(Locale.US, "%.1f MB • %s%s", sizeInMb, extension, favStar)
 
-        val glideModel: Any = if (video.path.startsWith("content://")) {
+        val glideTarget: Any = if (video.path.startsWith("content://")) {
             Uri.parse(video.path)
         } else {
             File(video.path)
         }
 
         Glide.with(context)
-            .load(glideModel)
+            .load(glideTarget)
             .placeholder(android.R.color.darker_gray)
             .centerCrop()
             .into(holder.imgThumbnail)
@@ -76,10 +76,10 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
             val popup = PopupMenu(context, view)
             popup.menu.add(0, 1, 0, "Play Video")
             popup.menu.add(0, 2, 1, "Convert to MP3")
-            popup.menu.add(0, 3, 2, "Move to Vault (Hide)")
+            popup.menu.add(0, 3, 2, "Move to Privacy Vault")
             popup.menu.add(0, 4, 3, if (currentFav) "Remove from Favorites" else "Add to Favorites")
             popup.menu.add(0, 5, 4, "Share Video")
-            popup.menu.add(0, 6, 5, "File Details")
+            popup.menu.add(0, 6, 5, "Properties")
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -88,9 +88,10 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                         true
                     }
                     2 -> {
-                        val intent = Intent(context, Mp3ConverterActivity::class.java)
-                        intent.putExtra("VIDEO_PATH", video.path)
-                        intent.putExtra("VIDEO_TITLE", video.title)
+                        val intent = Intent(context, Mp3ConverterActivity::class.java).apply {
+                            putExtra("VIDEO_PATH", video.path)
+                            putExtra("VIDEO_TITLE", video.title)
+                        }
                         context.startActivity(intent)
                         true
                     }
@@ -123,14 +124,14 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                     }
                     6 -> {
                         AlertDialog.Builder(context)
-                            .setTitle("Video Information")
+                            .setTitle("Video Properties")
                             .setMessage(
-                                "Title: ${video.title}\n\n" +
+                                "Name: ${video.title}\n\n" +
                                     "Size: ${String.format(Locale.US, "%.2f MB", sizeInMb)}\n\n" +
                                     "Duration: ${formatDuration(video.duration)}\n\n" +
-                                    "Path: ${video.path}"
+                                    "Location: ${video.path}"
                             )
-                            .setPositiveButton("Close", null)
+                            .setPositiveButton("OK", null)
                             .show()
                         true
                     }
@@ -144,13 +145,13 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
     private fun hideVideoToVault(video: VideoModel, currentPosition: Int) {
         if (currentPosition == RecyclerView.NO_POSITION) return
 
-        Toast.makeText(context, "Encrypting and Moving to Vault...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Moving to Vault...", Toast.LENGTH_SHORT).show()
 
         thread {
             val success = VaultHelper.hideVideo(context, video)
             Handler(Looper.getMainLooper()).post {
                 if (success) {
-                    Toast.makeText(context, "Video hidden successfully!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Moved to Privacy Vault!", Toast.LENGTH_SHORT).show()
                     if (currentPosition >= 0 && currentPosition < videoList.size) {
                         videoList.removeAt(currentPosition)
                         notifyItemRemoved(currentPosition)
