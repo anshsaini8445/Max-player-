@@ -6,15 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.PixelFormat
-import android.graphics.RectF
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
@@ -35,12 +28,14 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.RelativeLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
@@ -59,21 +54,26 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var rootPlayerFrame: FrameLayout
     private lateinit var playerView: PlayerView
     private lateinit var viewVisualOverlay: View
+
+    private lateinit var cardSpeedBoostBadge: CardView
     private lateinit var tvSpeedBoostBadge: TextView
+    private lateinit var cardZoomResetPill: CardView
     private lateinit var tvZoomResetPill: TextView
+
     private lateinit var layoutAllControls: RelativeLayout
-    private lateinit var topBarPlayer: LinearLayout
-    private lateinit var bottomBarPlayer: LinearLayout
     private lateinit var leftSideControlsGroup: LinearLayout
     private lateinit var rightSideControlsGroup: LinearLayout
     private lateinit var frameHdrContainer: FrameLayout
+    private lateinit var cardSubtitlesCc: CardView
     private lateinit var hsvDockedBottomTools: HorizontalScrollView
     private lateinit var llDockedBottomTools: LinearLayout
     private lateinit var layoutAdvancedSettings: ScrollView
     private lateinit var btnUnlockOverlay: ImageView
-    private lateinit var layoutGestureFeedback: LinearLayout
+
+    private lateinit var cardGestureFeedback: CardView
     private lateinit var imgGestureIcon: ImageView
     private lateinit var tvGestureValue: TextView
+    private lateinit var pbGestureLevel: ProgressBar
 
     private lateinit var tvPlayerTitle: TextView
     private lateinit var tvPlayerCurrentTime: TextView
@@ -134,6 +134,10 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var gestureDetector: GestureDetector
     private lateinit var scaleGestureDetector: ScaleGestureDetector
 
+    private val hideGestureRunnable = Runnable {
+        cardGestureFeedback.visibility = View.GONE
+    }
+
     private val updateProgressAction = object : Runnable {
         override fun run() {
             try {
@@ -164,7 +168,6 @@ class PlayerActivity : AppCompatActivity() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         bindViews()
-        applySleekThinIcons()
         applyPlayerCustomizationPreferences()
         extractIntentData(intent)
         initializePlayer()
@@ -178,21 +181,26 @@ class PlayerActivity : AppCompatActivity() {
         rootPlayerFrame = findViewById(R.id.rootPlayerFrame)
         playerView = findViewById(R.id.playerView)
         viewVisualOverlay = findViewById(R.id.viewVisualOverlay)
+
+        cardSpeedBoostBadge = findViewById(R.id.cardSpeedBoostBadge)
         tvSpeedBoostBadge = findViewById(R.id.tvSpeedBoostBadge)
+        cardZoomResetPill = findViewById(R.id.cardZoomResetPill)
         tvZoomResetPill = findViewById(R.id.tvZoomResetPill)
+
         layoutAllControls = findViewById(R.id.layoutAllControls)
-        topBarPlayer = findViewById(R.id.topBarPlayer)
-        bottomBarPlayer = findViewById(R.id.bottomBarPlayer)
         leftSideControlsGroup = findViewById(R.id.leftSideControlsGroup)
         rightSideControlsGroup = findViewById(R.id.rightSideControlsGroup)
         frameHdrContainer = findViewById(R.id.frameHdrContainer)
+        cardSubtitlesCc = findViewById(R.id.cardSubtitlesCc)
         hsvDockedBottomTools = findViewById(R.id.hsvDockedBottomTools)
         llDockedBottomTools = findViewById(R.id.llDockedBottomTools)
         layoutAdvancedSettings = findViewById(R.id.layoutAdvancedSettings)
         btnUnlockOverlay = findViewById(R.id.btnUnlockOverlay)
-        layoutGestureFeedback = findViewById(R.id.layoutGestureFeedback)
+
+        cardGestureFeedback = findViewById(R.id.cardGestureFeedback)
         imgGestureIcon = findViewById(R.id.imgGestureIcon)
         tvGestureValue = findViewById(R.id.tvGestureValue)
+        pbGestureLevel = findViewById(R.id.pbGestureLevel)
 
         tvPlayerTitle = findViewById(R.id.tvPlayerTitle)
         tvPlayerCurrentTime = findViewById(R.id.tvPlayerCurrentTime)
@@ -222,61 +230,10 @@ class PlayerActivity : AppCompatActivity() {
         btnHwDecoder = findViewById(R.id.btnHwDecoder)
         btnSwDecoder = findViewById(R.id.btnSwDecoder)
 
-        tvZoomResetPill.setOnClickListener {
+        cardZoomResetPill.setOnClickListener {
             applyVideoZoom(1.0f)
-            tvZoomResetPill.visibility = View.GONE
+            cardZoomResetPill.visibility = View.GONE
             Toast.makeText(this, "Zoom Reset to 100%", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun applySleekThinIcons() {
-        val density = resources.displayMetrics.density
-
-        findViewById<ImageView>(R.id.btnPlayerBack).setImageDrawable(ThinIconDrawable("BACK", density))
-        btnBgAudio.setImageDrawable(ThinIconDrawable("HEADPHONES", density))
-        btnVideoQueue.setImageDrawable(ThinIconDrawable("QUEUE", density))
-        btnMoreMenu.setImageDrawable(ThinIconDrawable("MORE", density))
-
-        btnMuteToggle.setImageDrawable(ThinIconDrawable("VOLUME", density))
-        btnLockScreen.setImageDrawable(ThinIconDrawable("LOCK", density))
-        btnUnlockOverlay.setImageDrawable(ThinIconDrawable("LOCK", density, Color.parseColor("#00E676")))
-        btnSideCut.setImageDrawable(ThinIconDrawable("SCISSORS", density))
-        btnRotateScreen.setImageDrawable(ThinIconDrawable("ROTATE", density))
-
-        btnPlayerPlayPause.setImageDrawable(ThinIconDrawable("PAUSE", density))
-        findViewById<ImageView>(R.id.btnPlayerPrev).setImageDrawable(ThinIconDrawable("PREV", density))
-        findViewById<ImageView>(R.id.btnPlayerNext).setImageDrawable(ThinIconDrawable("NEXT", density))
-        btnAspectRatio.setImageDrawable(ThinIconDrawable("ASPECT", density))
-        btnPipMode.setImageDrawable(ThinIconDrawable("PIP", density))
-
-        setChildImageThinIcon(R.id.optAudioTrack, "AUDIO_WAVE", density)
-        setChildImageThinIcon(R.id.optEqualizer, "EQUALIZER", density)
-        setChildImageThinIcon(R.id.optCast, "CAST", density)
-        setChildImageThinIcon(R.id.optShare, "SHARE", density)
-        setChildImageThinIcon(R.id.optCut, "SCISSORS", density)
-        imgFavoriteIcon.setImageDrawable(ThinIconDrawable("STAR", density))
-        setChildImageThinIcon(R.id.optBookmark, "BOOKMARK", density)
-        setChildImageThinIcon(R.id.optVrMode, "VR", density)
-
-        setChildImageThinIcon(R.id.optAbRepeat, "AB_REPEAT", density)
-        setChildImageThinIcon(R.id.optNightMode, "MOON", density)
-        setChildImageThinIcon(R.id.optMirrorMode, "MIRROR", density)
-        setChildImageThinIcon(R.id.optSleepTimer, "TIMER", density)
-
-        setChildImageThinIcon(R.id.optEditPlayer, "EDIT", density)
-        setChildImageThinIcon(R.id.optTutorials, "BOOK", density)
-        setChildImageThinIcon(R.id.optFileInfo, "INFO", density)
-        setChildImageThinIcon(R.id.optFeedback, "CHAT", density)
-    }
-
-    private fun setChildImageThinIcon(containerId: Int, iconType: String, density: Float) {
-        val layout = findViewById<LinearLayout>(containerId) ?: return
-        for (i in 0 until layout.childCount) {
-            val child = layout.getChildAt(i)
-            if (child is ImageView) {
-                child.setImageDrawable(ThinIconDrawable(iconType, density))
-                break
-            }
         }
     }
 
@@ -284,63 +241,50 @@ class PlayerActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
         val dockSideIconsToBottom = prefs.getBoolean("player_dock_side_to_bottom", false)
         val showSideControls = prefs.getBoolean("player_show_side_controls", true)
-        val showBottomQuickDock = prefs.getBoolean("player_show_bottom_dock", true)
         val showTopHdrAndCc = prefs.getBoolean("player_show_hdr_cc", true)
         longPressSpeedTarget = prefs.getFloat("player_long_press_speed", 4.0f)
 
         frameHdrContainer.visibility = if (showTopHdrAndCc) View.VISIBLE else View.GONE
-        btnSubtitlesCc.visibility = if (showTopHdrAndCc) View.VISIBLE else View.GONE
+        cardSubtitlesCc.visibility = if (showTopHdrAndCc) View.VISIBLE else View.GONE
 
         if (!showSideControls) {
             leftSideControlsGroup.visibility = View.GONE
             rightSideControlsGroup.visibility = View.GONE
+            hsvDockedBottomTools.visibility = View.GONE
         } else if (dockSideIconsToBottom) {
             leftSideControlsGroup.visibility = View.GONE
             rightSideControlsGroup.visibility = View.GONE
+            hsvDockedBottomTools.visibility = View.VISIBLE
+            populateDockedBottomTools()
         } else {
             leftSideControlsGroup.visibility = View.VISIBLE
             rightSideControlsGroup.visibility = View.VISIBLE
+            hsvDockedBottomTools.visibility = View.GONE
         }
-
-        hsvDockedBottomTools.visibility =
-            if (showBottomQuickDock || dockSideIconsToBottom) View.VISIBLE else View.GONE
-        populateDockedBottomTools()
     }
 
     private fun populateDockedBottomTools() {
         llDockedBottomTools.removeAllViews()
-        val prefs = getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
-        val dockSide = prefs.getBoolean("player_dock_side_to_bottom", false)
-
-        val tools = mutableListOf<Pair<String, () -> Unit>>()
-        if (dockSide) {
-            tools.add("Lock" to { lockScreenNow() })
-            tools.add("Mute" to { toggleMuteNow() })
-            tools.add("Rotate" to { toggleRotationNow() })
-            tools.add("MP3 Cut" to { openMp3Converter() })
-        }
-        tools.add("2x Speed" to { applySpeedDirect(2.0f) })
-        tools.add("4x Speed" to { applySpeedDirect(4.0f) })
-        tools.add("6x Speed" to { applySpeedDirect(6.0f) })
-        tools.add("8x Speed" to { applySpeedDirect(8.0f) })
-        tools.add("Zoom 600%" to { cycleQuickZoom() })
-        tools.add("A-B Loop" to { triggerAbRepeatStep() })
-        tools.add("Night" to { toggleNightModeNow() })
-        tools.add("Mirror" to { toggleMirrorModeNow() })
-        tools.add("Equalizer" to { openEqualizerNow() })
-        tools.add("Edit Layout" to { showCustomizePlayerLayoutDialog() })
+        val tools = listOf(
+            "Lock" to { lockScreenNow() },
+            "Mute" to { toggleMuteNow() },
+            "Rotate" to { toggleRotationNow() },
+            "MP3 Cut" to { openMp3Converter() },
+            "4x Speed" to { applySpeedDirect(4.0f) },
+            "8x Speed" to { applySpeedDirect(8.0f) },
+            "Reset Layout" to { showCustomizePlayerLayoutDialog() }
+        )
 
         for ((label, action) in tools) {
-            val chip = TextView(this).apply {
+            val pill = TextView(this).apply {
                 text = label
                 setTextColor(Color.WHITE)
                 textSize = 11.5f
                 typeface = Typeface.DEFAULT_BOLD
-                setPadding(dpToPx(12), dpToPx(5), dpToPx(12), dpToPx(5))
+                setPadding(dpToPx(14), dpToPx(5), dpToPx(14), dpToPx(5))
                 background = GradientDrawable().apply {
-                    cornerRadius = dpToPx(14).toFloat()
-                    setColor(Color.parseColor("#2EFFFFFF"))
-                    setStroke(1, Color.parseColor("#6600FFFF"))
+                    cornerRadius = dpToPx(16).toFloat()
+                    setColor(Color.parseColor("#33FFFFFF"))
                 }
                 val lp = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -350,7 +294,7 @@ class PlayerActivity : AppCompatActivity() {
                 layoutParams = lp
                 setOnClickListener { action() }
             }
-            llDockedBottomTools.addView(chip)
+            llDockedBottomTools.addView(pill)
         }
     }
 
@@ -418,11 +362,11 @@ class PlayerActivity : AppCompatActivity() {
                 player.prepare()
                 player.playWhenReady = true
 
-                val density = resources.displayMetrics.density
                 player.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        btnPlayerPlayPause.setImageDrawable(
-                            ThinIconDrawable(if (isPlaying) "PAUSE" else "PLAY", density)
+                        btnPlayerPlayPause.setImageResource(
+                            if (isPlaying) android.R.drawable.ic_media_pause
+                            else android.R.drawable.ic_media_play
                         )
                     }
 
@@ -463,7 +407,7 @@ class PlayerActivity : AppCompatActivity() {
         btnHdrMode.setOnClickListener {
             isHdrEnabled = !isHdrEnabled
             if (isHdrEnabled) {
-                btnHdrMode.setTextColor(Color.parseColor("#1ED760"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#18FF9800"))
                 Toast.makeText(this, "HDR Color Enhancement ON", Toast.LENGTH_SHORT).show()
             } else {
@@ -513,9 +457,9 @@ class PlayerActivity : AppCompatActivity() {
     private fun toggleMuteNow() {
         isMuted = !isMuted
         exoPlayer?.volume = if (isMuted) 0f else 1f
-        val density = resources.displayMetrics.density
-        btnMuteToggle.setImageDrawable(
-            ThinIconDrawable(if (isMuted) "MUTE" else "VOLUME", density)
+        btnMuteToggle.setImageResource(
+            if (isMuted) android.R.drawable.ic_lock_silent_mode
+            else android.R.drawable.ic_lock_silent_mode_off
         )
         Toast.makeText(this, if (isMuted) "Audio Muted" else "Audio Unmuted", Toast.LENGTH_SHORT).show()
     }
@@ -574,28 +518,28 @@ class PlayerActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Full Speed Selection from 0.25x up to 4x, 6x, 7x, and 8x
+        // Full Speed Selection from 0.25x up to 8.0x
         btnPlaybackSpeed.setOnClickListener {
             val speeds = arrayOf(
-                "0.25x (Slow)",
+                "0.25x",
                 "0.5x",
                 "0.75x",
                 "1.0x (Normal)",
                 "1.25x",
                 "1.5x",
-                "2.0x (Double)",
+                "2.0x",
                 "3.0x",
-                "4.0x (Quadruple)",
+                "4.0x",
                 "5.0x",
-                "6.0x (6x Fast)",
-                "7.0x (7x Fast)",
-                "8.0x (8x Ultra Fast)"
+                "6.0x",
+                "7.0x",
+                "8.0x"
             )
             val values = floatArrayOf(
                 0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
             )
             AlertDialog.Builder(this)
-                .setTitle("Playback Speed (0.25x to 8.0x)")
+                .setTitle("Playback Speed")
                 .setItems(speeds) { _, which ->
                     applySpeedDirect(values[which])
                 }
@@ -629,17 +573,7 @@ class PlayerActivity : AppCompatActivity() {
         currentSpeed = if (currentSpeed == targetSpeed && targetSpeed != 1.0f) 1.0f else targetSpeed
         exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
         btnPlaybackSpeed.text = if (currentSpeed == 1.0f) "Speed" else "${currentSpeed}x"
-        Toast.makeText(this, "Playback Speed: ${currentSpeed}x", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun cycleQuickZoom() {
-        val nextZoom = when {
-            currentZoomScale < 1.5f -> 2.0f
-            currentZoomScale < 3.5f -> 4.0f
-            currentZoomScale < 5.5f -> 6.0f
-            else -> 1.0f
-        }
-        applyVideoZoom(nextZoom)
+        Toast.makeText(this, "Speed: ${currentSpeed}x", Toast.LENGTH_SHORT).show()
     }
 
     private fun applyVideoZoom(scale: Float) {
@@ -651,10 +585,10 @@ class PlayerActivity : AppCompatActivity() {
 
         val zoomPercent = (currentZoomScale * 100).toInt()
         if (zoomPercent != 100) {
-            tvZoomResetPill.text = "Zoom: $zoomPercent% (Tap to Reset)"
-            tvZoomResetPill.visibility = View.VISIBLE
+            tvZoomResetPill.text = "Zoom: $zoomPercent% • Reset"
+            cardZoomResetPill.visibility = View.VISIBLE
         } else {
-            tvZoomResetPill.visibility = View.GONE
+            cardZoomResetPill.visibility = View.GONE
         }
     }
 
@@ -812,13 +746,13 @@ class PlayerActivity : AppCompatActivity() {
         })
 
         btnHwDecoder.setOnClickListener {
-            btnHwDecoder.setTextColor(Color.parseColor("#1ED760"))
+            btnHwDecoder.setTextColor(Color.parseColor("#00FFFF"))
             btnSwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Switched to Hardware (HW) Decoder", Toast.LENGTH_SHORT).show()
         }
 
         btnSwDecoder.setOnClickListener {
-            btnSwDecoder.setTextColor(Color.parseColor("#1ED760"))
+            btnSwDecoder.setTextColor(Color.parseColor("#00FFFF"))
             btnHwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Switched to Software (SW) Decoder", Toast.LENGTH_SHORT).show()
         }
@@ -829,14 +763,14 @@ class PlayerActivity : AppCompatActivity() {
 
         findViewById<LinearLayout>(R.id.optTutorials).setOnClickListener {
             AlertDialog.Builder(this)
-                .setTitle("Pro Gestures & Controls Guide")
+                .setTitle("Player Gestures Guide")
                 .setMessage(
-                    "• Two-Finger Pinch: Zoom from 50% up to 600%\n" +
+                    "• Two-Finger Pinch: Smooth Zoom from 50% to 600%\n" +
                         "• Press & Hold Video: Instant 4x / 6x / 8x Speed Boost\n" +
-                        "• Double Tap Left / Right: -10s / +10s Fast Seek\n" +
-                        "• Swipe Left Up/Down: Brightness Control\n" +
-                        "• Swipe Right Up/Down: Volume Control\n" +
-                        "• Edit Player: Move side buttons to bottom bar or customize UI"
+                        "• Double Tap Left / Right: -10s / +10s Seek\n" +
+                        "• Swipe Left Up/Down: Brightness\n" +
+                        "• Swipe Right Up/Down: Volume\n" +
+                        "• Edit Player: Dock side buttons to bottom bar"
                 )
                 .setPositiveButton("Got It", null)
                 .show()
@@ -919,13 +853,11 @@ class PlayerActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
         val dockSide = prefs.getBoolean("player_dock_side_to_bottom", false)
         val showSide = prefs.getBoolean("player_show_side_controls", true)
-        val showBottomDock = prefs.getBoolean("player_show_bottom_dock", true)
         val showHdrCc = prefs.getBoolean("player_show_hdr_cc", true)
 
         val options = arrayOf(
-            if (dockSide) "Move Side Icons Back to Left/Right Sides" else "Move Side Icons to Bottom Bar (Replaceable Dock)",
-            if (showSide) "Hide Floating Side Controls" else "Show Floating Side Controls",
-            if (showBottomDock) "Hide Bottom Quick-Tools Bar" else "Show Bottom Quick-Tools Bar",
+            if (dockSide) "Move Side Icons Back to Left/Right" else "Move Side Icons to Bottom Bar",
+            if (showSide) "Hide Side Controls" else "Show Side Controls",
             if (showHdrCc) "Hide Top HDR & CC Badges" else "Show Top HDR & CC Badges",
             "Set Press & Hold Speed Boost to 4.0x",
             "Set Press & Hold Speed Boost to 6.0x",
@@ -934,7 +866,7 @@ class PlayerActivity : AppCompatActivity() {
         )
 
         AlertDialog.Builder(this)
-            .setTitle("Customize Player Layout & Speed")
+            .setTitle("Edit Player Layout")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -946,33 +878,28 @@ class PlayerActivity : AppCompatActivity() {
                         applyPlayerCustomizationPreferences()
                     }
                     2 -> {
-                        prefs.edit().putBoolean("player_show_bottom_dock", !showBottomDock).apply()
-                        applyPlayerCustomizationPreferences()
-                    }
-                    3 -> {
                         prefs.edit().putBoolean("player_show_hdr_cc", !showHdrCc).apply()
                         applyPlayerCustomizationPreferences()
                     }
-                    4 -> {
+                    3 -> {
                         prefs.edit().putFloat("player_long_press_speed", 4.0f).apply()
                         longPressSpeedTarget = 4.0f
                         Toast.makeText(this, "Press & Hold Speed set to 4.0x", Toast.LENGTH_SHORT).show()
                     }
-                    5 -> {
+                    4 -> {
                         prefs.edit().putFloat("player_long_press_speed", 6.0f).apply()
                         longPressSpeedTarget = 6.0f
                         Toast.makeText(this, "Press & Hold Speed set to 6.0x", Toast.LENGTH_SHORT).show()
                     }
-                    6 -> {
+                    5 -> {
                         prefs.edit().putFloat("player_long_press_speed", 8.0f).apply()
                         longPressSpeedTarget = 8.0f
                         Toast.makeText(this, "Press & Hold Speed set to 8.0x", Toast.LENGTH_SHORT).show()
                     }
-                    7 -> {
+                    6 -> {
                         prefs.edit()
                             .putBoolean("player_dock_side_to_bottom", false)
                             .putBoolean("player_show_side_controls", true)
-                            .putBoolean("player_show_bottom_dock", true)
                             .putBoolean("player_show_hdr_cc", true)
                             .putFloat("player_long_press_speed", 4.0f)
                             .apply()
@@ -992,7 +919,7 @@ class PlayerActivity : AppCompatActivity() {
             btn.setTextColor(Color.WHITE)
         }
         val activeBtn = allButtons[mode]
-        activeBtn.setBackgroundColor(Color.parseColor("#1ED760"))
+        activeBtn.setBackgroundColor(Color.parseColor("#00FFFF"))
         activeBtn.setTextColor(Color.BLACK)
 
         stopAfterCurrent = false
@@ -1020,13 +947,9 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun updateFavoriteUi() {
-        val density = resources.displayMetrics.density
-        imgFavoriteIcon.setImageDrawable(
-            ThinIconDrawable(
-                "STAR",
-                density,
-                if (isFavorite) Color.parseColor("#FFD700") else Color.WHITE
-            )
+        imgFavoriteIcon.setImageResource(
+            if (isFavorite) android.R.drawable.btn_star_big_on
+            else android.R.drawable.btn_star_big_off
         )
     }
 
@@ -1088,8 +1011,6 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setupMultiTouchZoomAndGestures() {
-        val density = resources.displayMetrics.density
-
         // 1. Two-Finger Pinch-to-Zoom from 50% up to 600% (6.0x)
         scaleGestureDetector = ScaleGestureDetector(
             this,
@@ -1106,8 +1027,9 @@ class PlayerActivity : AppCompatActivity() {
                     applyVideoZoom(newScale)
                     val zoomPct = (currentZoomScale * 100).toInt()
                     showGestureFeedback(
-                        ThinIconDrawable("ASPECT", density, Color.parseColor("#00E676")),
-                        "$zoomPct%"
+                        android.R.drawable.ic_menu_view,
+                        "$zoomPct%",
+                        (zoomPct / 6).coerceIn(0, 100)
                     )
                     return true
                 }
@@ -1141,10 +1063,10 @@ class PlayerActivity : AppCompatActivity() {
                 exoPlayer?.let { player ->
                     if (e.x < screenWidth / 2) {
                         player.seekTo((player.currentPosition - 10000).coerceAtLeast(0L))
-                        showGestureFeedback(ThinIconDrawable("PREV", density, Color.parseColor("#00E676")), "-10s")
+                        showGestureFeedback(android.R.drawable.ic_media_rew, "-10s", -1)
                     } else {
                         player.seekTo((player.currentPosition + 10000).coerceAtMost(player.duration))
-                        showGestureFeedback(ThinIconDrawable("NEXT", density, Color.parseColor("#00E676")), "+10s")
+                        showGestureFeedback(android.R.drawable.ic_media_ff, "+10s", -1)
                     }
                 }
                 return true
@@ -1156,8 +1078,8 @@ class PlayerActivity : AppCompatActivity() {
                     if (player.isPlaying) {
                         isLongPressSpeedActive = true
                         player.playbackParameters = PlaybackParameters(longPressSpeedTarget)
-                        tvSpeedBoostBadge.text = "${longPressSpeedTarget}x Fast Play"
-                        tvSpeedBoostBadge.visibility = View.VISIBLE
+                        tvSpeedBoostBadge.text = "${longPressSpeedTarget}x Fast Play ⏩"
+                        cardSpeedBoostBadge.visibility = View.VISIBLE
                     }
                 }
             }
@@ -1179,10 +1101,8 @@ class PlayerActivity : AppCompatActivity() {
                         val newBrightness = (currentBrightness + (distanceY / 1000f)).coerceIn(0.05f, 1.0f)
                         lp.screenBrightness = newBrightness
                         window.attributes = lp
-                        showGestureFeedback(
-                            ThinIconDrawable("SUN", density, Color.parseColor("#00E676")),
-                            "${(newBrightness * 100).toInt()}%"
-                        )
+                        val pct = (newBrightness * 100).toInt()
+                        showGestureFeedback(android.R.drawable.ic_menu_view, "$pct%", pct)
                     } else {
                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                         val curVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -1190,10 +1110,7 @@ class PlayerActivity : AppCompatActivity() {
                         val newVol = (curVol + delta).coerceIn(0, maxVol)
                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
                         val pct = ((newVol.toFloat() / maxVol) * 100).toInt()
-                        showGestureFeedback(
-                            ThinIconDrawable("VOLUME", density, Color.parseColor("#00E676")),
-                            "$pct%"
-                        )
+                        showGestureFeedback(android.R.drawable.ic_lock_silent_mode_off, "$pct%", pct)
                     }
                     return true
                 }
@@ -1210,20 +1127,25 @@ class PlayerActivity : AppCompatActivity() {
                 if (isLongPressSpeedActive) {
                     isLongPressSpeedActive = false
                     exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
-                    tvSpeedBoostBadge.visibility = View.GONE
+                    cardSpeedBoostBadge.visibility = View.GONE
                 }
             }
             true
         }
     }
 
-    private fun showGestureFeedback(drawable: Drawable, text: String) {
-        imgGestureIcon.setImageDrawable(drawable)
+    private fun showGestureFeedback(iconRes: Int, text: String, progressPercent: Int) {
+        imgGestureIcon.setImageResource(iconRes)
         tvGestureValue.text = text
-        layoutGestureFeedback.visibility = View.VISIBLE
-        handler.removeCallbacksAndMessages(null)
-        handler.post(updateProgressAction)
-        handler.postDelayed({ layoutGestureFeedback.visibility = View.GONE }, 800)
+        if (progressPercent in 0..100) {
+            pbGestureLevel.visibility = View.VISIBLE
+            pbGestureLevel.progress = progressPercent
+        } else {
+            pbGestureLevel.visibility = View.GONE
+        }
+        cardGestureFeedback.visibility = View.VISIBLE
+        handler.removeCallbacks(hideGestureRunnable)
+        handler.postDelayed(hideGestureRunnable, 800)
     }
 
     private fun enterPipModeSafely() {
@@ -1286,260 +1208,8 @@ class PlayerActivity : AppCompatActivity() {
         super.onDestroy()
         sleepCountDownTimer?.cancel()
         handler.removeCallbacks(updateProgressAction)
+        handler.removeCallbacks(hideGestureRunnable)
         exoPlayer?.release()
         exoPlayer = null
-    }
-
-    // Custom Sleek Thin-Stroke Vector Icon Renderer (1.7dp anti-aliased strokes for all player icons)
-    private class ThinIconDrawable(
-        private val type: String,
-        private val density: Float,
-        private val strokeColor: Int = Color.WHITE
-    ) : Drawable() {
-
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = strokeColor
-            style = Paint.Style.STROKE
-            strokeWidth = 1.7f * density
-            strokeCap = Paint.Cap.ROUND
-            strokeJoin = Paint.Join.ROUND
-        }
-
-        override fun draw(canvas: Canvas) {
-            val b = bounds
-            val w = b.width().toFloat()
-            val h = b.height().toFloat()
-            if (w <= 0 || h <= 0) return
-            val cx = b.exactCenterX()
-            val cy = b.exactCenterY()
-            val r = (w.coerceAtMost(h)) * 0.36f
-            val path = Path()
-
-            when (type) {
-                "BACK" -> {
-                    path.moveTo(cx + r * 0.5f, cy - r * 0.8f)
-                    path.lineTo(cx - r * 0.6f, cy)
-                    path.lineTo(cx + r * 0.5f, cy + r * 0.8f)
-                    path.moveTo(cx - r * 0.5f, cy)
-                    path.lineTo(cx + r * 0.85f, cy)
-                    canvas.drawPath(path, paint)
-                }
-                "PLAY" -> {
-                    path.moveTo(cx - r * 0.45f, cy - r * 0.78f)
-                    path.lineTo(cx + r * 0.8f, cy)
-                    path.lineTo(cx - r * 0.45f, cy + r * 0.78f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "PAUSE" -> {
-                    canvas.drawLine(cx - r * 0.45f, cy - r * 0.75f, cx - r * 0.45f, cy + r * 0.75f, paint)
-                    canvas.drawLine(cx + r * 0.45f, cy - r * 0.75f, cx + r * 0.45f, cy + r * 0.75f, paint)
-                }
-                "PREV" -> {
-                    canvas.drawLine(cx - r * 0.7f, cy - r * 0.7f, cx - r * 0.7f, cy + r * 0.7f, paint)
-                    path.moveTo(cx + r * 0.7f, cy - r * 0.7f)
-                    path.lineTo(cx - r * 0.35f, cy)
-                    path.lineTo(cx + r * 0.7f, cy + r * 0.7f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "NEXT" -> {
-                    canvas.drawLine(cx + r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f, paint)
-                    path.moveTo(cx - r * 0.7f, cy - r * 0.7f)
-                    path.lineTo(cx + r * 0.35f, cy)
-                    path.lineTo(cx - r * 0.7f, cy + r * 0.7f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "LOCK" -> {
-                    val rect = RectF(cx - r * 0.7f, cy - r * 0.1f, cx + r * 0.7f, cy + r * 0.85f)
-                    canvas.drawRoundRect(rect, 4f * density, 4f * density, paint)
-                    val arcRect = RectF(cx - r * 0.45f, cy - r * 0.85f, cx + r * 0.45f, cy)
-                    canvas.drawArc(arcRect, 180f, 180f, false, paint)
-                }
-                "VOLUME", "MUTE" -> {
-                    path.moveTo(cx - r * 0.8f, cy - r * 0.35f)
-                    path.lineTo(cx - r * 0.35f, cy - r * 0.35f)
-                    path.lineTo(cx + r * 0.15f, cy - r * 0.8f)
-                    path.lineTo(cx + r * 0.15f, cy + r * 0.8f)
-                    path.lineTo(cx - r * 0.35f, cy + r * 0.35f)
-                    path.lineTo(cx - r * 0.8f, cy + r * 0.35f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                    if (type == "MUTE") {
-                        canvas.drawLine(cx + r * 0.35f, cy - r * 0.4f, cx + r * 0.9f, cy + r * 0.4f, paint)
-                        canvas.drawLine(cx + r * 0.9f, cy - r * 0.4f, cx + r * 0.35f, cy + r * 0.4f, paint)
-                    } else {
-                        val wave = RectF(cx - r * 0.2f, cy - r * 0.6f, cx + r * 0.75f, cy + r * 0.6f)
-                        canvas.drawArc(wave, -45f, 90f, false, paint)
-                    }
-                }
-                "SCISSORS" -> {
-                    canvas.drawCircle(cx - r * 0.45f, cy + r * 0.55f, r * 0.3f, paint)
-                    canvas.drawCircle(cx + r * 0.45f, cy + r * 0.55f, r * 0.3f, paint)
-                    canvas.drawLine(cx - r * 0.25f, cy + r * 0.3f, cx + r * 0.6f, cy - r * 0.75f, paint)
-                    canvas.drawLine(cx + r * 0.25f, cy + r * 0.3f, cx - r * 0.6f, cy - r * 0.75f, paint)
-                }
-                "ROTATE" -> {
-                    val rect = RectF(cx - r * 0.65f, cy - r * 0.8f, cx + r * 0.65f, cy + r * 0.8f)
-                    canvas.drawRoundRect(rect, 4f * density, 4f * density, paint)
-                }
-                "ASPECT" -> {
-                    val rect = RectF(cx - r * 0.9f, cy - r * 0.65f, cx + r * 0.9f, cy + r * 0.65f)
-                    canvas.drawRoundRect(rect, 4f * density, 4f * density, paint)
-                    canvas.drawLine(cx - r * 0.5f, cy, cx + r * 0.5f, cy, paint)
-                }
-                "PIP" -> {
-                    val outer = RectF(cx - r * 0.9f, cy - r * 0.65f, cx + r * 0.9f, cy + r * 0.65f)
-                    canvas.drawRoundRect(outer, 4f * density, 4f * density, paint)
-                    val inner = RectF(cx, cy - r * 0.05f, cx + r * 0.75f, cy + r * 0.5f)
-                    canvas.drawRoundRect(inner, 2f * density, 2f * density, paint)
-                }
-                "HEADPHONES" -> {
-                    val arc = RectF(cx - r * 0.8f, cy - r * 0.8f, cx + r * 0.8f, cy + r * 0.6f)
-                    canvas.drawArc(arc, 180f, 180f, false, paint)
-                    canvas.drawRoundRect(RectF(cx - r * 0.85f, cy - r * 0.1f, cx - r * 0.45f, cy + r * 0.65f), 3f * density, 3f * density, paint)
-                    canvas.drawRoundRect(RectF(cx + r * 0.45f, cy - r * 0.1f, cx + r * 0.85f, cy + r * 0.65f), 3f * density, 3f * density, paint)
-                }
-                "QUEUE" -> {
-                    canvas.drawLine(cx - r * 0.8f, cy - r * 0.55f, cx + r * 0.8f, cy - r * 0.55f, paint)
-                    canvas.drawLine(cx - r * 0.8f, cy, cx + r * 0.8f, cy, paint)
-                    canvas.drawLine(cx - r * 0.8f, cy + r * 0.55f, cx + r * 0.4f, cy + r * 0.55f, paint)
-                }
-                "MORE" -> {
-                    paint.style = Paint.Style.FILL
-                    canvas.drawCircle(cx, cy - r * 0.65f, 1.8f * density, paint)
-                    canvas.drawCircle(cx, cy, 1.8f * density, paint)
-                    canvas.drawCircle(cx, cy + r * 0.65f, 1.8f * density, paint)
-                    paint.style = Paint.Style.STROKE
-                }
-                "AUDIO_WAVE" -> {
-                    canvas.drawLine(cx - r * 0.7f, cy - r * 0.25f, cx - r * 0.7f, cy + r * 0.25f, paint)
-                    canvas.drawLine(cx - r * 0.25f, cy - r * 0.75f, cx - r * 0.25f, cy + r * 0.75f, paint)
-                    canvas.drawLine(cx + r * 0.25f, cy - r * 0.5f, cx + r * 0.25f, cy + r * 0.5f, paint)
-                    canvas.drawLine(cx + r * 0.7f, cy - r * 0.85f, cx + r * 0.7f, cy + r * 0.85f, paint)
-                }
-                "EQUALIZER" -> {
-                    canvas.drawLine(cx - r * 0.6f, cy - r * 0.75f, cx - r * 0.6f, cy + r * 0.75f, paint)
-                    canvas.drawLine(cx, cy - r * 0.75f, cx, cy + r * 0.75f, paint)
-                    canvas.drawLine(cx + r * 0.6f, cy - r * 0.75f, cx + r * 0.6f, cy + r * 0.75f, paint)
-                    canvas.drawCircle(cx - r * 0.6f, cy - r * 0.25f, r * 0.22f, paint)
-                    canvas.drawCircle(cx, cy + r * 0.25f, r * 0.22f, paint)
-                    canvas.drawCircle(cx + r * 0.6f, cy - r * 0.15f, r * 0.22f, paint)
-                }
-                "CAST" -> {
-                    val outer = RectF(cx - r * 0.85f, cy - r * 0.65f, cx + r * 0.85f, cy + r * 0.65f)
-                    canvas.drawRoundRect(outer, 3f * density, 3f * density, paint)
-                    canvas.drawArc(RectF(cx - r * 0.85f, cy + r * 0.1f, cx - r * 0.25f, cy + r * 0.65f), 270f, 90f, false, paint)
-                }
-                "SHARE" -> {
-                    val box = RectF(cx - r * 0.75f, cy - r * 0.2f, cx + r * 0.75f, cy + r * 0.75f)
-                    canvas.drawRoundRect(box, 3f * density, 3f * density, paint)
-                    canvas.drawLine(cx, cy + r * 0.25f, cx, cy - r * 0.8f, paint)
-                    canvas.drawLine(cx, cy - r * 0.8f, cx - r * 0.35f, cy - r * 0.45f, paint)
-                    canvas.drawLine(cx, cy - r * 0.8f, cx + r * 0.35f, cy - r * 0.45f, paint)
-                }
-                "STAR" -> {
-                    path.moveTo(cx, cy - r * 0.85f)
-                    path.lineTo(cx + r * 0.25f, cy - r * 0.25f)
-                    path.lineTo(cx + r * 0.85f, cy - r * 0.2f)
-                    path.lineTo(cx + r * 0.38f, cy + r * 0.22f)
-                    path.lineTo(cx + r * 0.55f, cy + r * 0.82f)
-                    path.lineTo(cx, cy + r * 0.48f)
-                    path.lineTo(cx - r * 0.55f, cy + r * 0.82f)
-                    path.lineTo(cx - r * 0.38f, cy + r * 0.22f)
-                    path.lineTo(cx - r * 0.85f, cy - r * 0.2f)
-                    path.lineTo(cx - r * 0.25f, cy - r * 0.25f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "BOOKMARK" -> {
-                    path.moveTo(cx - r * 0.6f, cy - r * 0.8f)
-                    path.lineTo(cx + r * 0.6f, cy - r * 0.8f)
-                    path.lineTo(cx + r * 0.6f, cy + r * 0.8f)
-                    path.lineTo(cx, cy + r * 0.35f)
-                    path.lineTo(cx - r * 0.6f, cy + r * 0.8f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "VR" -> {
-                    val goggles = RectF(cx - r * 0.85f, cy - r * 0.45f, cx + r * 0.85f, cy + r * 0.45f)
-                    canvas.drawRoundRect(goggles, 4f * density, 4f * density, paint)
-                    canvas.drawCircle(cx - r * 0.38f, cy, r * 0.2f, paint)
-                    canvas.drawCircle(cx + r * 0.38f, cy, r * 0.2f, paint)
-                }
-                "AB_REPEAT" -> {
-                    val loopRect = RectF(cx - r * 0.75f, cy - r * 0.45f, cx + r * 0.75f, cy + r * 0.45f)
-                    canvas.drawRoundRect(loopRect, 4f * density, 4f * density, paint)
-                    canvas.drawLine(cx - r * 0.2f, cy - r * 0.7f, cx + r * 0.1f, cy - r * 0.45f, paint)
-                    canvas.drawLine(cx + r * 0.2f, cy + r * 0.7f, cx - r * 0.1f, cy + r * 0.45f, paint)
-                }
-                "MOON" -> {
-                    val moonRect = RectF(cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f)
-                    canvas.drawArc(moonRect, 45f, 250f, false, paint)
-                }
-                "MIRROR" -> {
-                    canvas.drawLine(cx, cy - r * 0.85f, cx, cy + r * 0.85f, paint)
-                    path.moveTo(cx - r * 0.25f, cy - r * 0.6f)
-                    path.lineTo(cx - r * 0.8f, cy + r * 0.6f)
-                    path.lineTo(cx - r * 0.25f, cy + r * 0.6f)
-                    path.close()
-                    path.moveTo(cx + r * 0.25f, cy - r * 0.6f)
-                    path.lineTo(cx + r * 0.8f, cy + r * 0.6f)
-                    path.lineTo(cx + r * 0.25f, cy + r * 0.6f)
-                    path.close()
-                    canvas.drawPath(path, paint)
-                }
-                "TIMER" -> {
-                    canvas.drawCircle(cx, cy + r * 0.1f, r * 0.72f, paint)
-                    canvas.drawLine(cx, cy + r * 0.1f, cx, cy - r * 0.3f, paint)
-                    canvas.drawLine(cx, cy + r * 0.1f, cx + r * 0.35f, cy + r * 0.1f, paint)
-                    canvas.drawLine(cx - r * 0.3f, cy - r * 0.82f, cx + r * 0.3f, cy - r * 0.82f, paint)
-                }
-                "EDIT" -> {
-                    val box = RectF(cx - r * 0.75f, cy - r * 0.75f, cx + r * 0.75f, cy + r * 0.75f)
-                    canvas.drawRoundRect(box, 3f * density, 3f * density, paint)
-                    canvas.drawLine(cx - r * 0.3f, cy + r * 0.3f, cx + r * 0.45f, cy - r * 0.45f, paint)
-                }
-                "BOOK" -> {
-                    val leftPage = RectF(cx - r * 0.8f, cy - r * 0.6f, cx, cy + r * 0.6f)
-                    val rightPage = RectF(cx, cy - r * 0.6f, cx + r * 0.8f, cy + r * 0.6f)
-                    canvas.drawRect(leftPage, paint)
-                    canvas.drawRect(rightPage, paint)
-                }
-                "INFO" -> {
-                    canvas.drawCircle(cx, cy, r * 0.8f, paint)
-                    canvas.drawLine(cx, cy - r * 0.1f, cx, cy + r * 0.45f, paint)
-                    canvas.drawPoint(cx, cy - r * 0.4f, paint)
-                }
-                "CHAT" -> {
-                    val bubble = RectF(cx - r * 0.8f, cy - r * 0.65f, cx + r * 0.8f, cy + r * 0.45f)
-                    canvas.drawRoundRect(bubble, 4f * density, 4f * density, paint)
-                    canvas.drawLine(cx - r * 0.45f, cy - r * 0.2f, cx + r * 0.45f, cy - r * 0.2f, paint)
-                    canvas.drawLine(cx - r * 0.45f, cy + r * 0.1f, cx + r * 0.2f, cy + r * 0.1f, paint)
-                }
-                "SUN" -> {
-                    canvas.drawCircle(cx, cy, r * 0.45f, paint)
-                    canvas.drawLine(cx, cy - r * 0.85f, cx, cy - r * 0.62f, paint)
-                    canvas.drawLine(cx, cy + r * 0.62f, cx, cy + r * 0.85f, paint)
-                    canvas.drawLine(cx - r * 0.85f, cy, cx - r * 0.62f, cy, paint)
-                    canvas.drawLine(cx + r * 0.62f, cy, cx + r * 0.85f, cy, paint)
-                }
-                else -> {
-                    canvas.drawCircle(cx, cy, r * 0.75f, paint)
-                }
-            }
-        }
-
-        override fun setAlpha(alpha: Int) {
-            paint.alpha = alpha
-        }
-
-        override fun setColorFilter(colorFilter: ColorFilter?) {
-            paint.colorFilter = colorFilter
-        }
-
-        @Deprecated("Deprecated in Java")
-        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 }
