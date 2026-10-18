@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootVideoFragment"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0A0A10"
     android:orientation="vertical">
 
-    <!-- Auto-Hiding History Section (Visible only when user has watched videos) -->
+    <!-- Horizontal Sliding History Section with Watched Progress Bar -->
     <LinearLayout
         android:id="@+id/llHistoryContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="14dp"
         android:paddingTop="10dp"
-        android:paddingBottom="4dp"
+        android:paddingBottom="6dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -39,7 +40,7 @@
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="4dp"
                 android:text="Clear"
-                android:textColor="#00FFFF"
+                android:textColor="#00E676"
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -47,12 +48,13 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvHistory"
             android:layout_width="match_parent"
-            android:layout_height="96dp"
+            android:layout_height="112dp"
             android:layout_marginTop="6dp"
-            android:clipToPadding="false" />
+            android:clipToPadding="false"
+            android:overScrollMode="never" />
     </LinearLayout>
 
-    <!-- Clean PLAYit Style Navigation Row: Video | Folder | Playlist + 3-Dots Icon -->
+    <!-- Navigation Row: Video | Folder | Playlist + Bright 3-Dots Icon -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="50dp"
@@ -67,7 +69,7 @@
             android:gravity="center"
             android:paddingEnd="22dp"
             android:text="Video"
-            android:textColor="#00FFFF"
+            android:textColor="#00E676"
             android:textSize="17sp"
             android:textStyle="bold" />
 
@@ -78,7 +80,7 @@
             android:gravity="center"
             android:paddingHorizontal="14dp"
             android:text="Folder"
-            android:textColor="#888888"
+            android:textColor="#B0B0C0"
             android:textSize="17sp"
             android:textStyle="bold" />
 
@@ -89,7 +91,7 @@
             android:gravity="center"
             android:paddingHorizontal="14dp"
             android:text="Playlist"
-            android:textColor="#888888"
+            android:textColor="#B0B0C0"
             android:textSize="17sp"
             android:textStyle="bold" />
 
@@ -100,9 +102,10 @@
 
         <ImageView
             android:id="@+id/btnVideoMoreMenu"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="7dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/circle_bg"
+            android:padding="8dp"
             android:src="@android:drawable/ic_menu_more"
             app:tint="#FFFFFF" />
     </LinearLayout>
@@ -110,7 +113,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#16FFFFFF" />
+        android:background="#1AFFFFFF" />
 
     <!-- Main Content Area -->
     <FrameLayout
@@ -151,7 +154,7 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:src="@android:drawable/ic_media_play"
-                app:tint="#00FFFF" />
+                app:tint="#00E676" />
 
             <TextView
                 android:id="@+id/tvEmptyTitle"
@@ -170,7 +173,7 @@
                 android:layout_marginTop="6dp"
                 android:gravity="center"
                 android:text="Your videos and favorite playlists will appear here."
-                android:textColor="#888888"
+                android:textColor="#AAAA99"
                 android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
