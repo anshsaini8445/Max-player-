@@ -1,55 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/llVideoRootContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0A0A10"
     android:orientation="vertical">
 
-    <!-- Permission Grant Banner (Visible only when storage permission is not granted) -->
-    <LinearLayout
-        android:id="@+id/llPermissionBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="8dp"
-        android:background="#182232"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Allow Storage Access to load all videos and folders on your device."
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/btnGrantVideoPermission"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:background="#00FFFF"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="6dp"
-            android:text="ALLOW"
-            android:textColor="#000000"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Section 1: History Header & Horizontal Recent Played List -->
+    <!-- Auto-Hiding History Section (Visible only when user has watched videos) -->
     <LinearLayout
         android:id="@+id/llHistoryContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="14dp"
-        android:paddingTop="10dp">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -63,7 +29,7 @@
                 android:layout_weight="1"
                 android:text="History"
                 android:textColor="#FFFFFF"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -71,35 +37,35 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
+                android:paddingVertical="4dp"
                 android:text="Clear"
                 android:textColor="#00FFFF"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvHistory"
             android:layout_width="match_parent"
-            android:layout_height="106dp"
+            android:layout_height="96dp"
             android:layout_marginTop="6dp"
             android:clipToPadding="false" />
     </LinearLayout>
 
-    <!-- Section 2: Main Navigation Tabs (Video | Folder | Playlist) + Quick Tools -->
+    <!-- Clean PLAYit Style Navigation Row: Video | Folder | Playlist + 3-Dots Icon -->
     <LinearLayout
-        android:id="@+id/llMainVideoTabs"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="50dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="14dp">
+        android:paddingHorizontal="16dp">
 
         <TextView
             android:id="@+id/tvTabVideo"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:paddingEnd="20dp"
+            android:paddingEnd="22dp"
             android:text="Video"
             android:textColor="#00FFFF"
             android:textSize="17sp"
@@ -132,137 +98,22 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
-        <TextView
-            android:id="@+id/btnSortVideos"
-            android:layout_width="wrap_content"
-            android:layout_height="30dp"
-            android:layout_marginEnd="6dp"
-            android:background="#161622"
-            android:gravity="center"
-            android:paddingHorizontal="10dp"
-            android:text="Sort"
-            android:textColor="#00FFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/btnToggleGridView"
-            android:layout_width="wrap_content"
-            android:layout_height="30dp"
-            android:layout_marginEnd="6dp"
-            android:background="#161622"
-            android:gravity="center"
-            android:paddingHorizontal="10dp"
-            android:text="Grid"
-            android:textColor="#00FFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/btnCustomizeVideoLayout"
-            android:layout_width="wrap_content"
-            android:layout_height="30dp"
-            android:background="#161622"
-            android:gravity="center"
-            android:paddingHorizontal="10dp"
-            android:text="Layout"
-            android:textColor="#00FFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+        <ImageView
+            android:id="@+id/btnVideoMoreMenu"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="7dp"
+            android:src="@android:drawable/ic_menu_more"
+            app:tint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Section 3: PLAYit Style Smart Filter Chips Bar -->
-    <HorizontalScrollView
-        android:id="@+id/hsvFilterChips"
+    <View
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="12dp"
-        android:paddingBottom="6dp"
-        android:scrollbars="none">
+        android:layout_height="1dp"
+        android:background="#16FFFFFF" />
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/chipAllVideos"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginEnd="8dp"
-                android:background="#00FFFF"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="All Videos"
-                android:textColor="#000000"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipRecentVideos"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginEnd="8dp"
-                android:background="#161622"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="Recent"
-                android:textColor="#CCCCCC"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/chipHdLarge"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginEnd="8dp"
-                android:background="#161622"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="HD / Large"
-                android:textColor="#CCCCCC"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/chipMovies"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginEnd="8dp"
-                android:background="#161622"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="Movies"
-                android:textColor="#CCCCCC"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/chipShortClips"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginEnd="8dp"
-                android:background="#161622"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="Short Clips"
-                android:textColor="#CCCCCC"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/chipFavorites"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:background="#161622"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:text="Favorites ★"
-                android:textColor="#CCCCCC"
-                android:textSize="12sp" />
-        </LinearLayout>
-    </HorizontalScrollView>
-
-    <!-- Section 4: Content Lists (Videos, Folders, Playlists) -->
+    <!-- Main Content Area -->
     <FrameLayout
-        android:id="@+id/flVideoContentArea"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
@@ -272,8 +123,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="8dp"
-            android:paddingBottom="12dp"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="16dp"
             android:visibility="visible" />
 
         <androidx.recyclerview.widget.RecyclerView
@@ -281,8 +133,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="8dp"
-            android:paddingBottom="12dp"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="16dp"
             android:visibility="gone" />
 
         <LinearLayout
@@ -291,31 +144,32 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="24dp"
+            android:padding="28dp"
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:src="@android:drawable/btn_star_big_off"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@android:drawable/ic_media_play"
                 app:tint="#00FFFF" />
 
             <TextView
+                android:id="@+id/tvEmptyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="No Videos Found in This View"
+                android:layout_marginTop="14dp"
+                android:text="No Videos Available"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvEmptySubtext"
+                android:id="@+id/tvEmptySubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:gravity="center"
-                android:text="Tap 'Layout' above to deep scan storage or mark videos as Favorite."
+                android:text="Your videos and favorite playlists will appear here."
                 android:textColor="#888888"
                 android:textSize="13sp" />
         </LinearLayout>
