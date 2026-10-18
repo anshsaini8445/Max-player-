@@ -10,7 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.PopupMenu
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +30,7 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imgThumbnail: ImageView = view.findViewById(R.id.imgThumbnail)
         val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+        val pbVideoWatchedProgress: ProgressBar = view.findViewById(R.id.pbVideoWatchedProgress)
         val tvTitle: TextView = view.findViewById(R.id.tvTitle)
         val tvSizeFormat: TextView = view.findViewById(R.id.tvSizeFormat)
         val btnOptions: ImageView = view.findViewById(R.id.btnOptions)
@@ -46,13 +47,35 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         holder.tvTitle.text = video.title
         holder.tvDuration.text = formatDuration(video.duration)
 
-        val sizeInMb = video.size / (1024.0 * 1024.0)
-        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "MP4" }
         val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val resPrefs = context.getSharedPreferences("MAX_VIDEO_RES_PREFS", Context.MODE_PRIVATE)
+
+        // Show Watched Progress Bar at the bottom of the video thumbnail
+        val watchedPos = prefs.getLong("watched_pos_${video.path}", 0L)
+        val historyTime = prefs.getLong("history_time_${video.path}", 0L)
+        val totalDur = video.duration.coerceAtLeast(1L)
+
+        if (watchedPos > 0L) {
+            holder.pbVideoWatchedProgress.visibility = View.VISIBLE
+            val progressVal = ((watchedPos.toFloat() / totalDur.toFloat()) * 1000).toInt().coerceIn(50, 1000)
+            holder.pbVideoWatchedProgress.progress = progressVal
+        } else if (historyTime > 0L) {
+            holder.pbVideoWatchedProgress.visibility = View.VISIBLE
+            holder.pbVideoWatchedProgress.progress = 1000
+        } else {
+            holder.pbVideoWatchedProgress.visibility = View.GONE
+        }
+
+        // Resolution Badge (360p / 720p / 1080p / 2K / 4K / 8K) + Size + Format
+        val resolutionLabel = resPrefs.getString("res_${video.path}", null)
+            ?: VideoFragment.computeResolutionLabel(0, 0, video.title, video.size, video.duration)
+
+        val sizeStr = formatFileSize(video.size)
+        val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "MP4" }
         val isFav = prefs.getBoolean("fav_${video.path}", false)
         val favStar = if (isFav) " ★" else ""
 
-        holder.tvSizeFormat.text = String.format(Locale.US, "%.1f MB • %s%s", sizeInMb, extension, favStar)
+        holder.tvSizeFormat.text = "$resolutionLabel • $sizeStr • $extension$favStar"
 
         val glideTarget: Any = if (video.path.startsWith("content://")) {
             Uri.parse(video.path)
@@ -70,36 +93,30 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
             playVideo(video)
         }
 
-        holder.btnOptions.setOnClickListener { view ->
+        // High-Contrast White Text 3-Dots Dialog
+        holder.btnOptions.setOnClickListener {
             val currentFav = prefs.getBoolean("fav_${video.path}", false)
+            val menuItems = arrayOf(
+                "▶ Play Video",
+                "🎵 Convert to MP3",
+                "🔒 Move to Privacy Vault",
+                if (currentFav) "★ Remove from Favorites" else "☆ Add to Favorites",
+                "📤 Share Video",
+                "ℹ️ Properties ($resolutionLabel • $sizeStr)"
+            )
 
-            val popup = PopupMenu(context, view)
-            popup.menu.add(0, 1, 0, "Play Video")
-            popup.menu.add(0, 2, 1, "Convert to MP3")
-            popup.menu.add(0, 3, 2, "Move to Privacy Vault")
-            popup.menu.add(0, 4, 3, if (currentFav) "Remove from Favorites" else "Add to Favorites")
-            popup.menu.add(0, 5, 4, "Share Video")
-            popup.menu.add(0, 6, 5, "Properties")
-
-            popup.setOnMenuItemClickListener { item ->
-                when (item.itemId) {
+            VideoFragment.showBrightVideoMenuDialog(context, video.title, menuItems) { which ->
+                when (which) {
+                    0 -> playVideo(video)
                     1 -> {
-                        playVideo(video)
-                        true
-                    }
-                    2 -> {
                         val intent = Intent(context, Mp3ConverterActivity::class.java).apply {
                             putExtra("VIDEO_PATH", video.path)
                             putExtra("VIDEO_TITLE", video.title)
                         }
                         context.startActivity(intent)
-                        true
                     }
+                    2 -> hideVideoToVault(video, holder.adapterPosition)
                     3 -> {
-                        hideVideoToVault(video, holder.adapterPosition)
-                        true
-                    }
-                    4 -> {
                         prefs.edit().putBoolean("fav_${video.path}", !currentFav).apply()
                         notifyItemChanged(holder.adapterPosition)
                         Toast.makeText(
@@ -107,9 +124,8 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                             if (!currentFav) "Added to Favorites" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
-                        true
                     }
-                    5 -> {
+                    4 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "video/*"
@@ -120,31 +136,28 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
                         } catch (e: Exception) {
                             Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                         }
-                        true
                     }
-                    6 -> {
-                        AlertDialog.Builder(context)
+                    5 -> {
+                        AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                             .setTitle("Video Properties")
                             .setMessage(
                                 "Name: ${video.title}\n\n" +
-                                    "Size: ${String.format(Locale.US, "%.2f MB", sizeInMb)}\n\n" +
+                                    "Quality: $resolutionLabel\n\n" +
+                                    "Format: $extension\n\n" +
+                                    "Size: $sizeStr\n\n" +
                                     "Duration: ${formatDuration(video.duration)}\n\n" +
                                     "Location: ${video.path}"
                             )
                             .setPositiveButton("OK", null)
                             .show()
-                        true
                     }
-                    else -> false
                 }
             }
-            popup.show()
         }
     }
 
     private fun hideVideoToVault(video: VideoModel, currentPosition: Int) {
         if (currentPosition == RecyclerView.NO_POSITION) return
-
         Toast.makeText(context, "Moving to Vault...", Toast.LENGTH_SHORT).show()
 
         thread {
@@ -178,6 +191,15 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
     }
 
     override fun getItemCount(): Int = videoList.size
+
+    private fun formatFileSize(bytes: Long): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (mb >= 1024.0) {
+            String.format(Locale.US, "%.2f GB", mb / 1024.0)
+        } else {
+            String.format(Locale.US, "%.1f MB", mb)
+        }
+    }
 
     private fun formatDuration(durationMillis: Long): String {
         val safeDuration = durationMillis.coerceAtLeast(0L)
