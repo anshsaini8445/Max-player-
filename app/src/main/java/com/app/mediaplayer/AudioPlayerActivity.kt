@@ -19,6 +19,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
+import android.media.audiofx.BassBoost
+import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -27,7 +29,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.view.GestureDetector
 import android.view.KeyEvent
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -37,6 +38,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -58,6 +60,8 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
 
     private var exoPlayer: ExoPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var customEqualizer: Equalizer? = null
+    private var customBassBoost: BassBoost? = null
 
     private lateinit var rootAudioPlayerFrame: FrameLayout
     private lateinit var btnAudioMinimize: ImageView
@@ -474,7 +478,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
 
-            // No Double-Tap 10s seek and No Brightness gesture (Strictly Volume + Song Swipe/Drawer)
+            // Strictly Volume + Song Swipe/Drawer (No Double-Tap 10s seek and No Brightness gesture)
             override fun onScroll(
                 e1: MotionEvent?,
                 e2: MotionEvent,
@@ -936,7 +940,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             when (item.itemId) {
                 1 -> {
                     if (path.isNotEmpty()) {
-                        AudioAdapter.showAddToPlaylistDialog(this, path, title)
+                        showAddToPlaylistDialogInternal(path, title)
                     }
                     true
                 }
@@ -991,21 +995,156 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         popup.show()
     }
 
+    private fun showAddToPlaylistDialogInternal(songPath: String, songTitle: String) {
+        val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val existingSet = prefs.getStringSet("custom_audio_playlists", emptySet()) ?: emptySet()
+        val existingList = existingSet.toList()
+        val options = mutableListOf("+ Create New Playlist")
+        options.addAll(existingList)
+
+        AlertDialog.Builder(this)
+            .setTitle("Add '$songTitle' to Playlist")
+            .setItems(options.toTypedArray()) { _, which ->
+                if (which == 0) {
+                    val input = EditText(this).apply {
+                        hint = "Playlist Name (e.g. Favorites, Gym)"
+                        setTextColor(Color.BLACK)
+                        setPadding(40, 30, 40, 30)
+                    }
+                    AlertDialog.Builder(this)
+                        .setTitle("Create & Add to Playlist")
+                        .setView(input)
+                        .setPositiveButton("Save") { _, _ ->
+                            val name = input.text.toString().trim()
+                            if (name.isNotEmpty()) {
+                                saveSongToCustomPlaylist(name, songPath)
+                                Toast.makeText(this, "Added to '$name'", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    val chosenPlaylist = existingList[which - 1]
+                    saveSongToCustomPlaylist(chosenPlaylist, songPath)
+                    Toast.makeText(this, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
+    }
+
+    private fun saveSongToCustomPlaylist(playlistName: String, songPath: String) {
+        val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val playlists = (prefs.getStringSet("custom_audio_playlists", emptySet()) ?: emptySet()).toMutableSet()
+        playlists.add(playlistName)
+        val songs = (prefs.getStringSet("playlist_songs_$playlistName", emptySet()) ?: emptySet()).toMutableSet()
+        songs.add(songPath)
+        prefs.edit()
+            .putStringSet("custom_audio_playlists", playlists)
+            .putStringSet("playlist_songs_$playlistName", songs)
+            .apply()
+    }
+
     private fun openSystemOrCustomEqualizer() {
+        val sessionId = exoPlayer?.audioSessionId ?: 0
         try {
             val eqIntent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, exoPlayer?.audioSessionId ?: 0)
+                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
                 putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
             }
             if (eqIntent.resolveActivity(packageManager) != null) {
                 startActivityForResult(eqIntent, 202)
-            } else {
-                EqualizerHelper.showEqualizerDialog(this, exoPlayer?.audioSessionId ?: 0)
+                return
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "Bass Boost Equalizer Active", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
         }
+        showBuiltInEqualizerDialog(sessionId)
+    }
+
+    private fun showBuiltInEqualizerDialog(sessionId: Int) {
+        try {
+            if (customEqualizer == null && sessionId != 0) {
+                customEqualizer = Equalizer(0, sessionId).apply { enabled = true }
+            }
+            if (customBassBoost == null && sessionId != 0) {
+                customBassBoost = BassBoost(0, sessionId).apply { enabled = true }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 24)
+        }
+
+        val eq = customEqualizer
+        if (eq != null) {
+            val numPresets = eq.numberOfPresets.toInt()
+            if (numPresets > 0) {
+                val presetNames = Array(numPresets) { i -> eq.getPresetName(i.toShort()) }
+                val tvPreset = TextView(this).apply {
+                    text = "Tap to Choose Sound Preset (Pop / Rock / Bass)"
+                    setTextColor(Color.parseColor("#0088CC"))
+                    textSize = 14f
+                    setPadding(0, 0, 0, 24)
+                    setOnClickListener {
+                        AlertDialog.Builder(this@AudioPlayerActivity)
+                            .setTitle("Select Equalizer Preset")
+                            .setItems(presetNames) { _, idx ->
+                                try {
+                                    eq.usePreset(idx.toShort())
+                                    Toast.makeText(
+                                        this@AudioPlayerActivity,
+                                        "Preset: ${presetNames[idx]}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } catch (ex: Exception) {
+                                    ex.printStackTrace()
+                                }
+                            }
+                            .show()
+                    }
+                }
+                container.addView(tvPreset)
+            }
+        }
+
+        val tvBass = TextView(this).apply {
+            text = "Bass Boost Level"
+            textSize = 13f
+            setTextColor(Color.DKGRAY)
+        }
+        val sbBass = SeekBar(this).apply {
+            max = 1000
+            progress = try {
+                customBassBoost?.roundedStrength?.toInt() ?: 400
+            } catch (e: Exception) {
+                400
+            }
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        try {
+                            customBassBoost?.setStrength(progress.toShort())
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        container.addView(tvBass)
+        container.addView(sbBass)
+
+        AlertDialog.Builder(this)
+            .setTitle("Equalizer & Bass Boost")
+            .setView(container)
+            .setPositiveButton("Done", null)
+            .show()
     }
 
     private fun shareCurrentSong() {
@@ -1172,6 +1311,10 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()
             }
+            customEqualizer?.release()
+            customEqualizer = null
+            customBassBoost?.release()
+            customBassBoost = null
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -1179,7 +1322,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         exoPlayer = null
     }
 
-    // 1. Custom Straight Vertical-Bars Waveform Drawable (Matches Screenshot 8 Red Circle)
+    // 1. Custom Straight Vertical-Bars Waveform Drawable
     private class StraightWaveformDrawable(private val density: Float) : Drawable() {
 
         private var progressFraction = 0f
@@ -1275,7 +1418,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    // 2. Top Camera Volume Bar with 4 Trailing Dots (Matches Screenshot 9)
+    // 2. Top Camera Volume Bar with 4 Trailing Dots
     private class TopVolumeBarDotsDrawable(private val density: Float) : Drawable() {
 
         private var percent = 80
@@ -1335,7 +1478,7 @@ class AudioPlayerActivity : AppCompatActivity(), SensorEventListener {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    // 3. Sleek Vector Icon Drawable for Audio Player Controls (Matches Screenshot 7)
+    // 3. Sleek Vector Icon Drawable for Audio Player Controls
     private class AudioVectorDrawable(
         private val type: String,
         private val density: Float,
