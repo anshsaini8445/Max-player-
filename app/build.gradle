@@ -14,7 +14,6 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Keep only real Android phone architectures (32-bit & 64-bit ARM) to save 35+ MB
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"
         }
@@ -32,7 +31,6 @@ android {
         }
     }
 
-    // Compress native .so libraries inside the APK so extracted APK stays ~40-46 MB instead of 94 MB
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true
@@ -72,7 +70,4 @@ dependencies {
 
     // Glide for Fast Video & Album Art Thumbnails
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-
-    // Lightweight Audio FFmpeg for Video-to-MP3 Converter
-    implementation 'com.arthenica:ffmpeg-kit-audio:6.0-2'
 }
