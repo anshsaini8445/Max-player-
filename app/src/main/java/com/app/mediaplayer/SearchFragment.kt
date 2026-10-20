@@ -32,11 +32,11 @@ class SearchFragment : Fragment() {
     private lateinit var tvEmptySearch: TextView
 
     private val allVideos = mutableListOf<VideoModel>()
-    private val allAudios = mutableListOf<AudioModel>()
+    private val allAudios = mutableListOf<AudioTrackModel>()
     private val filteredVideos = mutableListOf<VideoModel>()
-    private val filteredAudios = mutableListOf<AudioModel>()
+    private val filteredAudios = mutableListOf<AudioTrackModel>()
 
-    private var activeFilter = 0 // 0: Videos, 1: Music
+    private var activeFilter = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -172,7 +172,7 @@ class SearchFragment : Fragment() {
         val ctx = context ?: return
         thread {
             val vList = mutableListOf<VideoModel>()
-            val aList = mutableListOf<AudioModel>()
+            val aList = mutableListOf<AudioTrackModel>()
             try {
                 val vProj = arrayOf(
                     MediaStore.Video.Media._ID,
@@ -243,7 +243,7 @@ class SearchFragment : Fragment() {
                         val size = if (sizeC != -1) c.getLong(sizeC) else 0L
                         val dur = if (durC != -1) c.getLong(durC) else 0L
                         if (dur >= 1000L) {
-                            aList.add(AudioModel(id, title, artist, album, path, size, dur))
+                            aList.add(AudioTrackModel(id, title, artist, album, path, size, dur))
                         }
                     }
                 }
