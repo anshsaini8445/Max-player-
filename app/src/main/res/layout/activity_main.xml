@@ -6,11 +6,11 @@
     android:layout_height="match_parent"
     android:background="#0A0A10">
 
-    <!-- Top Brand Bar -->
+    <!-- Clean Top Brand Bar: App Title + Editable/Toggleable Star Badge Only (No Top Search / No Top Lock) -->
     <LinearLayout
         android:id="@+id/topBrandBar"
         android:layout_width="match_parent"
-        android:layout_height="54dp"
+        android:layout_height="52dp"
         android:layout_alignParentTop="true"
         android:background="#0A0A10"
         android:gravity="center_vertical"
@@ -19,33 +19,21 @@
 
         <TextView
             android:id="@+id/tvAppBrandName"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:letterSpacing="0.04"
-            android:text="MAX Player Pro"
+            android:letterSpacing="0.03"
+            android:text="MAX Player"
             android:textColor="#FFFFFF"
-            android:textSize="20sp"
+            android:textSize="21sp"
             android:textStyle="bold" />
 
         <ImageView
-            android:id="@+id/btnTopQuickSearch"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@drawable/circle_bg"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_menu_search"
-            app:tint="#00FFFF" />
-
-        <ImageView
-            android:id="@+id/btnTopVaultQuick"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="10dp"
-            android:background="@drawable/circle_bg"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_lock_idle_lock"
-            app:tint="#00E676" />
+            android:id="@+id/imgBrandStarBadge"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_marginStart="6dp"
+            android:src="@android:drawable/btn_star_big_on"
+            app:tint="#FFD700" />
     </LinearLayout>
 
     <!-- Main Fragment Container -->
@@ -63,7 +51,7 @@
         android:layout_above="@+id/bottomNavBar"
         android:background="#1AFFFFFF" />
 
-    <!-- Bottom Navigation Bar (Video | Audio | Search | Me) -->
+    <!-- Bottom Navigation Bar (Video | Music | Search | Me) -->
     <LinearLayout
         android:id="@+id/bottomNavBar"
         android:layout_width="match_parent"
@@ -101,7 +89,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Tab 2: Audio / Music -->
+        <!-- Tab 2: Music -->
         <LinearLayout
             android:id="@+id/navTabAudio"
             android:layout_width="0dp"
@@ -155,7 +143,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Tab 4: Me / Profile -->
+        <!-- Tab 4: Me -->
         <LinearLayout
             android:id="@+id/navTabMe"
             android:layout_width="0dp"
