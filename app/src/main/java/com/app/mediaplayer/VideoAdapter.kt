@@ -73,9 +73,9 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         val sizeStr = formatFileSize(video.size)
         val extension = File(video.path).extension.uppercase(Locale.getDefault()).ifEmpty { "MP4" }
         val isFav = prefs.getBoolean("fav_${video.path}", false)
-        val favStar = if (isFav) " ★" else ""
+        val favTag = if (isFav) " | FAV" else ""
 
-        holder.tvSizeFormat.text = "$resolutionLabel • $sizeStr • $extension$favStar"
+        holder.tvSizeFormat.text = "$resolutionLabel | $sizeStr | $extension$favTag"
 
         val glideTarget: Any = if (video.path.startsWith("content://")) {
             Uri.parse(video.path)
@@ -97,12 +97,12 @@ class VideoAdapter(private val context: Context, videos: List<VideoModel>) :
         holder.btnOptions.setOnClickListener {
             val currentFav = prefs.getBoolean("fav_${video.path}", false)
             val menuItems = arrayOf(
-                "▶ Play Video",
-                "🎵 Convert to MP3",
-                "🔒 Move to Privacy Vault",
-                if (currentFav) "★ Remove from Favorites" else "☆ Add to Favorites",
-                "📤 Share Video",
-                "ℹ️ Properties ($resolutionLabel • $sizeStr)"
+                "Play Video",
+                "Convert to MP3",
+                "Move to Privacy Vault",
+                if (currentFav) "Remove from Favorites" else "Add to Favorites",
+                "Share Video",
+                "Properties ($resolutionLabel | $sizeStr)"
             )
 
             VideoFragment.showBrightVideoMenuDialog(context, video.title, menuItems) { which ->
