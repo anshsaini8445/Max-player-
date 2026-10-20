@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/cardAudioItemRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
@@ -17,28 +16,30 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <!-- Song Photo / Album Art Box -->
+        <!-- Song Cover / Disc Icon -->
         <androidx.cardview.widget.CardView
             android:layout_width="50dp"
             android:layout_height="50dp"
-            app:cardBackgroundColor="#1E1E2E"
+            app:cardBackgroundColor="#1E1E2C"
             app:cardCornerRadius="10dp"
             app:cardElevation="0dp">
 
             <ImageView
-                android:id="@+id/imgAudioThumb"
+                android:id="@+id/imgAudioArt"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:padding="10dp"
                 android:scaleType="centerCrop"
-                android:src="@android:drawable/ic_lock_silent_mode_off" />
+                android:src="@android:drawable/ic_lock_silent_mode_off"
+                app:tint="#00FFFF" />
         </androidx.cardview.widget.CardView>
 
-        <!-- Song Title, Singer Name & Duration -->
+        <!-- Song Title & Artist + Duration -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -50,30 +51,29 @@
                 android:maxLines="1"
                 android:text="Song Title"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textSize="14.5sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvAudioSubtitle"
+                android:id="@+id/tvAudioArtistDuration"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Unknown Artist • 03:45"
-                android:textColor="#B0B0C4"
-                android:textSize="11sp" />
+                android:text="Artist • 03:45 • 4.2 MB"
+                android:textColor="#00FFFF"
+                android:textSize="11.5sp" />
         </LinearLayout>
 
-        <!-- Far-Right 3-Dots Option Menu -->
+        <!-- Bright 3-Dots Action Button -->
         <ImageView
-            android:id="@+id/btnAudioItemMore"
+            android:id="@+id/btnAudioMore"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:padding="7dp"
             android:src="@android:drawable/ic_menu_more"
             app:tint="#FFFFFF" />
-
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>
