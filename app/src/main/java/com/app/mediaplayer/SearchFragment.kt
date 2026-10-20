@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.content.ContentUris
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -24,8 +25,8 @@ import kotlin.concurrent.thread
 
 class SearchFragment : Fragment() {
 
+    private lateinit var rootSearchLayout: LinearLayout
     private lateinit var etSearchInput: EditText
-    private lateinit var tvFilterAll: TextView
     private lateinit var tvFilterVideos: TextView
     private lateinit var tvFilterAudio: TextView
     private lateinit var rvSearchResults: RecyclerView
@@ -37,6 +38,7 @@ class SearchFragment : Fragment() {
     private val filteredAudios = mutableListOf<AudioTrackModel>()
 
     private var activeFilter = 0
+    private var accentColor = Color.parseColor("#00FFFF")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,35 +48,26 @@ class SearchFragment : Fragment() {
         val ctx = requireContext()
         val d = ctx.resources.displayMetrics.density
 
-        val root = LinearLayout(ctx).apply {
+        val themePrefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
+        val bgHex = themePrefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
+        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        accentColor = try { Color.parseColor(accentHex) } catch (e: Exception) { Color.parseColor("#00FFFF") }
+
+        rootSearchLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#0A0A10"))
+            setBackgroundColor(try { Color.parseColor(bgHex) } catch (e: Exception) { Color.parseColor("#0A0A10") })
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setPadding((14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt(), 0)
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
         }
 
-        etSearchInput = EditText(ctx).apply {
-            hint = "Search videos, movies, songs, artists..."
-            setHintTextColor(Color.parseColor("#888899"))
-            setTextColor(Color.WHITE)
-            textSize = 14.5f
-            setSingleLine(true)
-            setPadding((16 * d).toInt(), (12 * d).toInt(), (16 * d).toInt(), (12 * d).toInt())
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#181826"))
-                cornerRadius = 24f * d
-                setStroke((1 * d).toInt(), Color.parseColor("#00FFFF"))
-            }
-        }
-        root.addView(etSearchInput)
-
+        // Top Filter Pills (Videos | Music / Audio)
         val filterRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, (12 * d).toInt(), 0, (10 * d).toInt())
+            setPadding(0, (4 * d).toInt(), 0, (8 * d).toInt())
         }
 
         tvFilterVideos = createFilterPill("Videos", true, d) {
@@ -87,12 +80,12 @@ class SearchFragment : Fragment() {
             updateFilterPills()
             runSearchQuery(etSearchInput.text.toString())
         }
-        tvFilterAll = tvFilterVideos
 
         filterRow.addView(tvFilterVideos)
         filterRow.addView(tvFilterAudio)
-        root.addView(filterRow)
+        rootSearchLayout.addView(filterRow)
 
+        // Results RecyclerView in the Middle
         rvSearchResults = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx)
             layoutParams = LinearLayout.LayoutParams(
@@ -101,11 +94,11 @@ class SearchFragment : Fragment() {
                 1f
             )
         }
-        root.addView(rvSearchResults)
+        rootSearchLayout.addView(rvSearchResults)
 
         tvEmptySearch = TextView(ctx).apply {
-            text = "Type above to search your media library"
-            setTextColor(Color.parseColor("#888899"))
+            text = "No matching media found"
+            setTextColor(Color.WHITE)
             textSize = 14f
             gravity = Gravity.CENTER
             visibility = View.GONE
@@ -115,7 +108,30 @@ class SearchFragment : Fragment() {
                 1f
             )
         }
-        root.addView(tvEmptySearch)
+        rootSearchLayout.addView(tvEmptySearch)
+
+        // Search Input Box Placed at the BOTTOM of the Search Screen
+        etSearchInput = EditText(ctx).apply {
+            hint = "Search videos, movies, songs, artists..."
+            setHintTextColor(Color.parseColor("#B0B0C0"))
+            setTextColor(Color.WHITE)
+            textSize = 14.5f
+            setSingleLine(true)
+            setPadding((18 * d).toInt(), (12 * d).toInt(), (18 * d).toInt(), (12 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (8 * d).toInt()
+                bottomMargin = (4 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#181828"))
+                cornerRadius = 26f * d
+                setStroke((1.5f * d).toInt(), accentColor)
+            }
+        }
+        rootSearchLayout.addView(etSearchInput)
 
         etSearchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -126,7 +142,7 @@ class SearchFragment : Fragment() {
         })
 
         loadSearchableMediaIndex()
-        return root
+        return rootSearchLayout
     }
 
     private fun createFilterPill(
@@ -146,7 +162,7 @@ class SearchFragment : Fragment() {
             ).apply { marginEnd = (10 * d).toInt() }
             setTextColor(if (selected) Color.BLACK else Color.WHITE)
             background = GradientDrawable().apply {
-                setColor(if (selected) Color.parseColor("#00FFFF") else Color.parseColor("#1E1E2E"))
+                setColor(if (selected) accentColor else Color.parseColor("#1E1E2E"))
                 cornerRadius = 18f * d
             }
             setOnClickListener { onClick() }
@@ -158,12 +174,12 @@ class SearchFragment : Fragment() {
         val isVideo = activeFilter == 0
         tvFilterVideos.setTextColor(if (isVideo) Color.BLACK else Color.WHITE)
         tvFilterVideos.background = GradientDrawable().apply {
-            setColor(if (isVideo) Color.parseColor("#00FFFF") else Color.parseColor("#1E1E2E"))
+            setColor(if (isVideo) accentColor else Color.parseColor("#1E1E2E"))
             cornerRadius = 18f * d
         }
         tvFilterAudio.setTextColor(if (!isVideo) Color.BLACK else Color.WHITE)
         tvFilterAudio.background = GradientDrawable().apply {
-            setColor(if (!isVideo) Color.parseColor("#00FFFF") else Color.parseColor("#1E1E2E"))
+            setColor(if (!isVideo) accentColor else Color.parseColor("#1E1E2E"))
             cornerRadius = 18f * d
         }
     }
@@ -238,8 +254,8 @@ class SearchFragment : Fragment() {
                             id
                         ).toString()
                         val title = if (nameC != -1) c.getString(nameC) ?: File(path).name else File(path).name
-                        val artist = if (artC != -1) c.getString(artC) ?: "Artist" else "Artist"
-                        val album = if (albC != -1) c.getString(albC) ?: "Album" else "Album"
+                        val artist = if (artC != -1) c.getString(artC) ?: "Unknown Artist" else "Unknown Artist"
+                        val album = if (albC != -1) c.getString(albC) ?: "Music" else "Music"
                         val size = if (sizeC != -1) c.getLong(sizeC) else 0L
                         val dur = if (durC != -1) c.getLong(durC) else 0L
                         if (dur >= 1000L) {
