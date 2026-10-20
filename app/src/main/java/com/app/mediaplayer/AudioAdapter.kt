@@ -1,6 +1,7 @@
 package com.app.mediaplayer
 
 import android.app.AlertDialog
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -13,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import java.io.File
 import java.util.ArrayList
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -37,28 +39,41 @@ class AudioAdapter(
     override fun onBindViewHolder(holder: AudioVH, position: Int) {
         val song = audioList[position]
         val audioPrefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val themePrefs = context.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
+        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        val accentColor = try { Color.parseColor(accentHex) } catch (e: Exception) { Color.parseColor("#00FFFF") }
+
         val isFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
-        val favTag = if (isFav) " *" else ""
+        val favTag = if (isFav) " ♥" else ""
 
         holder.tvAudioTitle.text = song.title
-        holder.tvAudioArtistDuration.text =
-            "${song.artist} | ${formatDuration(song.duration)} | ${formatSize(song.size)}$favTag"
+        holder.tvAudioTitle.setTextColor(Color.WHITE)
 
+        holder.tvAudioArtistDuration.text =
+            "${song.artist} • ${formatDuration(song.duration)} • ${formatSize(song.size)}$favTag"
+        holder.tvAudioArtistDuration.setTextColor(accentColor)
+        holder.btnAudioMore.setColorFilter(Color.WHITE)
+
+        // Load Custom Cover Photo OR Embedded Song Cover Photo at the front of the song row
         val customArtUri = audioPrefs.getString("custom_art_${song.path}", null)
-        if (!customArtUri.isNullOrEmpty()) {
-            holder.imgAudioArt.setPadding(0, 0, 0, 0)
-            holder.imgAudioArt.clearColorFilter()
-            Glide.with(context)
-                .load(Uri.parse(customArtUri))
-                .placeholder(android.R.drawable.ic_lock_silent_mode_off)
-                .centerCrop()
-                .into(holder.imgAudioArt)
-        } else {
-            val d = (10 * context.resources.displayMetrics.density).toInt()
-            holder.imgAudioArt.setPadding(d, d, d, d)
-            holder.imgAudioArt.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
-            holder.imgAudioArt.setColorFilter(Color.parseColor("#00FFFF"))
+        holder.imgAudioArt.setPadding(0, 0, 0, 0)
+        holder.imgAudioArt.clearColorFilter()
+
+        val artModel: Any = when {
+            !customArtUri.isNullOrEmpty() -> Uri.parse(customArtUri)
+            song.id > 0L -> ContentUris.withAppendedId(
+                Uri.parse("content://media/external/audio/albumart"),
+                song.id
+            )
+            else -> File(song.path)
         }
+
+        Glide.with(context)
+            .load(artModel)
+            .placeholder(android.R.drawable.ic_lock_silent_mode_off)
+            .error(android.R.drawable.ic_lock_silent_mode_off)
+            .centerCrop()
+            .into(holder.imgAudioArt)
 
         holder.itemView.setOnClickListener {
             launchAudioPlayer(position)
@@ -68,7 +83,7 @@ class AudioAdapter(
             val curFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
             val options = arrayOf(
                 "Play Song",
-                if (curFav) "Remove from Favorites" else "Add to Favorites",
+                if (curFav) "Remove from Favorites ♥" else "Add to Favorites ♡",
                 "Open 5-Band Equalizer",
                 "Share Audio File",
                 "Song Details & Path"
@@ -85,7 +100,7 @@ class AudioAdapter(
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-                    2 -> EqualizerHelper.showEqualizerDialog(context, 0)
+                    2 -> EqualizerHelper.showEqualizerDialog(context, AudioPlayerActivity.getSharedAudioSessionId())
                     3 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
