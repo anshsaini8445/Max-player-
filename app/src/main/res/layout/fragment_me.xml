@@ -517,7 +517,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Pocket 2x Shake: ON • Vinyl / Album Box"
+                            android:text="Pocket 2x Shake: OFF • Vinyl / Album Box"
                             android:textColor="#888899"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -630,6 +630,7 @@
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -841,6 +842,7 @@
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
