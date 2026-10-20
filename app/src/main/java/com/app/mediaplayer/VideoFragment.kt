@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
@@ -66,7 +67,7 @@ class VideoFragment : Fragment() {
     private var currentTab = 0
     private var sortMode = 0
     private var isGridMode = false
-    private var accentColorInt = Color.parseColor("#00E676")
+    private var accentColorInt = Color.parseColor("#00FFFF")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -121,12 +122,12 @@ class VideoFragment : Fragment() {
         val ctx = context ?: return
         val themePrefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
         val bgHex = themePrefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
-        val accentHex = themePrefs.getString("app_accent_color", "#00E676") ?: "#00E676"
+        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
         try {
             rootVideoFragment.setBackgroundColor(Color.parseColor(bgHex))
             accentColorInt = Color.parseColor(accentHex)
         } catch (e: Exception) {
-            accentColorInt = Color.parseColor("#00E676")
+            accentColorInt = Color.parseColor("#00FFFF")
         }
         tvClearHistory.setTextColor(accentColorInt)
         updateTabColors()
@@ -216,16 +217,15 @@ class VideoFragment : Fragment() {
             Toast.makeText(ctx, "History Cleared", Toast.LENGTH_SHORT).show()
         }
 
-        // Bright White Custom 3-Dots Menu Dialog (Never black/unreadable)
         btnVideoMoreMenu.setOnClickListener {
             val ctx = context ?: return@setOnClickListener
             val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
             val menuItems = arrayOf(
                 if (isGridMode) "Switch to List View" else "Switch to Grid View",
-                if (sortMode == 0) "✓ Sort: Newest First" else "• Sort: Newest First",
-                if (sortMode == 1) "✓ Sort: Name (A to Z)" else "• Sort: Name (A to Z)",
-                if (sortMode == 2) "✓ Sort: Largest Size (HD / 4K)" else "• Sort: Largest Size (HD / 4K)",
-                if (sortMode == 3) "✓ Sort: Longest Duration" else "• Sort: Longest Duration",
+                if (sortMode == 0) "[Active] Sort: Newest First" else "Sort: Newest First",
+                if (sortMode == 1) "[Active] Sort: Name (A to Z)" else "Sort: Name (A to Z)",
+                if (sortMode == 2) "[Active] Sort: Largest Size (HD / 4K)" else "Sort: Largest Size (HD / 4K)",
+                if (sortMode == 3) "[Active] Sort: Longest Duration" else "Sort: Longest Duration",
                 "Refresh Video Library"
             )
 
@@ -298,7 +298,6 @@ class VideoFragment : Fragment() {
         }
     }
 
-    // Horizontal Story/History Card Adapter with Watched Progress Line & Duration Badge
     private inner class HistoryStoryAdapter(
         private val ctx: Context,
         private val items: List<VideoModel>
@@ -369,7 +368,7 @@ class VideoFragment : Fragment() {
                 max = 1000
                 progressDrawable.setColorFilter(
                     accentColorInt,
-                    android.graphics.PorterDuff.Mode.SRC_IN
+                    PorterDuff.Mode.SRC_IN
                 )
                 layoutParams = FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -660,13 +659,13 @@ class VideoFragment : Fragment() {
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#181828"))
                     cornerRadius = 22f * d
-                    setStroke((1.5f * d).toInt(), Color.parseColor("#00E676"))
+                    setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
                 }
             }
 
             val tvHeader = TextView(context).apply {
                 text = headerTitle
-                setTextColor(Color.parseColor("#00E676"))
+                setTextColor(Color.parseColor("#00FFFF"))
                 textSize = 16f
                 typeface = Typeface.DEFAULT_BOLD
                 maxLines = 1
