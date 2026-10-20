@@ -6,17 +6,28 @@ import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.BroadcastReceiver
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.graphics.PorterDuff
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.media.AudioManager
+import android.media.MediaMetadataRetriever
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
@@ -25,8 +36,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Rational
@@ -38,6 +51,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.GridLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -45,6 +59,7 @@ import android.widget.ProgressBar
 import android.widget.RelativeLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -61,12 +76,17 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import java.io.File
+import java.io.FileOutputStream
 import java.net.URLEncoder
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -147,7 +167,7 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var btnQueueLoopModeToggle: TextView
     private lateinit var rvQueueList: RecyclerView
     private lateinit var tvSpeedRulerValue: TextView
-    private lateinit var speedRulerView: SpeedTickRulerView
+    private lateinit var speedRulerView: SpeedTickRulerViewInternal
 
     private var videoPath: String = ""
     private var videoTitle: String = "Video"
@@ -336,16 +356,16 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setupCrispPlayerIcons() {
         val d = resources.displayMetrics.density
-        btnBgAudio.setImageDrawable(PlayerVectorIcon("HEADPHONES", d, Color.WHITE))
-        btnVideoQueue.setImageDrawable(PlayerVectorIcon("QUEUE_LIST", d, Color.WHITE))
-        btnMoreMenu.setImageDrawable(PlayerVectorIcon("THREE_DOTS", d, Color.WHITE))
-        btnMuteToggle.setImageDrawable(PlayerVectorIcon("SPEAKER_ON", d, Color.WHITE))
-        btnLockScreen.setImageDrawable(PlayerVectorIcon("LOCK_OPEN", d, Color.WHITE))
-        btnUnlockOverlay.setImageDrawable(PlayerVectorIcon("LOCK_CLOSED", d, Color.parseColor("#00E676")))
-        btnSideCut.setImageDrawable(PlayerVectorIcon("SCREENSHOT_CAM", d, Color.WHITE))
-        btnRotateScreen.setImageDrawable(PlayerVectorIcon("ROTATE", d, Color.WHITE))
-        btnAspectRatio.setImageDrawable(PlayerVectorIcon("ASPECT_FIT", d, Color.WHITE))
-        btnPipMode.setImageDrawable(PlayerVectorIcon("PIP_WINDOW", d, Color.WHITE))
+        btnBgAudio.setImageDrawable(PlayerVectorIconInternal("HEADPHONES", d, Color.WHITE))
+        btnVideoQueue.setImageDrawable(PlayerVectorIconInternal("QUEUE_LIST", d, Color.WHITE))
+        btnMoreMenu.setImageDrawable(PlayerVectorIconInternal("THREE_DOTS", d, Color.WHITE))
+        btnMuteToggle.setImageDrawable(PlayerVectorIconInternal("SPEAKER_ON", d, Color.WHITE))
+        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_OPEN", d, Color.WHITE))
+        btnUnlockOverlay.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
+        btnSideCut.setImageDrawable(PlayerVectorIconInternal("SCREENSHOT_CAM", d, Color.WHITE))
+        btnRotateScreen.setImageDrawable(PlayerVectorIconInternal("ROTATE", d, Color.WHITE))
+        btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_FIT", d, Color.WHITE))
+        btnPipMode.setImageDrawable(PlayerVectorIconInternal("PIP_WINDOW", d, Color.WHITE))
     }
 
     private fun restorePersistentBrightnessAndVisuals() {
@@ -367,7 +387,7 @@ class PlayerActivity : AppCompatActivity() {
         applyVisualToAll = prefs.getBoolean("visual_apply_all", false)
         if (applyVisualToAll) {
             currentVisualMode = prefs.getInt("saved_visual_mode", 0)
-            PlayerVisualEnhancerHelper.applyFilterToOverlay(currentVisualMode, isNightMode, btnHdrMode, viewVisualOverlay)
+            applyVisualEnhancerFilter(currentVisualMode)
         }
     }
 
@@ -391,6 +411,113 @@ class PlayerActivity : AppCompatActivity() {
             cardElevation = 24f * d
             visibility = View.GONE
         }
+        val veScroll = ScrollView(this)
+        val veContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt())
+        }
+        val tvVeTitle = TextView(this).apply {
+            text = "<-  Visual Enhancer"
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setOnClickListener { closeAllModularPanels() }
+        }
+        veContainer.addView(tvVeTitle)
+
+        val modesGrid = GridLayout(this).apply {
+            columnCount = 2
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (12 * d).toInt() }
+        }
+        val modeNames = arrayOf(
+            "Original",
+            "HDR",
+            "Clear",
+            "Ultra Clear",
+            "Arctic Blue",
+            "Warm Glow",
+            "Cinematic"
+        )
+        val modePreviewColors = arrayOf(
+            "#2A2A34",
+            "#5E3524",
+            "#225529",
+            "#602825",
+            "#154C79",
+            "#7A4914",
+            "#4A3728"
+        )
+        val modeCardViews = mutableListOf<CardView>()
+
+        modeNames.forEachIndexed { index, name ->
+            val card = CardView(this).apply {
+                radius = 12f * d
+                cardElevation = 2f * d
+                setCardBackgroundColor(Color.parseColor(modePreviewColors[index]))
+                layoutParams = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = (68 * d).toInt()
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                    setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
+                }
+            }
+            val box = FrameLayout(this)
+            val tvName = TextView(this).apply {
+                text = if (currentVisualMode == index) "* $name" else name
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            box.addView(tvName)
+            card.addView(box)
+            card.setOnClickListener {
+                currentVisualMode = index
+                applyVisualEnhancerFilter(index)
+                modeCardViews.forEachIndexed { idx, cv ->
+                    val label = (cv.getChildAt(0) as FrameLayout).getChildAt(0) as TextView
+                    label.text = if (idx == index) "* ${modeNames[idx]}" else modeNames[idx]
+                }
+            }
+            modeCardViews.add(card)
+            modesGrid.addView(card)
+        }
+        veContainer.addView(modesGrid)
+
+        val applyAllRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((6 * d).toInt(), (14 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
+        }
+        val tvApplyAll = TextView(this).apply {
+            text = "Apply to all videos"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val swApplyAll = Switch(this).apply {
+            isChecked = applyVisualToAll
+            setOnCheckedChangeListener { _, isChecked ->
+                applyVisualToAll = isChecked
+                getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("visual_apply_all", isChecked)
+                    .putInt("saved_visual_mode", currentVisualMode)
+                    .apply()
+            }
+        }
+        applyAllRow.addView(tvApplyAll)
+        applyAllRow.addView(swApplyAll)
+        veContainer.addView(applyAllRow)
+        veScroll.addView(veContainer)
+        panelVisualEnhancer.addView(veScroll)
         rootPlayerFrame.addView(panelVisualEnhancer)
 
         panelSubtitles = CardView(this).apply {
@@ -417,7 +544,7 @@ class PlayerActivity : AppCompatActivity() {
             setPadding(0, 0, 0, (10 * d).toInt())
         }
         tvQueueHeaderCount = TextView(this).apply {
-            text = "‹   All (1/1)"
+            text = "<   All (1/1)"
             setTextColor(Color.WHITE)
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
@@ -425,7 +552,7 @@ class PlayerActivity : AppCompatActivity() {
             setOnClickListener { closeAllModularPanels() }
         }
         btnQueueLoopModeToggle = TextView(this).apply {
-            text = "Order ⇅"
+            text = "Order"
             setTextColor(Color.parseColor("#00FFFF"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -481,7 +608,7 @@ class PlayerActivity : AppCompatActivity() {
             )
         }
         val btnSpeedMinus = TextView(this).apply {
-            text = "−"
+            text = "-"
             setTextColor(Color.WHITE)
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
@@ -508,9 +635,10 @@ class PlayerActivity : AppCompatActivity() {
             typeface = Typeface.DEFAULT_BOLD
         }
         val btnSpeedReset = TextView(this).apply {
-            text = "↺"
+            text = "R"
             setTextColor(Color.WHITE)
-            textSize = 15f
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams((28 * d).toInt(), (28 * d).toInt()).apply {
                 marginStart = (10 * d).toInt()
@@ -545,7 +673,7 @@ class PlayerActivity : AppCompatActivity() {
         speedTopRow.addView(btnSpeedPlus)
         speedCol.addView(speedTopRow)
 
-        speedRulerView = SpeedTickRulerView(this, d) { slidSpeed ->
+        speedRulerView = SpeedTickRulerViewInternal(this, d) { slidSpeed ->
             applySpeedDirect(slidSpeed)
         }
         speedRulerView.layoutParams = LinearLayout.LayoutParams(
@@ -575,7 +703,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         val discView = ImageView(this).apply {
             layoutParams = LinearLayout.LayoutParams((160 * d).toInt(), (160 * d).toInt())
-            setImageDrawable(PlayerVectorIcon("BG_VINYL_DISC", d, Color.parseColor("#00FFFF")))
+            setImageDrawable(PlayerVectorIconInternal("BG_VINYL_DISC", d, Color.parseColor("#00FFFF")))
         }
         val tvBgHint = TextView(this).apply {
             text = "Audio can be background played while using\nother apps or lock screen"
@@ -585,7 +713,7 @@ class PlayerActivity : AppCompatActivity() {
             setPadding(0, (16 * d).toInt(), 0, (18 * d).toInt())
         }
         val btnBackToVideo = TextView(this).apply {
-            text = "▶  Back to video"
+            text = "Back to video"
             setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -600,7 +728,7 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
         val btnSaveToMp3 = TextView(this).apply {
-            text = "⬇  Convert to MP3"
+            text = "Convert to MP3"
             setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -659,6 +787,47 @@ class PlayerActivity : AppCompatActivity() {
         panelPlayingQueue.visibility = View.GONE
         panelSpeedRuler.visibility = View.GONE
         layoutAdvancedSettings.visibility = View.GONE
+    }
+
+    private fun applyVisualEnhancerFilter(modeIndex: Int) {
+        when (modeIndex) {
+            0 -> {
+                btnHdrMode.setTextColor(Color.WHITE)
+                viewVisualOverlay.setBackgroundColor(
+                    if (isNightMode) Color.parseColor("#88000000") else Color.TRANSPARENT
+                )
+            }
+            1 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#22FF9800"))
+            }
+            2 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#1800E5FF"))
+            }
+            3 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#24FF4081"))
+            }
+            4 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#2800B0FF"))
+            }
+            5 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#30FFAB00"))
+            }
+            6 -> {
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                viewVisualOverlay.setBackgroundColor(Color.parseColor("#2CD4AF37"))
+            }
+        }
+        if (applyVisualToAll) {
+            getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                .edit()
+                .putInt("saved_visual_mode", modeIndex)
+                .apply()
+        }
     }
 
     private fun applyPlayerCustomizationPreferences() {
@@ -872,23 +1041,6 @@ class PlayerActivity : AppCompatActivity() {
                 .edit()
                 .putBoolean("hdr_new_badge_dismissed", true)
                 .apply()
-            
-            PlayerVisualEnhancerHelper.populateVisualEnhancerCard(
-                this, panelVisualEnhancer, currentVisualMode, applyVisualToAll,
-                onClose = { closeAllModularPanels() },
-                onModeSelected = { modeIdx ->
-                    currentVisualMode = modeIdx
-                    PlayerVisualEnhancerHelper.applyFilterToOverlay(modeIdx, isNightMode, btnHdrMode, viewVisualOverlay)
-                },
-                onApplyAllToggled = { checked ->
-                    applyVisualToAll = checked
-                    getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                        .edit()
-                        .putBoolean("visual_apply_all", checked)
-                        .putInt("saved_visual_mode", currentVisualMode)
-                        .apply()
-                }
-            )
             openHalfScreenPanel(panelVisualEnhancer)
         }
         btnHdrMode.setOnClickListener(hdrClick)
@@ -942,7 +1094,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         val tvHeader = TextView(this).apply {
-            text = "‹   Subtitle"
+            text = "<   Subtitle"
             setTextColor(Color.WHITE)
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
@@ -969,7 +1121,7 @@ class PlayerActivity : AppCompatActivity() {
         textGroups.forEachIndexed { index, group ->
             val fmt = group.getTrackFormat(0)
             val name = fmt.label ?: fmt.language ?: "Embedded Subtitle ${index + 1}"
-            val row = createSubtitleActionRow("✓ Track: $name", d) {
+            val row = createSubtitleActionRow("* Track: $name", d) {
                 player?.let { p ->
                     p.trackSelectionParameters = p.trackSelectionParameters
                         .buildUpon()
@@ -1074,15 +1226,15 @@ class PlayerActivity : AppCompatActivity() {
     private fun syncQueueLoopModeButton() {
         when (queueLoopMode) {
             0 -> {
-                btnQueueLoopModeToggle.text = "Order ⇅"
+                btnQueueLoopModeToggle.text = "Order"
                 updateLoopSelection(2)
             }
             1 -> {
-                btnQueueLoopModeToggle.text = "Repeat 1 🔂"
+                btnQueueLoopModeToggle.text = "Repeat 1"
                 updateLoopSelection(1)
             }
             2 -> {
-                btnQueueLoopModeToggle.text = "Shuffle 🔀"
+                btnQueueLoopModeToggle.text = "Shuffle"
                 updateLoopSelection(0)
             }
         }
@@ -1090,25 +1242,165 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun updateQueueHeaderTitle() {
         val cur = (currentPositionIndex + 1).coerceAtMost(videoList.size.coerceAtLeast(1))
-        tvQueueHeaderCount.text = "‹   All ($cur/${videoList.size})"
+        tvQueueHeaderCount.text = "<   All ($cur/${videoList.size})"
     }
 
     private fun setupQueueRecyclerViewAndDragHelper() {
-        val queueAdapter = PlayerQueueAdapter(
-            this,
-            videoList,
-            getCurrentIndex = { currentPositionIndex },
-            onSelectVideo = { pos ->
-                currentPositionIndex = pos
-                exoPlayer?.seekToDefaultPosition(pos)
-                exoPlayer?.play()
-                rvQueueList.adapter?.notifyDataSetChanged()
-                updateQueueHeaderTitle()
-            },
-            onRemoveVideo = { pos ->
-                if (videoList.size <= 1) {
-                    Toast.makeText(this, "Cannot remove last video in queue", Toast.LENGTH_SHORT).show()
+        val d = resources.displayMetrics.density
+        val resPrefs = getSharedPreferences("MAX_VIDEO_RES_PREFS", Context.MODE_PRIVATE)
+        val watchedPrefs = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+
+        lateinit var touchHelper: ItemTouchHelper
+
+        val adapter = object : RecyclerView.Adapter<QueueItemVH>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QueueItemVH {
+                val row = LinearLayout(this@PlayerActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, (6 * d).toInt(), 0, (6 * d).toInt())
+                    layoutParams = RecyclerView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    )
+                }
+
+                val thumbCard = CardView(this@PlayerActivity).apply {
+                    radius = 6f * d
+                    setCardBackgroundColor(Color.parseColor("#222230"))
+                    layoutParams = LinearLayout.LayoutParams((100 * d).toInt(), (56 * d).toInt())
+                }
+                val frame = FrameLayout(this@PlayerActivity)
+                val img = ImageView(this@PlayerActivity).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+                val pb = ProgressBar(
+                    this@PlayerActivity,
+                    null,
+                    android.R.attr.progressBarStyleHorizontal
+                ).apply {
+                    max = 1000
+                    progressDrawable.setColorFilter(
+                        Color.parseColor("#00FFFF"),
+                        PorterDuff.Mode.SRC_IN
+                    )
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (3 * d).toInt(),
+                        Gravity.BOTTOM
+                    )
+                }
+                frame.addView(img)
+                frame.addView(pb)
+                thumbCard.addView(frame)
+
+                val textCol = LinearLayout(this@PlayerActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginStart = (10 * d).toInt()
+                        marginEnd = (6 * d).toInt()
+                    }
+                }
+                val tvTitle = TextView(this@PlayerActivity).apply {
+                    textSize = 12.5f
+                    typeface = Typeface.DEFAULT_BOLD
+                    maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END
+                }
+                val tvMeta = TextView(this@PlayerActivity).apply {
+                    textSize = 10.5f
+                    setPadding(0, (3 * d).toInt(), 0, 0)
+                }
+                textCol.addView(tvTitle)
+                textCol.addView(tvMeta)
+
+                val btnDrag = TextView(this@PlayerActivity).apply {
+                    text = "="
+                    setTextColor(Color.parseColor("#BBBBCC"))
+                    textSize = 20f
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (40 * d).toInt())
+                }
+
+                val btnRemove = TextView(this@PlayerActivity).apply {
+                    text = "X"
+                    setTextColor(Color.parseColor("#BBBBCC"))
+                    textSize = 14f
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (40 * d).toInt())
+                }
+
+                row.addView(thumbCard)
+                row.addView(textCol)
+                row.addView(btnDrag)
+                row.addView(btnRemove)
+                return QueueItemVH(row, img, pb, tvTitle, tvMeta, btnDrag, btnRemove)
+            }
+
+            override fun onBindViewHolder(holder: QueueItemVH, position: Int) {
+                val path = videoList[position]
+                val file = File(path)
+                val name = file.name.ifEmpty { "Video ${position + 1}" }
+                val isPlayingNow = position == currentPositionIndex
+
+                holder.tvTitle.text = name
+                holder.tvTitle.setTextColor(
+                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.WHITE
+                )
+
+                val sizeBytes = if (file.exists()) file.length() else 0L
+                val sizeMb = sizeBytes / (1024.0 * 1024.0)
+                val sizeLabel = if (sizeMb >= 1024.0) {
+                    String.format(Locale.US, "%.2fGB", sizeMb / 1024.0)
                 } else {
+                    String.format(Locale.US, "%.2fMB", sizeMb)
+                }
+                val resBadge = resPrefs.getString("res_$path", null)
+                    ?: computeResolutionBadgeLocal(name, sizeBytes)
+
+                holder.tvMeta.text = "$resBadge | $sizeLabel"
+                holder.tvMeta.setTextColor(
+                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.parseColor("#9999AA")
+                )
+
+                val watched = watchedPrefs.getLong("watched_pos_$path", 0L)
+                holder.pb.progress = if (watched > 0L) 650 else 0
+
+                val target: Any = if (path.startsWith("content://")) Uri.parse(path) else file
+                Glide.with(this@PlayerActivity)
+                    .load(target)
+                    .placeholder(android.R.color.darker_gray)
+                    .centerCrop()
+                    .into(holder.img)
+
+                holder.itemView.setOnClickListener {
+                    val pos = holder.adapterPosition
+                    if (pos in videoList.indices) {
+                        currentPositionIndex = pos
+                        exoPlayer?.seekToDefaultPosition(pos)
+                        exoPlayer?.play()
+                        notifyDataSetChanged()
+                        updateQueueHeaderTitle()
+                    }
+                }
+
+                holder.btnDrag.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        touchHelper.startDrag(holder)
+                    }
+                    false
+                }
+
+                holder.btnRemove.setOnClickListener {
+                    val pos = holder.adapterPosition
+                    if (pos !in videoList.indices) return@setOnClickListener
+                    if (videoList.size <= 1) {
+                        Toast.makeText(this@PlayerActivity, "Cannot remove last video in queue", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
                     videoList.removeAt(pos)
                     exoPlayer?.removeMediaItem(pos)
                     if (pos < currentPositionIndex) {
@@ -1116,12 +1408,14 @@ class PlayerActivity : AppCompatActivity() {
                     } else if (pos == currentPositionIndex) {
                         currentPositionIndex = exoPlayer?.currentMediaItemIndex?.coerceAtLeast(0) ?: 0
                     }
-                    rvQueueList.adapter?.notifyItemRemoved(pos)
-                    rvQueueList.adapter?.notifyItemRangeChanged(pos, videoList.size)
+                    notifyItemRemoved(pos)
+                    notifyItemRangeChanged(pos, videoList.size)
                     updateQueueHeaderTitle()
                 }
             }
-        )
+
+            override fun getItemCount(): Int = videoList.size
+        }
 
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
@@ -1136,10 +1430,10 @@ class PlayerActivity : AppCompatActivity() {
                 val toPos = target.adapterPosition
                 if (fromPos !in videoList.indices || toPos !in videoList.indices) return false
 
-                java.util.Collections.swap(videoList, fromPos, toPos)
+                Collections.swap(videoList, fromPos, toPos)
                 exoPlayer?.moveMediaItem(fromPos, toPos)
                 currentPositionIndex = exoPlayer?.currentMediaItemIndex ?: currentPositionIndex
-                queueAdapter.notifyItemMoved(fromPos, toPos)
+                adapter.notifyItemMoved(fromPos, toPos)
                 updateQueueHeaderTitle()
                 return true
             }
@@ -1147,18 +1441,43 @@ class PlayerActivity : AppCompatActivity() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
         }
 
-        val touchHelper = ItemTouchHelper(callback)
+        touchHelper = ItemTouchHelper(callback)
         touchHelper.attachToRecyclerView(rvQueueList)
-        queueAdapter.itemTouchHelper = touchHelper
-        rvQueueList.adapter = queueAdapter
+        rvQueueList.adapter = adapter
     }
+
+    private fun computeResolutionBadgeLocal(title: String, sizeBytes: Long): String {
+        val upper = title.uppercase(Locale.US)
+        return when {
+            upper.contains("8K") || upper.contains("4320P") -> "8K"
+            upper.contains("4K") || upper.contains("2160P") -> "4K"
+            upper.contains("2K") || upper.contains("1440P") -> "2K"
+            upper.contains("1080P") || upper.contains("FHD") -> "1080p"
+            upper.contains("720P") || upper.contains("HD") -> "720p"
+            upper.contains("480P") -> "480p"
+            upper.contains("360P") -> "360p"
+            sizeBytes > 120L * 1024L * 1024L -> "1080p"
+            sizeBytes > 30L * 1024L * 1024L -> "720p"
+            else -> "480p"
+        }
+    }
+
+    private class QueueItemVH(
+        view: View,
+        val img: ImageView,
+        val pb: ProgressBar,
+        val tvTitle: TextView,
+        val tvMeta: TextView,
+        val btnDrag: TextView,
+        val btnRemove: TextView
+    ) : RecyclerView.ViewHolder(view)
 
     private fun toggleMuteNow() {
         val d = resources.displayMetrics.density
         isMuted = !isMuted
         exoPlayer?.volume = if (isMuted) 0f else 1f
         btnMuteToggle.setImageDrawable(
-            PlayerVectorIcon(
+            PlayerVectorIconInternal(
                 if (isMuted) "SPEAKER_MUTE" else "SPEAKER_ON",
                 d,
                 if (isMuted) Color.parseColor("#FF4081") else Color.WHITE
@@ -1172,13 +1491,80 @@ class PlayerActivity : AppCompatActivity() {
         isScreenLocked = true
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
-        btnLockScreen.setImageDrawable(PlayerVectorIcon("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
+        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
         btnUnlockOverlay.visibility = View.VISIBLE
         Toast.makeText(this, "Screen Locked", Toast.LENGTH_SHORT).show()
     }
 
     private fun captureVideoScreenshotNow() {
-        PlayerScreenshotHelper.captureAndSave(this, videoPath, exoPlayer?.currentPosition ?: 0L)
+        val posMs = exoPlayer?.currentPosition ?: 0L
+        Toast.makeText(this, "Capturing Screenshot...", Toast.LENGTH_SHORT).show()
+
+        thread {
+            var bmp: Bitmap? = null
+            val retriever = MediaMetadataRetriever()
+            try {
+                if (videoPath.startsWith("content://")) {
+                    retriever.setDataSource(this, Uri.parse(videoPath))
+                } else {
+                    retriever.setDataSource(videoPath)
+                }
+                bmp = retriever.getFrameAtTime(posMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                try {
+                    retriever.release()
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
+                }
+            }
+
+            var savedLocation = ""
+            if (bmp != null) {
+                try {
+                    val fileName = "MAX_Shot_${System.currentTimeMillis()}.jpg"
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val values = ContentValues().apply {
+                            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                            put(
+                                MediaStore.Images.Media.RELATIVE_PATH,
+                                "${Environment.DIRECTORY_PICTURES}/MAXPlayerScreenshots"
+                            )
+                        }
+                        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                        if (uri != null) {
+                            contentResolver.openOutputStream(uri)?.use { out ->
+                                bmp.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                            }
+                            savedLocation = "Pictures/MAXPlayerScreenshots/$fileName"
+                        }
+                    } else {
+                        val dir = File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                            "MAXPlayerScreenshots"
+                        )
+                        if (!dir.exists()) dir.mkdirs()
+                        val outFile = File(dir, fileName)
+                        FileOutputStream(outFile).use { out ->
+                            bmp.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                        }
+                        savedLocation = outFile.absolutePath
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            runOnUiThread {
+                if (savedLocation.isNotEmpty()) {
+                    Toast.makeText(this, "Screenshot Saved: $savedLocation", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "Unable to save screenshot", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun toggleRotationNow() {
@@ -1250,28 +1636,28 @@ class PlayerActivity : AppCompatActivity() {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     surface.scaleX = 1.0f * mirror
                     surface.scaleY = 1.0f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIcon("ASPECT_FIT", d, Color.WHITE))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_FIT", d, Color.WHITE))
                     Toast.makeText(this, "Aspect Ratio: Original Fit", Toast.LENGTH_SHORT).show()
                 }
                 1 -> {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
                     surface.scaleX = 1.0f * mirror
                     surface.scaleY = 1.0f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIcon("ASPECT_STRETCH", d, Color.parseColor("#00FFFF")))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_STRETCH", d, Color.parseColor("#00FFFF")))
                     Toast.makeText(this, "Aspect Ratio: Full Stretch", Toast.LENGTH_SHORT).show()
                 }
                 2 -> {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     surface.scaleX = 1.0f * mirror
                     surface.scaleY = 1.0f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIcon("ASPECT_CROP", d, Color.parseColor("#00E5FF")))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_CROP", d, Color.parseColor("#00E5FF")))
                     Toast.makeText(this, "Aspect Ratio: Center Zoom Crop", Toast.LENGTH_SHORT).show()
                 }
                 3 -> {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     surface.scaleX = 1.16f * mirror
                     surface.scaleY = 0.94f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIcon("ASPECT_16_9", d, Color.parseColor("#FFAB00")))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_16_9", d, Color.parseColor("#FFAB00")))
                     Toast.makeText(this, "Aspect Ratio: 16:9 Cinema", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -1303,7 +1689,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val zoomPercent = (currentZoomScale * 100).toInt()
         if (zoomPercent != 100) {
-            tvZoomResetPill.text = "Zoom: $zoomPercent% • Reset"
+            tvZoomResetPill.text = "Zoom: $zoomPercent% | Reset"
             cardZoomResetPill.visibility = View.VISIBLE
         } else {
             cardZoomResetPill.visibility = View.GONE
@@ -1579,7 +1965,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun toggleNightModeNow() {
         isNightMode = !isNightMode
-        PlayerVisualEnhancerHelper.applyFilterToOverlay(currentVisualMode, isNightMode, btnHdrMode, viewVisualOverlay)
+        applyVisualEnhancerFilter(currentVisualMode)
         Toast.makeText(this, if (isNightMode) "Night Mode ON" else "Night Mode OFF", Toast.LENGTH_SHORT).show()
     }
 
@@ -1788,7 +2174,7 @@ class PlayerActivity : AppCompatActivity() {
                     if (player.isPlaying) {
                         isLongPressSpeedActive = true
                         player.playbackParameters = PlaybackParameters(longPressSpeedTarget)
-                        tvSpeedBoostBadge.text = "${longPressSpeedTarget}x Fast Play ⏩"
+                        tvSpeedBoostBadge.text = "${longPressSpeedTarget}x Fast Play >>"
                         cardSpeedBoostBadge.visibility = View.VISIBLE
                     }
                 }
@@ -2128,5 +2514,224 @@ class PlayerActivity : AppCompatActivity() {
         }
         exoPlayer?.release()
         exoPlayer = null
+    }
+
+    private class SpeedTickRulerViewInternal(
+        context: Context,
+        private val density: Float,
+        private val onSpeedChanged: (Float) -> Unit
+    ) : View(context) {
+
+        private var speed = 1.0f
+
+        private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#99FFFFFF")
+            strokeWidth = 1.6f * density
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        private val activePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#00FFFF")
+            strokeWidth = 2.6f * density
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = 10.5f * density
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+
+        fun setSpeedValue(newSpeed: Float) {
+            speed = newSpeed.coerceIn(0.25f, 8.0f)
+            invalidate()
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val w = width.toFloat()
+            val h = height.toFloat()
+            if (w <= 0f || h <= 0f) return
+
+            val padX = 16f * density
+            val usableW = (w - 2 * padX).coerceAtLeast(1f)
+            val totalTicks = 40
+            val topY = 8f * density
+            val bottomMajor = h - 22f * density
+            val bottomMinor = h - 30f * density
+
+            for (i in 0..totalTicks) {
+                val frac = i.toFloat() / totalTicks.toFloat()
+                val x = padX + frac * usableW
+                val isMajor = i % 5 == 0
+                canvas.drawLine(
+                    x,
+                    if (isMajor) topY else topY + 6f * density,
+                    x,
+                    if (isMajor) bottomMajor else bottomMinor,
+                    tickPaint
+                )
+            }
+
+            val milestones = listOf(
+                0.5f to "0.5X",
+                1.0f to "1.0X",
+                2.0f to "2.0X",
+                4.0f to "4.0X",
+                8.0f to "8.0X"
+            )
+            for ((msVal, text) in milestones) {
+                val f = ((msVal - 0.25f) / 7.75f).coerceIn(0f, 1f)
+                val x = padX + f * usableW
+                canvas.drawText(text, x, h - 4f * density, labelPaint)
+            }
+
+            val curFrac = ((speed - 0.25f) / 7.75f).coerceIn(0f, 1f)
+            val curX = padX + curFrac * usableW
+            canvas.drawLine(curX, 2f * density, curX, bottomMajor + 4f * density, activePaint)
+            canvas.drawCircle(curX, 5f * density, 4f * density, activePaint)
+        }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            when (event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
+                    val padX = 16f * density
+                    val usableW = (width.toFloat() - 2 * padX).coerceAtLeast(1f)
+                    val frac = ((event.x - padX) / usableW).coerceIn(0f, 1f)
+                    val rawSpeed = 0.25f + frac * 7.75f
+                    val rounded = (rawSpeed * 10f).roundToInt() / 10f
+                    speed = rounded.coerceIn(0.25f, 8.0f)
+                    invalidate()
+                    onSpeedChanged(speed)
+                    return true
+                }
+            }
+            return super.onTouchEvent(event)
+        }
+    }
+
+    private class PlayerVectorIconInternal(
+        private val type: String,
+        private val density: Float,
+        private val iconColor: Int
+    ) : Drawable() {
+
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = iconColor
+            style = Paint.Style.STROKE
+            strokeWidth = 2.0f * density
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = iconColor
+            style = Paint.Style.FILL
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+            if (w <= 0f || h <= 0f) return
+            val cx = b.exactCenterX()
+            val cy = b.exactCenterY()
+            val r = w.coerceAtMost(h) * 0.36f
+            val path = Path()
+
+            when (type) {
+                "HEADPHONES" -> {
+                    val arc = RectF(cx - r * 0.85f, cy - r * 0.85f, cx + r * 0.85f, cy + r * 0.65f)
+                    canvas.drawArc(arc, 180f, 180f, false, strokePaint)
+                    val leftCup = RectF(cx - r * 0.92f, cy - r * 0.1f, cx - r * 0.48f, cy + r * 0.72f)
+                    val rightCup = RectF(cx + r * 0.48f, cy - r * 0.1f, cx + r * 0.92f, cy + r * 0.72f)
+                    canvas.drawRoundRect(leftCup, 3f * density, 3f * density, fillPaint)
+                    canvas.drawRoundRect(rightCup, 3f * density, 3f * density, fillPaint)
+                }
+                "QUEUE_LIST" -> {
+                    canvas.drawLine(cx - r * 0.75f, cy - r * 0.55f, cx + r * 0.75f, cy - r * 0.55f, strokePaint)
+                    canvas.drawLine(cx - r * 0.75f, cy, cx + r * 0.75f, cy, strokePaint)
+                    canvas.drawLine(cx - r * 0.75f, cy + r * 0.55f, cx + r * 0.35f, cy + r * 0.55f, strokePaint)
+                }
+                "THREE_DOTS" -> {
+                    canvas.drawCircle(cx, cy - r * 0.65f, 2.2f * density, fillPaint)
+                    canvas.drawCircle(cx, cy, 2.2f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.65f, 2.2f * density, fillPaint)
+                }
+                "SPEAKER_ON", "SPEAKER_MUTE" -> {
+                    path.moveTo(cx - r * 0.75f, cy - r * 0.32f)
+                    path.lineTo(cx - r * 0.3f, cy - r * 0.32f)
+                    path.lineTo(cx + r * 0.18f, cy - r * 0.75f)
+                    path.lineTo(cx + r * 0.18f, cy + r * 0.75f)
+                    path.lineTo(cx - r * 0.3f, cy + r * 0.32f)
+                    path.lineTo(cx - r * 0.75f, cy + r * 0.32f)
+                    path.close()
+                    canvas.drawPath(path, strokePaint)
+                    if (type == "SPEAKER_MUTE") {
+                        canvas.drawLine(cx + r * 0.38f, cy - r * 0.35f, cx + r * 0.85f, cy + r * 0.35f, strokePaint)
+                        canvas.drawLine(cx + r * 0.85f, cy - r * 0.35f, cx + r * 0.38f, cy + r * 0.35f, strokePaint)
+                    } else {
+                        val arc = RectF(cx - r * 0.1f, cy - r * 0.55f, cx + r * 0.78f, cy + r * 0.55f)
+                        canvas.drawArc(arc, -45f, 90f, false, strokePaint)
+                    }
+                }
+                "LOCK_OPEN", "LOCK_CLOSED" -> {
+                    val body = RectF(cx - r * 0.68f, cy - r * 0.1f, cx + r * 0.68f, cy + r * 0.82f)
+                    canvas.drawRoundRect(body, 3.5f * density, 3.5f * density, strokePaint)
+                    val shackle = RectF(cx - r * 0.45f, cy - r * 0.78f, cx + r * 0.45f, cy - r * 0.05f)
+                    canvas.drawArc(shackle, 180f, if (type == "LOCK_OPEN") 135f else 180f, false, strokePaint)
+                    canvas.drawCircle(cx, cy + r * 0.35f, 2f * density, fillPaint)
+                }
+                "SCREENSHOT_CAM" -> {
+                    val cam = RectF(cx - r * 0.82f, cy - r * 0.52f, cx + r * 0.82f, cy + r * 0.68f)
+                    canvas.drawRoundRect(cam, 4f * density, 4f * density, strokePaint)
+                    canvas.drawCircle(cx, cy + r * 0.08f, r * 0.34f, strokePaint)
+                }
+                "ROTATE" -> {
+                    val box = RectF(cx - r * 0.75f, cy - r * 0.5f, cx + r * 0.75f, cy + r * 0.5f)
+                    canvas.drawRoundRect(box, 3f * density, 3f * density, strokePaint)
+                }
+                "ASPECT_FIT", "ASPECT_STRETCH", "ASPECT_CROP", "ASPECT_16_9" -> {
+                    val frame = RectF(cx - r * 0.85f, cy - r * 0.58f, cx + r * 0.85f, cy + r * 0.58f)
+                    canvas.drawRoundRect(frame, 3.5f * density, 3.5f * density, strokePaint)
+                    if (type == "ASPECT_STRETCH") {
+                        canvas.drawLine(cx - r * 0.45f, cy, cx + r * 0.45f, cy, strokePaint)
+                    } else if (type == "ASPECT_CROP") {
+                        canvas.drawCircle(cx, cy, r * 0.26f, fillPaint)
+                    }
+                }
+                "PIP_WINDOW" -> {
+                    val outer = RectF(cx - r * 0.85f, cy - r * 0.6f, cx + r * 0.85f, cy + r * 0.6f)
+                    canvas.drawRoundRect(outer, 3.5f * density, 3.5f * density, strokePaint)
+                    val inner = RectF(cx + r * 0.05f, cy - r * 0.05f, cx + r * 0.68f, cy + r * 0.45f)
+                    canvas.drawRoundRect(inner, 2f * density, 2f * density, fillPaint)
+                }
+                "BG_VINYL_DISC" -> {
+                    fillPaint.color = Color.parseColor("#1E1E2A")
+                    canvas.drawCircle(cx, cy, w * 0.46f, fillPaint)
+                    strokePaint.color = Color.parseColor("#343446")
+                    canvas.drawCircle(cx, cy, w * 0.36f, strokePaint)
+                    canvas.drawCircle(cx, cy, w * 0.28f, strokePaint)
+                    fillPaint.color = iconColor
+                    canvas.drawCircle(cx, cy, w * 0.16f, fillPaint)
+                    fillPaint.color = Color.BLACK
+                    canvas.drawCircle(cx, cy, w * 0.04f, fillPaint)
+                }
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {
+            strokePaint.alpha = alpha
+            fillPaint.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: ColorFilter?) {
+            strokePaint.colorFilter = colorFilter
+            fillPaint.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 }
