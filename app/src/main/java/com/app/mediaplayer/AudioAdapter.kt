@@ -3,6 +3,7 @@ package com.app.mediaplayer
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
@@ -12,14 +13,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import java.io.File
 import java.util.ArrayList
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class AudioAdapter(
     private val context: Context,
-    private val audioList: MutableList<AudioModel>
+    private val audioList: MutableList<AudioTrackModel>
 ) : RecyclerView.Adapter<AudioAdapter.AudioVH>() {
 
     class AudioVH(view: View) : RecyclerView.ViewHolder(view) {
@@ -38,11 +38,11 @@ class AudioAdapter(
         val song = audioList[position]
         val audioPrefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
         val isFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
-        val favTag = if (isFav) " ★" else ""
+        val favTag = if (isFav) " *" else ""
 
         holder.tvAudioTitle.text = song.title
         holder.tvAudioArtistDuration.text =
-            "${song.artist} • ${formatDuration(song.duration)} • ${formatSize(song.size)}$favTag"
+            "${song.artist} | ${formatDuration(song.duration)} | ${formatSize(song.size)}$favTag"
 
         val customArtUri = audioPrefs.getString("custom_art_${song.path}", null)
         if (!customArtUri.isNullOrEmpty()) {
@@ -57,7 +57,7 @@ class AudioAdapter(
             val d = (10 * context.resources.displayMetrics.density).toInt()
             holder.imgAudioArt.setPadding(d, d, d, d)
             holder.imgAudioArt.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
-            holder.imgAudioArt.setColorFilter(android.graphics.Color.parseColor("#00FFFF"))
+            holder.imgAudioArt.setColorFilter(Color.parseColor("#00FFFF"))
         }
 
         holder.itemView.setOnClickListener {
@@ -68,7 +68,7 @@ class AudioAdapter(
             val curFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
             val options = arrayOf(
                 "Play Song",
-                if (curFav) "Remove from Favorites ★" else "Add to Favorites ☆",
+                if (curFav) "Remove from Favorites" else "Add to Favorites",
                 "Open 5-Band Equalizer",
                 "Share Audio File",
                 "Song Details & Path"
