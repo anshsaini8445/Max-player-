@@ -1,6 +1,6 @@
 package com.app.mediaplayer
 
-data class AudioModel(
+data class AudioTrackModel(
     val id: Long,
     val title: String,
     val artist: String,
