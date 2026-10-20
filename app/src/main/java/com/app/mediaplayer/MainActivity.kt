@@ -1,13 +1,14 @@
 package com.app.mediaplayer
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -22,8 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rootMainLayout: RelativeLayout
     private lateinit var topBrandBar: LinearLayout
     private lateinit var tvAppBrandName: TextView
-    private lateinit var btnTopQuickSearch: ImageView
-    private lateinit var btnTopVaultQuick: ImageView
+    private lateinit var imgBrandStarBadge: ImageView
 
     private lateinit var navTabVideo: LinearLayout
     private lateinit var navTabAudio: LinearLayout
@@ -70,8 +70,7 @@ class MainActivity : AppCompatActivity() {
         rootMainLayout = findViewById(R.id.rootMainLayout)
         topBrandBar = findViewById(R.id.topBrandBar)
         tvAppBrandName = findViewById(R.id.tvAppBrandName)
-        btnTopQuickSearch = findViewById(R.id.btnTopQuickSearch)
-        btnTopVaultQuick = findViewById(R.id.btnTopVaultQuick)
+        imgBrandStarBadge = findViewById(R.id.imgBrandStarBadge)
 
         navTabVideo = findViewById(R.id.navTabVideo)
         navTabAudio = findViewById(R.id.navTabAudio)
@@ -88,17 +87,37 @@ class MainActivity : AppCompatActivity() {
         tvNavSearch = findViewById(R.id.tvNavSearch)
         tvNavMe = findViewById(R.id.tvNavMe)
 
-        btnTopQuickSearch.setOnClickListener {
-            switchTab(2)
-        }
+        val prefs = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        tvAppBrandName.text = prefs.getString("custom_brand_title", "MAX Player") ?: "MAX Player"
+        val showStar = prefs.getBoolean("show_brand_star", true)
+        imgBrandStarBadge.visibility = if (showStar) View.VISIBLE else View.GONE
 
-        btnTopVaultQuick.setOnClickListener {
-            try {
-                startActivity(Intent(this, VaultPinActivity::class.java))
-            } catch (e: Exception) {
-                e.printStackTrace()
+        // Long press on brand title or star lets owner change title or hide/show the star icon anytime
+        val brandEditClick = View.OnLongClickListener {
+            val input = EditText(this).apply {
+                setText(tvAppBrandName.text.toString())
+                setTextColor(Color.BLACK)
+                setPadding(40, 30, 40, 30)
             }
+            AlertDialog.Builder(this)
+                .setTitle("Customize App Header & Star")
+                .setView(input)
+                .setPositiveButton("Save Title") { _, _ ->
+                    val newName = input.text.toString().trim().ifEmpty { "MAX Player" }
+                    prefs.edit().putString("custom_brand_title", newName).apply()
+                    tvAppBrandName.text = newName
+                }
+                .setNeutralButton(if (imgBrandStarBadge.visibility == View.VISIBLE) "Hide Star" else "Show Star") { _, _ ->
+                    val nextVis = imgBrandStarBadge.visibility != View.VISIBLE
+                    prefs.edit().putBoolean("show_brand_star", nextVis).apply()
+                    imgBrandStarBadge.visibility = if (nextVis) View.VISIBLE else View.GONE
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+            true
         }
+        tvAppBrandName.setOnLongClickListener(brandEditClick)
+        imgBrandStarBadge.setOnLongClickListener(brandEditClick)
     }
 
     private fun setupBottomNavigation() {
@@ -152,7 +171,7 @@ class MainActivity : AppCompatActivity() {
 
             rootMainLayout.setBackgroundColor(bgColor)
             topBrandBar.setBackgroundColor(bgColor)
-            btnTopQuickSearch.setColorFilter(activeAccentColor)
+            window.statusBarColor = bgColor
             updateBottomNavVisuals()
         } catch (e: Exception) {
             activeAccentColor = Color.parseColor("#00FFFF")
