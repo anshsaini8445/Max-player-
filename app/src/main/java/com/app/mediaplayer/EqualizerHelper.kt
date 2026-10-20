@@ -1,143 +1,193 @@
 package com.app.mediaplayer
 
+import android.app.AlertDialog
 import android.content.Context
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
-import android.media.audiofx.Virtualizer
-import android.view.LayoutInflater
-import android.widget.Button
+import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
-import com.google.android.material.bottomsheet.BottomSheetDialog
+import android.widget.Toast
 
-class EqualizerHelper(private val context: Context, private val audioSessionId: Int) {
+object EqualizerHelper {
 
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
-    private var virtualizer: Virtualizer? = null
+    private var lastSessionId: Int = -1
 
-    init {
+    fun showEqualizerDialog(context: Context, audioSessionId: Int) {
+        val d = context.resources.displayMetrics.density
+        val prefs = context.getSharedPreferences("MAX_EQ_PREFS", Context.MODE_PRIVATE)
+
         try {
-            equalizer = Equalizer(0, audioSessionId)
-            equalizer?.enabled = true
-
-            bassBoost = BassBoost(0, audioSessionId)
-            bassBoost?.enabled = true
-
-            virtualizer = Virtualizer(0, audioSessionId)
-            virtualizer?.enabled = true
+            if (audioSessionId != 0 && audioSessionId != lastSessionId) {
+                equalizer?.release()
+                bassBoost?.release()
+                equalizer = Equalizer(0, audioSessionId).apply { enabled = true }
+                bassBoost = BassBoost(0, audioSessionId).apply { enabled = true }
+                lastSessionId = audioSessionId
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
 
-    fun showEqualizerDialog() {
-        if (equalizer == null) return
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#161624"))
+                cornerRadius = 22f * d
+                setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
+            }
+        }
 
-        val dialog = BottomSheetDialog(context)
-        val view = LayoutInflater.from(context).inflate(R.layout.dialog_equalizer, null)
-        dialog.setContentView(view)
+        val tvTitle = TextView(context).apply {
+            text = "5-Band Dolby Equalizer & Bass"
+            setTextColor(Color.parseColor("#00FFFF"))
+            textSize = 16.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, 0, 0, (12 * d).toInt())
+        }
+        root.addView(tvTitle)
 
-        val seekBarBass = view.findViewById<SeekBar>(R.id.seekBarBass)
-        val seekBarVirtualizer = view.findViewById<SeekBar>(R.id.seekBarVirtualizer)
-        val layoutEqualizerBands = view.findViewById<LinearLayout>(R.id.layoutEqualizerBands)
-        val btnCloseEqualizer = view.findViewById<Button>(R.id.btnCloseEqualizer)
+        // Preset Row
+        val presetRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, (12 * d).toInt())
+        }
+        val presetNames = listOf("Normal", "Bass", "Vocal", "Rock")
+        val bandSeekBars = mutableListOf<SeekBar>()
 
-        // Setup Bass Boost
-        if (bassBoost?.strengthSupported == true) {
-            seekBarBass.progress = bassBoost?.roundedStrength?.toInt() ?: 0
-            seekBarBass.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+        for ((idx, pName) in presetNames.withIndex()) {
+            val pill = TextView(context).apply {
+                text = pName
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#28FFFFFF"))
+                    cornerRadius = 14f * d
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (6 * d).toInt() }
+                setOnClickListener {
+                    val targetValues = when (idx) {
+                        1 -> intArrayOf(85, 75, 50, 60, 70)
+                        2 -> intArrayOf(40, 60, 85, 80, 65)
+                        3 -> intArrayOf(80, 65, 45, 75, 85)
+                        else -> intArrayOf(50, 50, 50, 50, 50)
+                    }
+                    bandSeekBars.forEachIndexed { bIdx, sb ->
+                        sb.progress = targetValues.getOrElse(bIdx) { 50 }
+                    }
+                    Toast.makeText(context, "Preset: $pName", Toast.LENGTH_SHORT).show()
+                }
+            }
+            presetRow.addView(pill)
+        }
+        root.addView(presetRow)
+
+        // 5 Frequency Bands
+        val freqLabels = arrayOf("60Hz (Sub-Bass)", "230Hz (Bass)", "910Hz (Mid)", "3.6kHz (Treble)", "14kHz (Air)")
+        for (bandIndex in 0 until 5) {
+            val savedProg = prefs.getInt("eq_band_$bandIndex", 50)
+            val tvBand = TextView(context).apply {
+                text = freqLabels[bandIndex]
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                setPadding(0, (6 * d).toInt(), 0, (2 * d).toInt())
+            }
+            val sb = SeekBar(context).apply {
+                max = 100
+                progress = savedProg
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                        prefs.edit().putInt("eq_band_$bandIndex", p).apply()
+                        applyBandLevel(bandIndex, p)
+                    }
+                    override fun onStartTrackingTouch(s: SeekBar?) {}
+                    override fun onStopTrackingTouch(s: SeekBar?) {}
+                })
+            }
+            bandSeekBars.add(sb)
+            root.addView(tvBand)
+            root.addView(sb)
+        }
+
+        // Sub-Woofer Bass Boost Slider
+        val tvBass = TextView(context).apply {
+            text = "Sub-Woofer Bass Boost"
+            setTextColor(Color.parseColor("#00E676"))
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, (10 * d).toInt(), 0, (4 * d).toInt())
+        }
+        val sbBass = SeekBar(context).apply {
+            max = 1000
+            progress = prefs.getInt("eq_bass_strength", 350)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    prefs.edit().putInt("eq_bass_strength", p).apply()
                     try {
-                        bassBoost?.setStrength(progress.toShort())
+                        bassBoost?.setStrength(p.toShort())
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
                 }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
             })
-        } else {
-            seekBarBass.isEnabled = false
         }
+        root.addView(tvBass)
+        root.addView(sbBass)
 
-        // Setup Virtualizer (3D Effect)
-        if (virtualizer?.strengthSupported == true) {
-            seekBarVirtualizer.progress = virtualizer?.roundedStrength?.toInt() ?: 0
-            seekBarVirtualizer.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    try {
-                        virtualizer?.setStrength(progress.toShort())
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-        } else {
-            seekBarVirtualizer.isEnabled = false
+        val dialog = AlertDialog.Builder(context)
+            .setView(root)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val btnClose = TextView(context).apply {
+            text = "DONE"
+            setTextColor(Color.BLACK)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(0, (10 * d).toInt(), 0, (10 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (14 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#00FFFF"))
+                cornerRadius = 16f * d
+            }
+            setOnClickListener { dialog.dismiss() }
         }
-
-        // Setup Dynamic Equalizer Bands
-        val numberOfBands = equalizer?.numberOfBands ?: 0
-        val minEQLevel = equalizer?.bandLevelRange?.get(0) ?: 0
-        val maxEQLevel = equalizer?.bandLevelRange?.get(1) ?: 0
-
-        for (i in 0 until numberOfBands) {
-            val bandIndex = i.toShort()
-            val freq = (equalizer?.getCenterFreq(bandIndex) ?: 0) / 1000
-            
-            val bandLayout = LinearLayout(context)
-            bandLayout.orientation = LinearLayout.HORIZONTAL
-            bandLayout.setPadding(0, 16, 0, 16)
-
-            val freqTextView = TextView(context)
-            freqTextView.text = "${freq}Hz"
-            freqTextView.width = 150
-            freqTextView.setTextColor(android.graphics.Color.WHITE)
-
-            val bandSeekBar = SeekBar(context)
-            val layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            bandSeekBar.layoutParams = layoutParams
-            bandSeekBar.max = maxEQLevel - minEQLevel
-            bandSeekBar.progress = (equalizer?.getBandLevel(bandIndex) ?: 0) - minEQLevel
-
-            bandSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        try {
-                            equalizer?.setBandLevel(bandIndex, (progress + minEQLevel).toShort())
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-
-            bandLayout.addView(freqTextView)
-            bandLayout.addView(bandSeekBar)
-            layoutEqualizerBands.addView(bandLayout)
-        }
-
-        btnCloseEqualizer.setOnClickListener {
-            dialog.dismiss()
-        }
-
+        root.addView(btnClose)
         dialog.show()
     }
 
-    fun release() {
+    private fun applyBandLevel(bandIndex: Int, progress: Int) {
         try {
-            equalizer?.release()
-            bassBoost?.release()
-            virtualizer?.release()
+            val eq = equalizer ?: return
+            val numBands = eq.numberOfBands.toInt()
+            if (bandIndex < numBands) {
+                val range = eq.bandLevelRange
+                val minLvl = range[0].toInt()
+                val maxLvl = range[1].toInt()
+                val targetLvl = minLvl + ((maxLvl - minLvl) * progress) / 100
+                eq.setBandLevel(bandIndex.toShort(), targetLvl.toShort())
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
