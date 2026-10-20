@@ -4,13 +4,13 @@
     android:id="@+id/rootAudioPlayer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0A10">
+    android:background="#08080E">
 
-    <!-- Top Header Bar: Back Button + Song Info + Equalizer + 3-Dots Menu -->
+    <!-- Top Header Bar: Down Button + Marquee Song Title & Artist + Share Icon -->
     <LinearLayout
         android:id="@+id/topAudioBar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="62dp"
         android:layout_alignParentTop="true"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -18,11 +18,11 @@
 
         <ImageView
             android:id="@+id/btnAudioBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="@drawable/circle_bg"
             android:padding="9dp"
-            android:src="@android:drawable/ic_menu_revert"
+            android:src="@android:drawable/arrow_down_float"
             app:tint="#FFFFFF" />
 
         <LinearLayout
@@ -37,12 +37,16 @@
                 android:id="@+id/tvAudioPlayerTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
+                android:ellipsize="marquee"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
                 android:gravity="center"
-                android:maxLines="1"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
                 android:text="Playing Track"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -54,31 +58,21 @@
                 android:gravity="center"
                 android:maxLines="1"
                 android:text="Unknown Artist"
-                android:textColor="#00FFFF"
-                android:textSize="12sp" />
+                android:textColor="#9999AA"
+                android:textSize="12.5sp" />
         </LinearLayout>
 
         <ImageView
-            android:id="@+id/btnAudioTopEqualizer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="6dp"
+            android:id="@+id/btnAudioShareTop"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="@drawable/circle_bg"
-            android:padding="9dp"
-            android:src="@android:drawable/ic_menu_preferences"
-            app:tint="#00FFFF" />
-
-        <ImageView
-            android:id="@+id/btnAudioTopMenu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/circle_bg"
-            android:padding="9dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:padding="8dp"
+            android:src="@android:drawable/ic_menu_share"
             app:tint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Center Swipeable Container: Vinyl Disc + Tonearm OR Square Box OR Lyrics Page -->
+    <!-- Center Stage: Vinyl Disc + Tonearm OR Square Album Box OR Swipe Lyrics -->
     <FrameLayout
         android:id="@+id/centerStageContainer"
         android:layout_width="match_parent"
@@ -86,39 +80,45 @@
         android:layout_above="@+id/llFlatPageIndicators"
         android:layout_below="@id/topAudioBar">
 
-        <!-- Page 1: Vinyl Disc & Tonearm / Square Album Art -->
+        <!-- Page 1: Vinyl Disc with Tonearm OR Square Art Box -->
         <FrameLayout
             android:id="@+id/pageVinylAndArt"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- Rotating Vinyl Disc Container -->
+            <!-- Default Rotating Vinyl Disc + Top White Stylus Tonearm -->
             <FrameLayout
                 android:id="@+id/layoutVinylMode"
-                android:layout_width="290dp"
-                android:layout_height="290dp"
+                android:layout_width="300dp"
+                android:layout_height="320dp"
                 android:layout_gravity="center">
 
-                <!-- Outer Vinyl Grooves Circle -->
+                <!-- Rotating Dark Vinyl Platter -->
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardVinylOuterDisc"
                     android:layout_width="256dp"
                     android:layout_height="256dp"
                     android:layout_gravity="center"
-                    app:cardBackgroundColor="#181824"
+                    android:layout_marginTop="14dp"
+                    app:cardBackgroundColor="#161622"
                     app:cardCornerRadius="128dp"
-                    app:cardElevation="12dp">
+                    app:cardElevation="10dp">
 
                     <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
 
+                        <ImageView
+                            android:id="@+id/imgVinylGrooves"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
                         <androidx.cardview.widget.CardView
-                            android:layout_width="174dp"
-                            android:layout_height="174dp"
+                            android:layout_width="136dp"
+                            android:layout_height="136dp"
                             android:layout_gravity="center"
-                            app:cardBackgroundColor="#242436"
-                            app:cardCornerRadius="87dp"
+                            app:cardBackgroundColor="#222234"
+                            app:cardCornerRadius="68dp"
                             app:cardElevation="0dp">
 
                             <ImageView
@@ -128,38 +128,31 @@
                                 android:scaleType="centerCrop"
                                 android:src="@android:drawable/ic_lock_silent_mode_off" />
                         </androidx.cardview.widget.CardView>
-
-                        <!-- Vinyl Center Spindle Hole -->
-                        <View
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:layout_gravity="center"
-                            android:background="@drawable/circle_bg" />
                     </FrameLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Moving Stylus Tonearm -->
+                <!-- Top Moving White Tonearm (Danda) -->
                 <ImageView
                     android:id="@+id/imgVinylTonearm"
-                    android:layout_width="96dp"
-                    android:layout_height="130dp"
-                    android:layout_gravity="top|end"
+                    android:layout_width="150dp"
+                    android:layout_height="70dp"
+                    android:layout_gravity="top|center_horizontal"
+                    android:layout_marginStart="24dp"
                     android:layout_marginTop="4dp"
-                    android:layout_marginEnd="10dp"
-                    android:transformPivotX="72dp"
-                    android:transformPivotY="14dp"
-                    android:rotation="-24" />
+                    android:rotation="-14"
+                    android:transformPivotX="18dp"
+                    android:transformPivotY="18dp" />
             </FrameLayout>
 
             <!-- Alternative Square Album Art Box -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardSquareArtBox"
-                android:layout_width="248dp"
-                android:layout_height="248dp"
+                android:layout_width="252dp"
+                android:layout_height="252dp"
                 android:layout_gravity="center"
                 android:visibility="gone"
-                app:cardBackgroundColor="#1C1C2C"
-                app:cardCornerRadius="24dp"
+                app:cardBackgroundColor="#1A1A28"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="12dp">
 
                 <ImageView
@@ -169,17 +162,30 @@
                     android:scaleType="centerCrop"
                     android:src="@android:drawable/ic_lock_silent_mode_off" />
             </androidx.cardview.widget.CardView>
+
+            <!-- Right-Edge Pull Tab (<) for Sliding Queue -->
+            <TextView
+                android:id="@+id/btnSideQueueTab"
+                android:layout_width="26dp"
+                android:layout_height="64dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="#28283C"
+                android:gravity="center"
+                android:text="&lt;"
+                android:textColor="#00FFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
         </FrameLayout>
 
-        <!-- Page 2: Swipeable Lyrics Page -->
+        <!-- Page 2: Swipeable Lyrics Page with Online Lookup & Add to Favorite Below Lyrics -->
         <LinearLayout
             android:id="@+id/pageLyricsContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingHorizontal="24dp"
-            android:paddingVertical="12dp"
+            android:paddingHorizontal="22dp"
+            android:paddingVertical="10dp"
             android:visibility="gone">
 
             <ScrollView
@@ -194,33 +200,53 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:lineSpacingExtra="6dp"
-                    android:paddingVertical="20dp"
+                    android:paddingVertical="18dp"
                     android:text="Loading Lyrics..."
                     android:textColor="#FFFFFF"
                     android:textSize="15.5sp"
                     android:textStyle="bold" />
             </ScrollView>
 
-            <TextView
-                android:id="@+id/btnSearchLyricsOnline"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:background="@drawable/circle_bg"
                 android:gravity="center"
-                android:paddingHorizontal="18dp"
-                android:text="Search Lyrics Online"
-                android:textColor="#00FFFF"
-                android:textSize="12.5sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnLyricsAddToFavorite"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/circle_bg"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="♡  Add to Favorite"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnSearchLyricsOnline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/circle_bg"
+                    android:gravity="center"
+                    android:paddingHorizontal="16dp"
+                    android:text="Find Lyrics Online"
+                    android:textColor="#00FFFF"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Two Flat Dash Indicators for Vinyl Page vs Lyrics Page -->
+    <!-- Two Flat Dash Indicators (— —) for Vinyl/Square Page vs Lyrics Page -->
     <LinearLayout
         android:id="@+id/llFlatPageIndicators"
         android:layout_width="match_parent"
-        android:layout_height="22dp"
+        android:layout_height="20dp"
         android:layout_above="@+id/bottomAudioControlsSection"
         android:gravity="center"
         android:orientation="horizontal">
@@ -229,18 +255,18 @@
             android:id="@+id/viewDashIndicatorLeft"
             android:layout_width="22dp"
             android:layout_height="3.5dp"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="5dp"
             android:background="#00FFFF" />
 
         <View
             android:id="@+id/viewDashIndicatorRight"
             android:layout_width="22dp"
             android:layout_height="3.5dp"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="5dp"
             android:background="#44FFFFFF" />
     </LinearLayout>
 
-    <!-- Bottom Timeline & Playback Controls Section -->
+    <!-- Bottom Controls Section (Matches Screenshot 1 Layout) -->
     <LinearLayout
         android:id="@+id/bottomAudioControlsSection"
         android:layout_width="match_parent"
@@ -249,171 +275,284 @@
         android:orientation="vertical"
         android:paddingHorizontal="18dp"
         android:paddingTop="6dp"
-        android:paddingBottom="22dp">
+        android:paddingBottom="18dp">
 
-        <!-- Secondary Feature Row: Pocket Shake Badge + Speed + Sleep Timer + Loop Mode -->
+        <!-- 5-Icon Tool Row: 4 Rearrangeable Slots (Equalizer | A-B | Speed | Timer) + 3-Dots Menu -->
         <LinearLayout
+            android:id="@+id/rowCustomizableTools"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="42dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:weightSum="5">
 
             <TextView
-                android:id="@+id/btnAudioPocketShake"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/circle_bg"
+                android:id="@+id/btnToolSlot1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:gravity="center"
-                android:paddingHorizontal="10dp"
-                android:text="Shake: OFF"
-                android:textColor="#B0B0C0"
-                android:textSize="11sp"
+                android:text="ttt"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <View
+            <TextView
+                android:id="@+id/btnToolSlot2"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="A⇌B"
+                android:textColor="#FFFFFF"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/btnAudioSpeed"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/circle_bg"
+                android:id="@+id/btnToolSlot3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:gravity="center"
-                android:paddingHorizontal="10dp"
                 android:text="1.0x"
                 android:textColor="#FFFFFF"
-                android:textSize="11sp"
+                android:textSize="13.5sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/btnAudioSleepTimer"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/circle_bg"
+                android:id="@+id/btnToolSlot4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:gravity="center"
-                android:paddingHorizontal="10dp"
                 android:text="Timer"
                 android:textColor="#FFFFFF"
-                android:textSize="11sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/btnAudioLoopToggle"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/circle_bg"
-                android:gravity="center"
-                android:paddingHorizontal="10dp"
-                android:text="Loop All"
-                android:textColor="#00FFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:id="@+id/btnAudioThreeDots"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_more"
+                    app:tint="#FFFFFF" />
+            </FrameLayout>
         </LinearLayout>
 
-        <!-- Straight Timeline SeekBar Row -->
-        <LinearLayout
+        <!-- Time Labels Row -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginTop="8dp">
 
             <TextView
                 android:id="@+id/tvAudioCurrentTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="00:00"
+                android:layout_alignParentStart="true"
+                android:text="0:00"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold" />
-
-            <SeekBar
-                android:id="@+id/seekBarAudio"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:layout_weight="1"
-                android:max="100"
-                android:progressTint="#00FFFF"
-                android:thumbTint="#00FFFF" />
 
             <TextView
                 android:id="@+id/tvAudioTotalTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="00:00"
-                android:textColor="#B0B0C0"
-                android:textSize="12sp"
+                android:layout_alignParentEnd="true"
+                android:text="0:00"
+                android:textColor="#FFFFFF"
+                android:textSize="12.5sp"
                 android:textStyle="bold" />
-        </LinearLayout>
+        </RelativeLayout>
 
-        <!-- Main Bottom Playback Row: Left Favorite | Prev | Play/Pause | Next | Right Queue -->
+        <!-- Waveform Bar OR Simple Straight SeekBar Container -->
+        <FrameLayout
+            android:id="@+id/frameScrubberContainer"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp">
+
+            <SeekBar
+                android:id="@+id/seekBarAudioStraight"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:max="1000"
+                android:progressTint="#00FFFF"
+                android:thumbTint="#00FFFF"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Transport Controls Row: Shuffle | Prev | Cyan Ring Play/Pause | Next | Loop -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="68dp"
+            android:layout_marginTop="6dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:weightSum="5">
 
-            <!-- Bottom Left Corner: Favorite Star Button -->
-            <ImageView
-                android:id="@+id/btnAudioFavoriteCorner"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:background="@drawable/circle_bg"
-                android:padding="9dp"
-                android:src="@android:drawable/btn_star_big_off" />
-
-            <View
+            <TextView
+                android:id="@+id/btnAudioShuffle"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="🔀"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/btnAudioPrev"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/circle_bg"
-                android:padding="10dp"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:padding="8dp"
                 app:srcCompat="@android:drawable/ic_media_previous"
                 app:tint="#FFFFFF" />
 
-            <ImageView
-                android:id="@+id/btnAudioPlayPause"
-                android:layout_width="58dp"
-                android:layout_height="58dp"
-                android:layout_marginHorizontal="18dp"
-                android:background="@drawable/circle_bg"
-                android:padding="14dp"
-                app:srcCompat="@android:drawable/ic_media_pause"
-                app:tint="#00FFFF" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="62dp"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:id="@+id/btnAudioPlayPause"
+                    android:layout_width="58dp"
+                    android:layout_height="58dp"
+                    android:layout_gravity="center"
+                    android:padding="13dp"
+                    app:srcCompat="@android:drawable/ic_media_pause"
+                    app:tint="#FFFFFF" />
+            </FrameLayout>
 
             <ImageView
                 android:id="@+id/btnAudioNext"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/circle_bg"
-                android:padding="10dp"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:padding="8dp"
                 app:srcCompat="@android:drawable/ic_media_next"
                 app:tint="#FFFFFF" />
 
-            <View
+            <TextView
+                android:id="@+id/btnAudioLoopMode"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <!-- Bottom Right Corner: Sliding Playing Queue Button -->
-            <ImageView
-                android:id="@+id/btnAudioQueueCorner"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:background="@drawable/circle_bg"
-                android:padding="9dp" />
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="🔁"
+                android:textColor="#00FFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
         </LinearLayout>
+
+        <!-- Bottom Bar: Left = Pocket Shake (Default OFF) | Right = Playing Queue (X/Y) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnBottomLeftPocketShake"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="start|center_vertical"
+                android:paddingStart="6dp"
+                android:text="📳  Pocket Shake: OFF"
+                android:textColor="#B0B0C0"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnBottomRightPlayingQueue"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="end|center_vertical"
+                android:paddingEnd="6dp"
+                android:text="≡  Playing Queue (1/1)"
+                android:textColor="#FFFFFF"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Outside Scrim: Tapping anywhere on display closes the Playing Queue -->
+    <View
+        android:id="@+id/scrimQueueOutside"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:visibility="gone" />
+
+    <!-- Right-to-Left Sliding Playing Queue Drawer (Shows 10-11 Songs + Singer Name + Top Close X) -->
+    <LinearLayout
+        android:id="@+id/drawerPlayingQueueRight"
+        android:layout_width="308dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentEnd="true"
+        android:background="#F512121E"
+        android:clickable="true"
+        android:elevation="24dp"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="14dp"
+        android:visibility="gone">
+
+        <!-- Queue Header: Playing Queue (Current/Total) + Prominent Close (✕) Button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvDrawerQueueHeader"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Playing Queue (1/1)"
+                android:textColor="#00FFFF"
+                android:textSize="15.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnCloseQueueDrawer"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/circle_bg"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="6dp"
+            android:background="#26FFFFFF" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSlidingAudioQueue"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="vertical" />
     </LinearLayout>
 
 </RelativeLayout>
