@@ -1,15 +1,12 @@
 package com.app.mediaplayer
 
 import android.app.AlertDialog
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -22,114 +19,78 @@ import java.util.concurrent.TimeUnit
 
 class AudioAdapter(
     private val context: Context,
-    private val tracks: List<MusicTrack>,
-    private val onDataChanged: (() -> Unit)? = null
-) : RecyclerView.Adapter<AudioAdapter.AudioViewHolder>() {
+    private val audioList: MutableList<AudioModel>
+) : RecyclerView.Adapter<AudioAdapter.AudioVH>() {
 
-    data class MusicTrack(
-        val id: Long,
-        val title: String,
-        val artist: String,
-        val path: String,
-        val size: Long,
-        val duration: Long,
-        val albumId: Long = 0L
-    )
-
-    class AudioViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val imgAudioThumb: ImageView = view.findViewById(R.id.imgAudioThumb)
+    class AudioVH(view: View) : RecyclerView.ViewHolder(view) {
+        val imgAudioArt: ImageView = view.findViewById(R.id.imgAudioArt)
         val tvAudioTitle: TextView = view.findViewById(R.id.tvAudioTitle)
-        val tvAudioSubtitle: TextView = view.findViewById(R.id.tvAudioSubtitle)
-        val btnAudioItemMore: ImageView = view.findViewById(R.id.btnAudioItemMore)
+        val tvAudioArtistDuration: TextView = view.findViewById(R.id.tvAudioArtistDuration)
+        val btnAudioMore: ImageView = view.findViewById(R.id.btnAudioMore)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AudioViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AudioVH {
         val view = LayoutInflater.from(context).inflate(R.layout.item_audio, parent, false)
-        return AudioViewHolder(view)
+        return AudioVH(view)
     }
 
-    override fun onBindViewHolder(holder: AudioViewHolder, position: Int) {
-        val track = tracks[position]
-        val prefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-        val isFav = prefs.getBoolean("fav_audio_${track.path}", false)
-        val favBadge = if (isFav) " ♥" else ""
+    override fun onBindViewHolder(holder: AudioVH, position: Int) {
+        val song = audioList[position]
+        val audioPrefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val isFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
+        val favTag = if (isFav) " ★" else ""
 
-        holder.tvAudioTitle.text = track.title
-        val sizeMb = track.size / (1024.0 * 1024.0)
-        holder.tvAudioSubtitle.text = String.format(
-            Locale.US,
-            "%s • %s • %.1f MB%s",
-            track.artist,
-            formatDuration(track.duration),
-            sizeMb,
-            favBadge
-        )
+        holder.tvAudioTitle.text = song.title
+        holder.tvAudioArtistDuration.text =
+            "${song.artist} • ${formatDuration(song.duration)} • ${formatSize(song.size)}$favTag"
 
-        // Load Custom Saved Song Photo OR Embedded Album Art at the start of each song item
-        val customPhotoUri = prefs.getString("custom_art_${track.path}", null)
-        val albumArtUri = when {
-            !customPhotoUri.isNullOrEmpty() -> Uri.parse(customPhotoUri)
-            track.albumId > 0L -> ContentUris.withAppendedId(
-                Uri.parse("content://media/external/audio/albumart"),
-                track.albumId
-            )
-            else -> null
-        }
-
-        if (albumArtUri != null) {
-            holder.imgAudioThumb.setPadding(0, 0, 0, 0)
-            holder.imgAudioThumb.clearColorFilter()
+        val customArtUri = audioPrefs.getString("custom_art_${song.path}", null)
+        if (!customArtUri.isNullOrEmpty()) {
+            holder.imgAudioArt.setPadding(0, 0, 0, 0)
+            holder.imgAudioArt.clearColorFilter()
             Glide.with(context)
-                .load(albumArtUri)
+                .load(Uri.parse(customArtUri))
                 .placeholder(android.R.drawable.ic_lock_silent_mode_off)
-                .error(android.R.drawable.ic_lock_silent_mode_off)
                 .centerCrop()
-                .into(holder.imgAudioThumb)
+                .into(holder.imgAudioArt)
         } else {
-            val pad = (10 * context.resources.displayMetrics.density).toInt()
-            holder.imgAudioThumb.setPadding(pad, pad, pad, pad)
-            holder.imgAudioThumb.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
-            holder.imgAudioThumb.setColorFilter(Color.parseColor("#00FFFF"))
+            val d = (10 * context.resources.displayMetrics.density).toInt()
+            holder.imgAudioArt.setPadding(d, d, d, d)
+            holder.imgAudioArt.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+            holder.imgAudioArt.setColorFilter(android.graphics.Color.parseColor("#00FFFF"))
         }
 
         holder.itemView.setOnClickListener {
-            openAudioPlayer(position)
+            launchAudioPlayer(position)
         }
 
-        // High-Contrast Crystal-Clear Custom 3-Dots Dialog for each Song Item
-        holder.btnAudioItemMore.setOnClickListener {
-            val currentFav = prefs.getBoolean("fav_audio_${track.path}", false)
-            val menuItems = arrayOf(
-                "▶ Play Song Now",
-                "➕ Add to Playlist",
-                if (currentFav) "💔 Remove from Favorites" else "❤️ Add to Favorites",
-                "📤 Share Audio File",
-                "ℹ️ Song Information"
+        holder.btnAudioMore.setOnClickListener {
+            val curFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
+            val options = arrayOf(
+                "Play Song",
+                if (curFav) "Remove from Favorites ★" else "Add to Favorites ☆",
+                "Open 5-Band Equalizer",
+                "Share Audio File",
+                "Song Details & Path"
             )
-
-            MusicFragment.showBrightStyledMenuDialog(context, track.title, menuItems) { which ->
+            VideoFragment.showBrightVideoMenuDialog(context, song.title, options) { which ->
                 when (which) {
-                    0 -> openAudioPlayer(position)
+                    0 -> launchAudioPlayer(position)
                     1 -> {
-                        showAddToPlaylistDialog(context, track.path, track.title) {
-                            onDataChanged?.invoke()
-                        }
-                    }
-                    2 -> {
-                        prefs.edit().putBoolean("fav_audio_${track.path}", !currentFav).apply()
-                        notifyItemChanged(position)
-                        onDataChanged?.invoke()
+                        audioPrefs.edit().putBoolean("fav_audio_${song.path}", !curFav).apply()
+                        notifyItemChanged(holder.adapterPosition)
                         Toast.makeText(
                             context,
-                            if (!currentFav) "Added to Favorites" else "Removed from Favorites",
+                            if (!curFav) "Added to Favorites" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+                    2 -> EqualizerHelper.showEqualizerDialog(context, 0)
                     3 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "audio/*"
-                                putExtra(Intent.EXTRA_STREAM, Uri.parse(track.path))
+                                putExtra(Intent.EXTRA_STREAM, Uri.parse(song.path))
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Share Audio"))
@@ -138,14 +99,15 @@ class AudioAdapter(
                         }
                     }
                     4 -> {
-                        AlertDialog.Builder(context)
-                            .setTitle("Song Details")
+                        AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                            .setTitle("Audio Properties")
                             .setMessage(
-                                "Title: ${track.title}\n\n" +
-                                    "Singer / Artist: ${track.artist}\n\n" +
-                                    "Duration: ${formatDuration(track.duration)}\n\n" +
-                                    "Size: ${String.format(Locale.US, "%.2f MB", sizeMb)}\n\n" +
-                                    "Location: ${track.path}"
+                                "Title: ${song.title}\n\n" +
+                                    "Artist: ${song.artist}\n\n" +
+                                    "Album: ${song.album}\n\n" +
+                                    "Duration: ${formatDuration(song.duration)}\n\n" +
+                                    "Size: ${formatSize(song.size)}\n\n" +
+                                    "Path: ${song.path}"
                             )
                             .setPositiveButton("OK", null)
                             .show()
@@ -155,114 +117,42 @@ class AudioAdapter(
         }
     }
 
-    private fun openAudioPlayer(pos: Int) {
-        val safePos = pos.coerceIn(0, tracks.size - 1)
-        val chosen = tracks[safePos]
-        val paths = ArrayList<String>(tracks.size)
-        val titles = ArrayList<String>(tracks.size)
-        val artists = ArrayList<String>(tracks.size)
-        val albumIds = ArrayList<String>(tracks.size)
+    private fun launchAudioPlayer(selectedIndex: Int) {
+        if (selectedIndex !in audioList.indices) return
+        val song = audioList[selectedIndex]
+        val allPaths = ArrayList<String>(audioList.size)
+        val allTitles = ArrayList<String>(audioList.size)
+        val allArtists = ArrayList<String>(audioList.size)
 
-        for (item in tracks) {
-            paths.add(item.path)
-            titles.add(item.title)
-            artists.add(item.artist)
-            albumIds.add(item.albumId.toString())
+        for (item in audioList) {
+            allPaths.add(item.path)
+            allTitles.add(item.title)
+            allArtists.add(item.artist)
         }
 
         val intent = Intent(context, AudioPlayerActivity::class.java).apply {
-            putExtra("AUDIO_PATH", chosen.path)
-            putExtra("AUDIO_TITLE", chosen.title)
-            putExtra("AUDIO_ARTIST", chosen.artist)
-            putExtra("AUDIO_DURATION", chosen.duration)
-            putExtra("AUDIO_ID", chosen.id)
-            putExtra("AUDIO_ALBUM_ID", chosen.albumId)
-            putExtra("AUDIO_POSITION", safePos)
-            putStringArrayListExtra("AUDIO_LIST_PATHS", paths)
-            putStringArrayListExtra("AUDIO_LIST_TITLES", titles)
-            putStringArrayListExtra("AUDIO_LIST_ARTISTS", artists)
-            putStringArrayListExtra("AUDIO_LIST_ALBUM_IDS", albumIds)
+            putExtra("AUDIO_PATH", song.path)
+            putExtra("AUDIO_TITLE", song.title)
+            putExtra("AUDIO_ARTIST", song.artist)
+            putExtra("AUDIO_INDEX", selectedIndex)
+            putStringArrayListExtra("AUDIO_LIST", allPaths)
+            putStringArrayListExtra("AUDIO_TITLES", allTitles)
+            putStringArrayListExtra("AUDIO_ARTISTS", allArtists)
         }
         context.startActivity(intent)
     }
 
-    override fun getItemCount(): Int = tracks.size
+    override fun getItemCount(): Int = audioList.size
 
-    private fun formatDuration(durationMillis: Long): String {
-        val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(durationMillis.coerceAtLeast(0L))
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-        return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+    private fun formatSize(bytes: Long): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        return String.format(Locale.US, "%.1f MB", mb)
     }
 
-    companion object {
-        fun getAllPlaylists(context: Context): Set<String> {
-            val prefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-            return prefs.getStringSet("custom_audio_playlists", emptySet()) ?: emptySet()
-        }
-
-        fun savePlaylistName(context: Context, name: String) {
-            val prefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-            val current = getAllPlaylists(context).toMutableSet()
-            current.add(name)
-            prefs.edit().putStringSet("custom_audio_playlists", current).apply()
-        }
-
-        fun getPlaylistSongs(context: Context, playlistName: String): Set<String> {
-            val prefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-            return prefs.getStringSet("playlist_songs_$playlistName", emptySet()) ?: emptySet()
-        }
-
-        fun addSongToPlaylist(context: Context, playlistName: String, songPath: String) {
-            savePlaylistName(context, playlistName)
-            val prefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-            val songs = getPlaylistSongs(context, playlistName).toMutableSet()
-            songs.add(songPath)
-            prefs.edit().putStringSet("playlist_songs_$playlistName", songs).apply()
-        }
-
-        fun showAddToPlaylistDialog(
-            context: Context,
-            songPath: String,
-            songTitle: String,
-            onAdded: (() -> Unit)? = null
-        ) {
-            val existing = getAllPlaylists(context).toList()
-            val options = mutableListOf("+ Create New Playlist")
-            options.addAll(existing)
-
-            MusicFragment.showBrightStyledMenuDialog(
-                context,
-                "Add '$songTitle' to Playlist",
-                options.toTypedArray()
-            ) { which ->
-                if (which == 0) {
-                    val input = EditText(context).apply {
-                        hint = "Playlist Name (e.g. Favorites, Driving)"
-                        setHintTextColor(Color.parseColor("#888899"))
-                        setTextColor(Color.WHITE)
-                        setPadding(45, 35, 45, 35)
-                    }
-                    AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setTitle("Create & Add to Playlist")
-                        .setView(input)
-                        .setPositiveButton("Save") { _, _ ->
-                            val name = input.text.toString().trim()
-                            if (name.isNotEmpty()) {
-                                addSongToPlaylist(context, name, songPath)
-                                onAdded?.invoke()
-                                Toast.makeText(context, "Added to '$name'", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        .setNegativeButton("Cancel", null)
-                        .show()
-                } else {
-                    val chosenPlaylist = existing[which - 1]
-                    addSongToPlaylist(context, chosenPlaylist, songPath)
-                    onAdded?.invoke()
-                    Toast.makeText(context, "Added to '$chosenPlaylist'", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+    private fun formatDuration(millis: Long): String {
+        val safe = millis.coerceAtLeast(0L)
+        val mins = TimeUnit.MILLISECONDS.toMinutes(safe)
+        val secs = TimeUnit.MILLISECONDS.toSeconds(safe) % 60
+        return String.format(Locale.US, "%02d:%02d", mins, secs)
     }
 }
