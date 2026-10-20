@@ -29,13 +29,13 @@
     <application
         android:allowBackup="true"
         android:hardwareAccelerated="true"
-        android:icon="@drawable/ic_max_logo"
+        android:icon="@android:drawable/ic_media_play"
         android:label="MAX Player Pro"
         android:largeHeap="true"
         android:requestLegacyExternalStorage="true"
-        android:roundIcon="@drawable/ic_max_logo"
+        android:roundIcon="@android:drawable/ic_media_play"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MediaPlayer"
+        android:theme="@style/Theme.AppCompat.NoActionBar"
         android:usesCleartextTraffic="true">
 
         <activity
@@ -53,6 +53,7 @@
             android:name=".MainActivity"
             android:exported="false"
             android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
             android:windowSoftInputMode="adjustPan" />
 
         <activity
