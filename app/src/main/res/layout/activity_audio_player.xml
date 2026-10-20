@@ -146,8 +146,8 @@
                     android:layout_gravity="top|end"
                     android:layout_marginTop="4dp"
                     android:layout_marginEnd="10dp"
-                    android:pivotX="72dp"
-                    android:pivotY="14dp"
+                    android:transformPivotX="72dp"
+                    android:transformPivotY="14dp"
                     android:rotation="-24" />
             </FrameLayout>
 
@@ -216,7 +216,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Two Flat Dash Indicators (— —) for Vinyl Page vs Lyrics Page -->
+    <!-- Two Flat Dash Indicators for Vinyl Page vs Lyrics Page -->
     <LinearLayout
         android:id="@+id/llFlatPageIndicators"
         android:layout_width="match_parent"
@@ -351,7 +351,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Main Bottom Playback Row: Left Favorite (♥) | Prev | Play/Pause | Next | Right Queue -->
+        <!-- Main Bottom Playback Row: Left Favorite | Prev | Play/Pause | Next | Right Queue -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="64dp"
@@ -359,7 +359,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Bottom Left Corner: Favorite Heart/Star Button -->
+            <!-- Bottom Left Corner: Favorite Star Button -->
             <ImageView
                 android:id="@+id/btnAudioFavoriteCorner"
                 android:layout_width="42dp"
