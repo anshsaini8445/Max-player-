@@ -4,18 +4,24 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
@@ -23,7 +29,7 @@ import kotlin.concurrent.thread
 
 class AudioFragment : Fragment() {
 
-    private lateinit var rootAudioFragment: LinearLayout
+    private lateinit var rootAudioFragment: RelativeLayout
     private lateinit var tvAudioTabSongs: TextView
     private lateinit var tvAudioTabFolders: TextView
     private lateinit var tvAudioTabAlbums: TextView
@@ -36,6 +42,12 @@ class AudioFragment : Fragment() {
     private lateinit var rvAudioList: RecyclerView
     private lateinit var llAudioEmptyState: LinearLayout
 
+    private lateinit var cardBottomMiniPlayer: CardView
+    private lateinit var imgMiniPlayerArt: ImageView
+    private lateinit var tvMiniPlayerTitle: TextView
+    private lateinit var tvMiniPlayerArtist: TextView
+    private lateinit var btnMiniPlayerPlayPause: TextView
+
     private val allSongsList = mutableListOf<AudioTrackModel>()
     private val displayedSongsList = mutableListOf<AudioTrackModel>()
     private lateinit var audioAdapter: AudioAdapter
@@ -43,6 +55,15 @@ class AudioFragment : Fragment() {
     private var activeSubTab = 0
     private var sortOrderMode = 0
     private var isScanningAudio = false
+    private var accentColor = Color.parseColor("#00FFFF")
+
+    private val miniPlayerHandler = Handler(Looper.getMainLooper())
+    private val miniPlayerSyncRunnable = object : Runnable {
+        override fun run() {
+            syncBottomMiniPlayerBar()
+            miniPlayerHandler.postDelayed(this, 600)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,6 +72,7 @@ class AudioFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_audio, container, false)
         bindViews(view)
+        applySavedTheme()
         setupClicks()
         loadAllAudioFast()
         return view
@@ -58,7 +80,14 @@ class AudioFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        applySavedTheme()
         loadAllAudioFast()
+        miniPlayerHandler.post(miniPlayerSyncRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        miniPlayerHandler.removeCallbacks(miniPlayerSyncRunnable)
     }
 
     private fun bindViews(view: View) {
@@ -75,9 +104,46 @@ class AudioFragment : Fragment() {
         rvAudioList = view.findViewById(R.id.rvAudioList)
         llAudioEmptyState = view.findViewById(R.id.llAudioEmptyState)
 
+        cardBottomMiniPlayer = view.findViewById(R.id.cardBottomMiniPlayer)
+        imgMiniPlayerArt = view.findViewById(R.id.imgMiniPlayerArt)
+        tvMiniPlayerTitle = view.findViewById(R.id.tvMiniPlayerTitle)
+        tvMiniPlayerArtist = view.findViewById(R.id.tvMiniPlayerArtist)
+        btnMiniPlayerPlayPause = view.findViewById(R.id.btnMiniPlayerPlayPause)
+        tvMiniPlayerTitle.isSelected = true
+
         rvAudioList.layoutManager = LinearLayoutManager(requireContext())
         audioAdapter = AudioAdapter(requireContext(), displayedSongsList)
         rvAudioList.adapter = audioAdapter
+    }
+
+    private fun applySavedTheme() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
+        val bgHex = prefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
+        val accentHex = prefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        try {
+            rootAudioFragment.setBackgroundColor(Color.parseColor(bgHex))
+            accentColor = Color.parseColor(accentHex)
+        } catch (e: Exception) {
+            accentColor = Color.parseColor("#00FFFF")
+        }
+        btnShuffleAllAudio.setTextColor(accentColor)
+        tvMiniPlayerArtist.setTextColor(accentColor)
+        btnMiniPlayerPlayPause.setTextColor(accentColor)
+        updateSubTabColors()
+    }
+
+    private fun updateSubTabColors() {
+        val tabs = listOf(
+            tvAudioTabSongs,
+            tvAudioTabFolders,
+            tvAudioTabAlbums,
+            tvAudioTabArtists,
+            tvAudioTabPlaylists
+        )
+        tabs.forEachIndexed { idx, tv ->
+            tv.setTextColor(if (idx == activeSubTab) accentColor else Color.WHITE)
+        }
     }
 
     private fun setupClicks() {
@@ -92,12 +158,7 @@ class AudioFragment : Fragment() {
         tabs.forEachIndexed { index, tabView ->
             tabView.setOnClickListener {
                 activeSubTab = index
-                tabs.forEachIndexed { idx, tv ->
-                    tv.setTextColor(
-                        if (idx == activeSubTab) Color.parseColor("#00FFFF")
-                        else Color.parseColor("#B0B0C0")
-                    )
-                }
+                updateSubTabColors()
                 refreshDisplayedSongs()
             }
         }
@@ -128,23 +189,69 @@ class AudioFragment : Fragment() {
             startActivity(intent)
         }
 
+        // High-Contrast Pure White 3-Dots Sort & Filter Dialog
         btnAudioSortMenu.setOnClickListener {
             val ctx = context ?: return@setOnClickListener
             val items = arrayOf(
-                if (sortOrderMode == 0) "[Active] Sort: Newest First" else "Sort: Newest First",
-                if (sortOrderMode == 1) "[Active] Sort: Title (A to Z)" else "Sort: Title (A to Z)",
-                if (sortOrderMode == 2) "[Active] Sort: Artist Name" else "Sort: Artist Name",
-                if (sortOrderMode == 3) "[Active] Sort: Longest Duration" else "Sort: Longest Duration",
-                "Open 5-Band Dolby Equalizer"
+                if (sortOrderMode == 0) "✓ Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
+                if (sortOrderMode == 1) "✓ Sort: Name (A to Z)" else "Sort: Name (A to Z)",
+                if (sortOrderMode == 2) "✓ Sort: Artist Name" else "Sort: Artist Name",
+                if (sortOrderMode == 3) "✓ Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
+                if (sortOrderMode == 4) "✓ Sort: Largest File Size" else "Sort: Largest File Size",
+                "Open Built-in 5-Band Equalizer"
             )
-            VideoFragment.showBrightVideoMenuDialog(ctx, "Music Sort & Tools", items) { which ->
-                if (which == 4) {
-                    EqualizerHelper.showEqualizerDialog(ctx, 0)
+            VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
+                if (which == 5) {
+                    EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
                 } else {
                     sortOrderMode = which
                     refreshDisplayedSongs()
                 }
             }
+        }
+
+        cardBottomMiniPlayer.setOnClickListener {
+            val ctx = context ?: return@setOnClickListener
+            val curPath = AudioPlayerActivity.getCurrentPlayingPath()
+            if (curPath.isNotEmpty()) {
+                val intent = Intent(ctx, AudioPlayerActivity::class.java).apply {
+                    putExtra("RESUME_EXISTING", true)
+                }
+                startActivity(intent)
+            }
+        }
+
+        btnMiniPlayerPlayPause.setOnClickListener {
+            AudioPlayerActivity.toggleSharedPlaybackFromMiniPlayer()
+            syncBottomMiniPlayerBar()
+        }
+    }
+
+    private fun syncBottomMiniPlayerBar() {
+        val ctx = context ?: return
+        val curPath = AudioPlayerActivity.getCurrentPlayingPath()
+        if (curPath.isEmpty()) {
+            cardBottomMiniPlayer.visibility = View.GONE
+            return
+        }
+        cardBottomMiniPlayer.visibility = View.VISIBLE
+        tvMiniPlayerTitle.text = AudioPlayerActivity.getCurrentPlayingTitle()
+        tvMiniPlayerArtist.text = AudioPlayerActivity.getCurrentPlayingArtist()
+        tvMiniPlayerTitle.isSelected = true
+
+        val playing = AudioPlayerActivity.isSharedPlayerPlaying()
+        btnMiniPlayerPlayPause.text = if (playing) "||" else "▶"
+
+        val audioPrefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val customArt = audioPrefs.getString("custom_art_$curPath", null)
+        if (!customArt.isNullOrEmpty()) {
+            Glide.with(ctx)
+                .load(Uri.parse(customArt))
+                .placeholder(android.R.drawable.ic_lock_silent_mode_off)
+                .centerCrop()
+                .into(imgMiniPlayerArt)
+        } else {
+            imgMiniPlayerArt.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
         }
     }
 
@@ -158,6 +265,7 @@ class AudioFragment : Fragment() {
                 val ctx = context ?: return@thread
                 val projection = arrayOf(
                     MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.ALBUM_ID,
                     MediaStore.Audio.Media.DISPLAY_NAME,
                     MediaStore.Audio.Media.TITLE,
                     MediaStore.Audio.Media.ARTIST,
@@ -174,7 +282,7 @@ class AudioFragment : Fragment() {
                     null,
                     sort
                 )?.use { cursor ->
-                    val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+                    val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
                     val dispCol = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
                     val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                     val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
@@ -182,9 +290,11 @@ class AudioFragment : Fragment() {
                     val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
                     val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                     val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+                    val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
 
                     while (cursor.moveToNext()) {
                         val id = if (idCol != -1) cursor.getLong(idCol) else 0L
+                        val albumId = if (albumIdCol != -1) cursor.getLong(albumIdCol) else id
                         val rawPath = if (dataCol != -1) cursor.getString(dataCol) else null
                         val path = if (!rawPath.isNullOrEmpty()) {
                             rawPath
@@ -202,7 +312,7 @@ class AudioFragment : Fragment() {
                         val folder = File(path).parentFile?.name ?: "Music"
 
                         if (duration >= 1000L) {
-                            tempSongs.add(AudioTrackModel(id, title, artist, album, path, size, duration, folder))
+                            tempSongs.add(AudioTrackModel(albumId, title, artist, album, path, size, duration, folder))
                         }
                     }
                 }
@@ -216,6 +326,7 @@ class AudioFragment : Fragment() {
                 allSongsList.clear()
                 allSongsList.addAll(tempSongs)
                 refreshDisplayedSongs()
+                syncBottomMiniPlayerBar()
             }
         }
     }
@@ -236,6 +347,7 @@ class AudioFragment : Fragment() {
             1 -> baseList.sortedBy { it.title.lowercase(Locale.getDefault()) }
             2 -> baseList.sortedBy { it.artist.lowercase(Locale.getDefault()) }
             3 -> baseList.sortedByDescending { it.duration }
+            4 -> baseList.sortedByDescending { it.size }
             else -> baseList
         }
 
