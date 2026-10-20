@@ -36,8 +36,8 @@ class AudioFragment : Fragment() {
     private lateinit var rvAudioList: RecyclerView
     private lateinit var llAudioEmptyState: LinearLayout
 
-    private val allSongsList = mutableListOf<AudioModel>()
-    private val displayedSongsList = mutableListOf<AudioModel>()
+    private val allSongsList = mutableListOf<AudioTrackModel>()
+    private val displayedSongsList = mutableListOf<AudioTrackModel>()
     private lateinit var audioAdapter: AudioAdapter
 
     private var activeSubTab = 0
@@ -153,7 +153,7 @@ class AudioFragment : Fragment() {
         isScanningAudio = true
 
         thread {
-            val tempSongs = mutableListOf<AudioModel>()
+            val tempSongs = mutableListOf<AudioTrackModel>()
             try {
                 val ctx = context ?: return@thread
                 val projection = arrayOf(
@@ -202,7 +202,7 @@ class AudioFragment : Fragment() {
                         val folder = File(path).parentFile?.name ?: "Music"
 
                         if (duration >= 1000L) {
-                            tempSongs.add(AudioModel(id, title, artist, album, path, size, duration, folder))
+                            tempSongs.add(AudioTrackModel(id, title, artist, album, path, size, duration, folder))
                         }
                     }
                 }
