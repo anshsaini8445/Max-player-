@@ -40,7 +40,7 @@
             android:layout_height="wrap_content"
             android:paddingHorizontal="18dp"
             android:paddingVertical="8dp"
-            android:text="4.0x Fast Play ⏩"
+            android:text="4.0x Fast Play >>"
             android:textColor="#00FFFF"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -64,7 +64,7 @@
             android:layout_height="wrap_content"
             android:paddingHorizontal="14dp"
             android:paddingVertical="6dp"
-            android:text="Zoom: 150% • Reset"
+            android:text="Zoom: 150% | Reset"
             android:textColor="#00FFFF"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -110,7 +110,7 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <!-- HDR Visual Enhancer Button with Red New Badge Container -->
+            <!-- HDR Visual Enhancer Button with New Badge Container -->
             <FrameLayout
                 android:id="@+id/frameHdrContainer"
                 android:layout_width="wrap_content"
@@ -290,8 +290,8 @@
                     android:id="@+id/seekBarPlayer"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:layout_marginHorizontal="8dp"
+                    android:layout_weight="1"
                     android:max="100"
                     android:progressTint="#00FFFF"
                     android:thumbTint="#00FFFF" />
@@ -440,7 +440,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Half-Screen Advanced Settings Menu Panel (Bottom in Portrait, Right in Landscape) -->
+    <!-- Half-Screen Advanced Settings Menu Panel -->
     <ScrollView
         android:id="@+id/layoutAdvancedSettings"
         android:layout_width="match_parent"
@@ -476,7 +476,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="6dp"
-                    android:text="✕ Close"
+                    android:text="X Close"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -661,7 +661,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
-                    android:text="VR 360° View Mode"
+                    android:text="VR 360 View Mode"
                     android:textColor="#FFFFFF"
                     android:textSize="14.5sp" />
             </LinearLayout>
@@ -693,7 +693,7 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_daytime"
+                    android:src="@android:drawable/ic_menu_compass"
                     app:tint="#00E676" />
 
                 <TextView
@@ -737,7 +737,7 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_clock"
+                    android:src="@android:drawable/ic_menu_recent_history"
                     app:tint="#FFAB00" />
 
                 <TextView
