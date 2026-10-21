@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootMeScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0A10"
+    android:background="#0D1B2A"
     android:clipToPadding="false"
     android:paddingBottom="28dp"
     android:scrollbars="none">
@@ -15,18 +16,19 @@
         android:paddingHorizontal="16dp"
         android:paddingTop="14dp">
 
-        <!-- TOP HEADER: App Brand & VIP Status Pill -->
+        <!-- TOP HEADER: OG Player Brand & VIP Status Pill -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center_vertical">
 
             <TextView
+                android:id="@+id/tvMeTopBrand"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
-                android:text="MAX STUDIO"
+                android:text="OG Player"
                 android:textColor="#FFFFFF"
                 android:textSize="22sp"
                 android:textStyle="bold" />
@@ -37,7 +39,7 @@
                 android:layout_height="32dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                app:cardBackgroundColor="#1E1E2E"
+                app:cardBackgroundColor="#172A3E"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp">
 
@@ -67,13 +69,13 @@
             </androidx.cardview.widget.CardView>
         </RelativeLayout>
 
-        <!-- PLAYIT STYLE PREMIUM VIP & GLOBAL PAYMENT CARD -->
+        <!-- OG PLAYER VIP & GLOBAL PAYMENT CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardVipBanner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            app:cardBackgroundColor="#171726"
+            app:cardBackgroundColor="#162A40"
             app:cardCornerRadius="20dp"
             app:cardElevation="8dp">
 
@@ -92,16 +94,15 @@
                     <androidx.cardview.widget.CardView
                         android:layout_width="52dp"
                         android:layout_height="52dp"
-                        app:cardBackgroundColor="#25253A"
-                        app:cardCornerRadius="26dp"
+                        app:cardBackgroundColor="#8AC3E6"
+                        app:cardCornerRadius="16dp"
                         app:cardElevation="0dp">
 
                         <ImageView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:padding="11dp"
-                            android:src="@android:drawable/btn_star_big_on"
-                            app:tint="#FFD700" />
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_launcher_foreground" />
                     </androidx.cardview.widget.CardView>
 
                     <LinearLayout
@@ -115,7 +116,7 @@
                             android:id="@+id/tvVipTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="MAX Pro VIP Member"
+                            android:text="OG Player VIP Member"
                             android:textColor="#FFD700"
                             android:textSize="17sp"
                             android:textStyle="bold" />
@@ -125,8 +126,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="3dp"
-                            android:text="Unlock All Pro Features • Support Developer Worldwide"
-                            android:textColor="#CCCCDD"
+                            android:text="Unlock 8K Pro Features • Support Developer Worldwide"
+                            android:textColor="#E0F2FE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -135,7 +136,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="12dp"
-                    android:background="#1AFFFFFF" />
+                    android:background="#26FFFFFF" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -151,7 +152,7 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="Pay via UPI / PayPal / Cards (Global)"
-                        android:textColor="#00FFFF"
+                        android:textColor="#5CE1E6"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -159,7 +160,7 @@
                         android:id="@+id/btnUpgradeVip"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
-                        android:background="#00FFFF"
+                        android:background="#5CE1E6"
                         android:gravity="center"
                         android:paddingHorizontal="16dp"
                         android:text="GET VIP / PAY"
@@ -170,14 +171,169 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- SECTION 1: PLAYIT STYLE 4 QUICK TOOLS GRID -->
+        <!-- SECTION: APP THEMES & CRYSTAL COLOR COMBINATIONS -->
+        <TextView
+            android:id="@+id/tvSectionThemesHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp"
+            android:text="OG Crystal Themes &amp; Color Combinations"
+            android:textColor="#5CE1E6"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardThemesBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#142538"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:id="@+id/rowThemeSelector"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:background="@drawable/circle_bg"
+                        android:padding="8dp"
+                        android:src="@android:drawable/ic_menu_gallery"
+                        app:tint="#5CE1E6" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Choose App Theme Combination"
+                            android:textColor="#FFFFFF"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvActiveThemeName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Active: OG Crystal Ice Blue (Icon Theme)"
+                            android:textColor="#8CE7FF"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:background="@drawable/circle_bg"
+                        android:gravity="center"
+                        android:paddingHorizontal="12dp"
+                        android:text="CHANGE"
+                        android:textColor="#5CE1E6"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Quick 1-Tap Color Combination Swatches Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:weightSum="5">
+
+                    <TextView
+                        android:id="@+id/btnThemeIceCrystal"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:background="#1D4E78"
+                        android:gravity="center"
+                        android:text="Ice 8K"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnThemeAquaGlass"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginHorizontal="4dp"
+                        android:layout_weight="1"
+                        android:background="#0F384C"
+                        android:gravity="center"
+                        android:text="Aqua"
+                        android:textColor="#72EFDD"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnThemeCyberDark"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginHorizontal="4dp"
+                        android:layout_weight="1"
+                        android:background="#0A0A14"
+                        android:gravity="center"
+                        android:text="Cyber"
+                        android:textColor="#00FFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnThemeRoyalPurple"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginHorizontal="4dp"
+                        android:layout_weight="1"
+                        android:background="#1F1135"
+                        android:gravity="center"
+                        android:text="Royal"
+                        android:textColor="#E0AAFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnThemeEmeraldPro"
+                        android:layout_width="0dp"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:background="#0B2922"
+                        android:gravity="center"
+                        android:text="Emerald"
+                        android:textColor="#00F5D4"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- SECTION 1: 4 QUICK TOOLS GRID -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:layout_marginBottom="10dp"
             android:text="Smart Media Tools"
-            android:textColor="#00FFFF"
+            android:textColor="#5CE1E6"
             android:textSize="14sp"
             android:textStyle="bold" />
 
@@ -194,7 +350,7 @@
                 android:layout_height="88dp"
                 android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="#141420"
+                app:cardBackgroundColor="#142538"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp">
 
@@ -211,7 +367,7 @@
                         android:background="@drawable/circle_bg"
                         android:padding="9dp"
                         android:src="@android:drawable/ic_lock_silent_mode_off"
-                        app:tint="#00FFFF" />
+                        app:tint="#5CE1E6" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -233,7 +389,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Extract Audio"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -245,7 +401,7 @@
                 android:layout_height="88dp"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="#141420"
+                app:cardBackgroundColor="#142538"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp">
 
@@ -284,7 +440,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Send &amp; Receive"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -305,7 +461,7 @@
                 android:layout_height="88dp"
                 android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="#141420"
+                app:cardBackgroundColor="#142538"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp">
 
@@ -344,7 +500,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Secret Lock Box"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -356,7 +512,7 @@
                 android:layout_height="88dp"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="#141420"
+                app:cardBackgroundColor="#142538"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp">
 
@@ -395,7 +551,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Dolby Bass Boost"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -409,14 +565,15 @@
             android:layout_marginTop="22dp"
             android:layout_marginBottom="10dp"
             android:text="Player Controls &amp; Settings"
-            android:textColor="#00FFFF"
+            android:textColor="#5CE1E6"
             android:textSize="14sp"
             android:textStyle="bold" />
 
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardControlsBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="#141420"
+            app:cardBackgroundColor="#142538"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp">
 
@@ -440,7 +597,7 @@
                         android:background="@drawable/circle_bg"
                         android:padding="8dp"
                         android:src="@android:drawable/ic_media_play"
-                        app:tint="#00FFFF" />
+                        app:tint="#5CE1E6" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -463,7 +620,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Hold Speed: 4.0x • Side Buttons • HDR &amp; CC"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -471,14 +628,14 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@android:drawable/ic_media_ff"
-                        app:tint="#666677" />
+                        app:tint="#88A0B8" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- Music / Audio Player Controls -->
                 <LinearLayout
@@ -518,7 +675,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Pocket 2x Shake: OFF • Vinyl / Album Box"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -526,16 +683,16 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@android:drawable/ic_media_ff"
-                        app:tint="#666677" />
+                        app:tint="#88A0B8" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
-                <!-- Edit Payment Profile ID (Owner / VIP Config) -->
+                <!-- Edit Payment Profile ID -->
                 <LinearLayout
                     android:id="@+id/rowPaymentSetup"
                     android:layout_width="match_parent"
@@ -572,7 +729,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Manage UPI ID, Global PayPal/Payment Link"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -587,7 +744,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- Clear Watch & Search History -->
                 <LinearLayout
@@ -626,7 +783,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Clean recent watched videos &amp; temp data"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -641,14 +798,15 @@
             android:layout_marginTop="22dp"
             android:layout_marginBottom="10dp"
             android:text="Support, Rating &amp; App Info"
-            android:textColor="#00FFFF"
+            android:textColor="#5CE1E6"
             android:textSize="14sp"
             android:textStyle="bold" />
 
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardSupportBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="#141420"
+            app:cardBackgroundColor="#142538"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp">
 
@@ -693,8 +851,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Love MAX Player? Rate us on Google Play Store"
-                            android:textColor="#888899"
+                            android:text="Love OG Player? Rate us on Google Play Store"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -703,7 +861,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- Report a Bug / Complaint -->
                 <LinearLayout
@@ -742,7 +900,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="Facing an error? Send bug report or Play Store feedback"
-                            android:textColor="#888899"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -751,7 +909,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- Share App with Friends -->
                 <LinearLayout
@@ -768,7 +926,7 @@
                         android:background="@drawable/circle_bg"
                         android:padding="8dp"
                         android:src="@android:drawable/ic_menu_share"
-                        app:tint="#00FFFF" />
+                        app:tint="#5CE1E6" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -780,7 +938,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Share MAX Player Pro"
+                            android:text="Share OG Player"
                             android:textColor="#FFFFFF"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -789,8 +947,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Invite friends to download the player"
-                            android:textColor="#888899"
+                            android:text="Invite friends to download OG 8K Player"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -799,7 +957,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginHorizontal="15dp"
-                    android:background="#16FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- About App & Version Info -->
                 <LinearLayout
@@ -837,8 +995,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="MAX Player Pro v2.5.0 • 4K Ultra HD Engine"
-                            android:textColor="#888899"
+                            android:text="OG 8K Player v3.0 • Crystal 8K Ultra HD Engine"
+                            android:textColor="#B0C4DE"
                             android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
