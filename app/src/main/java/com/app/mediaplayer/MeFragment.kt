@@ -1,8 +1,6 @@
 package com.app.mediaplayer
 
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -32,30 +30,11 @@ import kotlin.concurrent.thread
 class MeFragment : Fragment() {
 
     companion object {
-        private const val DEFAULT_UPI_ID = "anshsaini@upi"
-        private const val DEFAULT_GLOBAL_PAY_URL = "https://paypal.me/maxplayerpro"
-        private const val DEFAULT_SUPPORT_EMAIL = "support.ogplayer@gmail.com"
+        private const val SUPPORT_EMAIL = "support.maxplayerpro@gmail.com"
     }
 
-    private lateinit var rootMeScrollView: ScrollView
-    private lateinit var tvVipBadgeTop: TextView
-    private lateinit var cardVipBanner: CardView
-    private lateinit var cardThemesBox: CardView
-    private lateinit var cardControlsBox: CardView
-    private lateinit var cardSupportBox: CardView
-
-    private lateinit var tvVipTitle: TextView
-    private lateinit var tvVipSubtitle: TextView
-    private lateinit var tvPaymentIdDisplay: TextView
-    private lateinit var btnUpgradeVip: TextView
-
-    private lateinit var rowThemeSelector: LinearLayout
-    private lateinit var tvActiveThemeName: TextView
-    private lateinit var btnThemeIceCrystal: TextView
-    private lateinit var btnThemeAquaGlass: TextView
-    private lateinit var btnThemeCyberDark: TextView
-    private lateinit var btnThemeRoyalPurple: TextView
-    private lateinit var btnThemeEmeraldPro: TextView
+    private lateinit var cardProfileBanner: CardView
+    private lateinit var tvDeviceMediaStats: TextView
 
     private lateinit var cardToolMp3Converter: CardView
     private lateinit var cardToolFileTransfer: CardView
@@ -66,7 +45,6 @@ class MeFragment : Fragment() {
     private lateinit var tvVideoControlsSummary: TextView
     private lateinit var rowAudioPlayerControls: LinearLayout
     private lateinit var tvAudioControlsSummary: TextView
-    private lateinit var rowPaymentSetup: LinearLayout
     private lateinit var rowClearWatchHistory: LinearLayout
 
     private lateinit var rowRateApp: LinearLayout
@@ -81,38 +59,21 @@ class MeFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_me, container, false)
         bindViews(view)
-        applyCurrentThemeToMeScreen()
         refreshAllSummaries()
+        loadDeviceMediaCountsAsync()
         setupAllClicks()
         return view
     }
 
     override fun onResume() {
         super.onResume()
-        applyCurrentThemeToMeScreen()
         refreshAllSummaries()
+        loadDeviceMediaCountsAsync()
     }
 
     private fun bindViews(view: View) {
-        rootMeScrollView = view.findViewById(R.id.rootMeScrollView)
-        tvVipBadgeTop = view.findViewById(R.id.tvVipBadgeTop)
-        cardVipBanner = view.findViewById(R.id.cardVipBanner)
-        cardThemesBox = view.findViewById(R.id.cardThemesBox)
-        cardControlsBox = view.findViewById(R.id.cardControlsBox)
-        cardSupportBox = view.findViewById(R.id.cardSupportBox)
-
-        tvVipTitle = view.findViewById(R.id.tvVipTitle)
-        tvVipSubtitle = view.findViewById(R.id.tvVipSubtitle)
-        tvPaymentIdDisplay = view.findViewById(R.id.tvPaymentIdDisplay)
-        btnUpgradeVip = view.findViewById(R.id.btnUpgradeVip)
-
-        rowThemeSelector = view.findViewById(R.id.rowThemeSelector)
-        tvActiveThemeName = view.findViewById(R.id.tvActiveThemeName)
-        btnThemeIceCrystal = view.findViewById(R.id.btnThemeIceCrystal)
-        btnThemeAquaGlass = view.findViewById(R.id.btnThemeAquaGlass)
-        btnThemeCyberDark = view.findViewById(R.id.btnThemeCyberDark)
-        btnThemeRoyalPurple = view.findViewById(R.id.btnThemeRoyalPurple)
-        btnThemeEmeraldPro = view.findViewById(R.id.btnThemeEmeraldPro)
+        cardProfileBanner = view.findViewById(R.id.cardProfileBanner)
+        tvDeviceMediaStats = view.findViewById(R.id.tvDeviceMediaStats)
 
         cardToolMp3Converter = view.findViewById(R.id.cardToolMp3Converter)
         cardToolFileTransfer = view.findViewById(R.id.cardToolFileTransfer)
@@ -123,7 +84,6 @@ class MeFragment : Fragment() {
         tvVideoControlsSummary = view.findViewById(R.id.tvVideoControlsSummary)
         rowAudioPlayerControls = view.findViewById(R.id.rowAudioPlayerControls)
         tvAudioControlsSummary = view.findViewById(R.id.tvAudioControlsSummary)
-        rowPaymentSetup = view.findViewById(R.id.rowPaymentSetup)
         rowClearWatchHistory = view.findViewById(R.id.rowClearWatchHistory)
 
         rowRateApp = view.findViewById(R.id.rowRateApp)
@@ -132,169 +92,76 @@ class MeFragment : Fragment() {
         rowAppInfo = view.findViewById(R.id.rowAppInfo)
     }
 
-    private fun applyCurrentThemeToMeScreen() {
-        val ctx = context ?: return
-        val themePrefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val bgHex = themePrefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
-        val cardHex = themePrefs.getString("app_card_color", "#142538") ?: "#142538"
-        val accentHex = themePrefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
-        val themeTitle = themePrefs.getString("app_theme_name", "OG Crystal Ice Blue (Icon Theme)")
-            ?: "OG Crystal Ice Blue (Icon Theme)"
-
-        try {
-            val bgColor = Color.parseColor(bgHex)
-            val cardColor = Color.parseColor(cardHex)
-            val accentColor = Color.parseColor(accentHex)
-
-            rootMeScrollView.setBackgroundColor(bgColor)
-            cardVipBanner.setCardBackgroundColor(cardColor)
-            cardThemesBox.setCardBackgroundColor(cardColor)
-            cardControlsBox.setCardBackgroundColor(cardColor)
-            cardSupportBox.setCardBackgroundColor(cardColor)
-            cardToolMp3Converter.setCardBackgroundColor(cardColor)
-            cardToolFileTransfer.setCardBackgroundColor(cardColor)
-            cardToolPrivacyVault.setCardBackgroundColor(cardColor)
-            cardToolEqualizer.setCardBackgroundColor(cardColor)
-
-            tvPaymentIdDisplay.setTextColor(accentColor)
-            btnUpgradeVip.setBackgroundColor(accentColor)
-            tvActiveThemeName.text = "Active: $themeTitle"
-            tvActiveThemeName.setTextColor(accentColor)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun saveAndApplyAppTheme(
-        themeName: String,
-        bgHex: String,
-        navHex: String,
-        cardHex: String,
-        accentHex: String
-    ) {
-        val ctx = context ?: return
-        ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-            .edit()
-            .putString("app_theme_name", themeName)
-            .putString("app_bg_color", bgHex)
-            .putString("app_nav_color", navHex)
-            .putString("app_card_color", cardHex)
-            .putString("app_accent_color", accentHex)
-            .apply()
-
-        applyCurrentThemeToMeScreen()
-        (activity as? MainActivity)?.applySavedThemeColors()
-        Toast.makeText(ctx, "Theme Applied: $themeName", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun showThemeCombinationPickerDialog() {
-        val themeTitles = arrayOf(
-            "1. OG Crystal Ice Blue (Official Icon Theme)",
-            "2. OG Aqua Frosted Glass (Cool Ocean Blue)",
-            "3. Cyber Neon Dark (Pitch Black & Cyan)",
-            "4. Royal Amethyst 8K (Deep Purple & Neon Lavender)",
-            "5. Emerald Matrix Pro (Dark Forest & Mint Glow)"
-        )
-
-        showDarkStyledDialog("Select OG Player Theme Combination", themeTitles) { which ->
-            when (which) {
-                0 -> saveAndApplyAppTheme(
-                    "OG Crystal Ice Blue (Icon Theme)",
-                    "#0D1B2A",
-                    "#13263B",
-                    "#162C46",
-                    "#5CE1E6"
-                )
-                1 -> saveAndApplyAppTheme(
-                    "OG Aqua Frosted Glass",
-                    "#09232F",
-                    "#0E3142",
-                    "#133C52",
-                    "#72EFDD"
-                )
-                2 -> saveAndApplyAppTheme(
-                    "Cyber Neon Dark",
-                    "#0A0A10",
-                    "#101018",
-                    "#161622",
-                    "#00FFFF"
-                )
-                3 -> saveAndApplyAppTheme(
-                    "Royal Amethyst 8K",
-                    "#120A24",
-                    "#1A0F33",
-                    "#231442",
-                    "#E0AAFF"
-                )
-                4 -> saveAndApplyAppTheme(
-                    "Emerald Matrix Pro",
-                    "#071A15",
-                    "#0C261F",
-                    "#11332A",
-                    "#00F5D4"
-                )
-            }
-        }
-    }
-
     private fun refreshAllSummaries() {
         val ctx = context ?: return
-        val mainPrefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val layoutPrefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
         val audioPrefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
 
-        val isVipUnlocked = mainPrefs.getBoolean("is_vip_lifetime_unlocked", false)
-        val savedUpi = mainPrefs.getString("owner_upi_id", DEFAULT_UPI_ID) ?: DEFAULT_UPI_ID
-
-        if (isVipUnlocked) {
-            tvVipBadgeTop.text = "VIP ACTIVE ✓"
-            tvVipTitle.text = "OG Player Lifetime VIP"
-            tvVipSubtitle.text = "All 8K Ultra HD, MP3 & Vault Features Unlocked"
-            btnUpgradeVip.text = "SUPPORT / PAY"
-        } else {
-            tvVipBadgeTop.text = "GET VIP"
-            tvVipTitle.text = "Upgrade to OG Player VIP"
-            tvVipSubtitle.text = "Pay from anywhere in the world to unlock VIP"
-            btnUpgradeVip.text = "GET VIP / PAY"
-        }
-        tvPaymentIdDisplay.text = "UPI ID: $savedUpi • Global PayPal"
-
+        // 1. Video Player Summary
         val holdSpeed = layoutPrefs.getFloat("player_long_press_speed", 4.0f)
         val dockBottom = layoutPrefs.getBoolean("player_dock_side_to_bottom", false)
         val showHdrCc = layoutPrefs.getBoolean("player_show_hdr_cc", true)
         tvVideoControlsSummary.text =
             "Hold Speed: ${holdSpeed}x • ${if (dockBottom) "Bottom Bar" else "Side Icons"} • HDR: ${if (showHdrCc) "ON" else "OFF"}"
 
-        val shakeOn = audioPrefs.getBoolean("double_shake_enabled", false)
+        // 2. Music Player Summary
+        val shakeOn = audioPrefs.getBoolean("double_shake_enabled", true)
         val squareBox = audioPrefs.getBoolean("square_album_style", false)
         tvAudioControlsSummary.text =
             "Pocket 2x Shake: ${if (shakeOn) "ON" else "OFF"} • Style: ${if (squareBox) "Album Box" else "Rotating Vinyl"}"
     }
 
+    private fun loadDeviceMediaCountsAsync() {
+        val ctx = context ?: return
+        thread {
+            var videoCount = 0
+            var audioCount = 0
+            try {
+                ctx.contentResolver.query(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Video.Media._ID),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    videoCount = cursor.count
+                }
+                ctx.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Audio.Media._ID),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    audioCount = cursor.count
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                tvDeviceMediaStats.text = "Library: $videoCount Videos • $audioCount Songs (All Pro Features Free)"
+            }
+        }
+    }
+
     private fun setupAllClicks() {
-        cardVipBanner.setOnClickListener { showGlobalVipPaymentHubDialog() }
-        btnUpgradeVip.setOnClickListener { showGlobalVipPaymentHubDialog() }
-
-        rowThemeSelector.setOnClickListener { showThemeCombinationPickerDialog() }
-        btnThemeIceCrystal.setOnClickListener {
-            saveAndApplyAppTheme("OG Crystal Ice Blue (Icon Theme)", "#0D1B2A", "#13263B", "#162C46", "#5CE1E6")
-        }
-        btnThemeAquaGlass.setOnClickListener {
-            saveAndApplyAppTheme("OG Aqua Frosted Glass", "#09232F", "#0E3142", "#133C52", "#72EFDD")
-        }
-        btnThemeCyberDark.setOnClickListener {
-            saveAndApplyAppTheme("Cyber Neon Dark", "#0A0A10", "#101018", "#161622", "#00FFFF")
-        }
-        btnThemeRoyalPurple.setOnClickListener {
-            saveAndApplyAppTheme("Royal Amethyst 8K", "#120A24", "#1A0F33", "#231442", "#E0AAFF")
-        }
-        btnThemeEmeraldPro.setOnClickListener {
-            saveAndApplyAppTheme("Emerald Matrix Pro", "#071A15", "#0C261F", "#11332A", "#00F5D4")
+        cardProfileBanner.setOnClickListener {
+            showAboutAppDialog()
         }
 
-        cardToolMp3Converter.setOnClickListener { showVideoPickerForMp3Conversion() }
-        cardToolFileTransfer.setOnClickListener { showFileShareAndTransferOptions() }
+        // 1. Convert to MP3 Tool
+        cardToolMp3Converter.setOnClickListener {
+            showVideoPickerForMp3Conversion()
+        }
 
+        // 2. File Share & Transfer
+        cardToolFileTransfer.setOnClickListener {
+            showFileShareAndTransferOptions()
+        }
+
+        // 3. Privacy Vault (Secret Box)
         cardToolPrivacyVault.setOnClickListener {
             try {
                 startActivity(Intent(requireContext(), VaultPinActivity::class.java))
@@ -303,145 +170,54 @@ class MeFragment : Fragment() {
             }
         }
 
-        cardToolEqualizer.setOnClickListener { openSystemEqualizer() }
-        rowVideoPlayerControls.setOnClickListener { showVideoPlayerControlsDialog() }
-        rowAudioPlayerControls.setOnClickListener { showAudioPlayerControlsDialog() }
-        rowPaymentSetup.setOnClickListener { showEditPaymentProfileDialog() }
-        rowClearWatchHistory.setOnClickListener { clearAllHistoryAndCache() }
-        rowRateApp.setOnClickListener { showFiveStarRatingDialog() }
-        rowReportBug.setOnClickListener { showBugReportAndComplaintDialog() }
-        rowShareApp.setOnClickListener { shareAppWithFriends() }
-        rowAppInfo.setOnClickListener { showAboutAppDialog() }
-    }
+        // 4. Dolby Equalizer & Bass Boost
+        cardToolEqualizer.setOnClickListener {
+            openSystemEqualizer()
+        }
 
-    private fun showGlobalVipPaymentHubDialog() {
-        val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        val upiId = prefs.getString("owner_upi_id", DEFAULT_UPI_ID) ?: DEFAULT_UPI_ID
-        val globalUrl = prefs.getString("owner_global_pay_url", DEFAULT_GLOBAL_PAY_URL) ?: DEFAULT_GLOBAL_PAY_URL
+        // 5. Video Player Controls
+        rowVideoPlayerControls.setOnClickListener {
+            showVideoPlayerControlsDialog()
+        }
 
-        val options = arrayOf(
-            "Pay via UPI App (GPay / PhonePe / Paytm - India)",
-            "Pay Worldwide (PayPal / International Card / Global Link)",
-            "Copy UPI Payment ID ($upiId)",
-            "Enter VIP Activation Code (Unlock Pro)",
-            "Edit My Payment Profile ID (Owner Settings)"
-        )
+        // 6. Audio Player Controls
+        rowAudioPlayerControls.setOnClickListener {
+            showAudioPlayerControlsDialog()
+        }
 
-        showDarkStyledDialog("OG Player VIP & Global Payment", options) { which ->
-            when (which) {
-                0 -> UpiPaymentHelper.launchUpiPayment(ctx, upiId)
-                1 -> GlobalPaymentHelper.openGlobalPayment(ctx, globalUrl)
-                2 -> {
-                    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("UPI ID", upiId))
-                    Toast.makeText(ctx, "UPI ID Copied: $upiId", Toast.LENGTH_LONG).show()
-                }
-                3 -> showUnlockVipCodeDialog()
-                4 -> showEditPaymentProfileDialog()
-            }
+        // 7. Clear Playback History
+        rowClearWatchHistory.setOnClickListener {
+            clearAllHistoryAndCache()
+        }
+
+        // 8. Rate 5 Stars
+        rowRateApp.setOnClickListener {
+            showFiveStarRatingDialog()
+        }
+
+        // 9. Report a Bug / Complaint
+        rowReportBug.setOnClickListener {
+            showBugReportAndComplaintDialog()
+        }
+
+        // 10. Share App
+        rowShareApp.setOnClickListener {
+            shareAppWithFriends()
+        }
+
+        // 11. App Info
+        rowAppInfo.setOnClickListener {
+            showAboutAppDialog()
         }
     }
 
-    private fun showUnlockVipCodeDialog() {
-        val ctx = context ?: return
-        val input = EditText(ctx).apply {
-            hint = "Enter VIP Code or Transaction ID"
-            setTextColor(Color.BLACK)
-            setPadding(45, 35, 45, 35)
-        }
-
-        AlertDialog.Builder(ctx)
-            .setTitle("Activate OG Player VIP")
-            .setMessage("Enter your VIP Activation Code or Payment Reference ID to unlock all premium features:")
-            .setView(input)
-            .setPositiveButton("Activate VIP") { _, _ ->
-                val code = input.text.toString().trim()
-                if (code.length >= 4) {
-                    ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                        .edit()
-                        .putBoolean("is_vip_lifetime_unlocked", true)
-                        .apply()
-                    refreshAllSummaries()
-                    Toast.makeText(ctx, "Congratulations! OG Player VIP Activated!", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(ctx, "Please enter a valid VIP Code or Payment ID", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun showEditPaymentProfileDialog() {
-        val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        val currentUpi = prefs.getString("owner_upi_id", DEFAULT_UPI_ID) ?: DEFAULT_UPI_ID
-        val currentGlobal = prefs.getString("owner_global_pay_url", DEFAULT_GLOBAL_PAY_URL) ?: DEFAULT_GLOBAL_PAY_URL
-        val currentEmail = prefs.getString("owner_support_email", DEFAULT_SUPPORT_EMAIL) ?: DEFAULT_SUPPORT_EMAIL
-
-        val layout = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 30, 48, 16)
-        }
-
-        val etUpi = EditText(ctx).apply {
-            setText(currentUpi)
-            hint = "Your UPI ID (e.g. yourname@okaxis)"
-            setTextColor(Color.BLACK)
-        }
-        val etGlobal = EditText(ctx).apply {
-            setText(currentGlobal)
-            hint = "Global PayPal / Payment Link (https://paypal.me/...)"
-            setTextColor(Color.BLACK)
-        }
-        val etEmail = EditText(ctx).apply {
-            setText(currentEmail)
-            hint = "Bug Report / Support Email"
-            setTextColor(Color.BLACK)
-        }
-
-        layout.addView(TextView(ctx).apply {
-            text = "1. UPI ID (India - GPay / PhonePe / Paytm):"
-            setTextColor(Color.DKGRAY)
-            textSize = 12f
-        })
-        layout.addView(etUpi)
-
-        layout.addView(TextView(ctx).apply {
-            text = "\n2. Worldwide Payment Link (PayPal / Razorpay / Stripe):"
-            setTextColor(Color.DKGRAY)
-            textSize = 12f
-        })
-        layout.addView(etGlobal)
-
-        layout.addView(TextView(ctx).apply {
-            text = "\n3. Support & Bug Report Email:"
-            setTextColor(Color.DKGRAY)
-            textSize = 12f
-        })
-        layout.addView(etEmail)
-
-        AlertDialog.Builder(ctx)
-            .setTitle("Payment Profile & Support ID")
-            .setView(layout)
-            .setPositiveButton("Save Profile") { _, _ ->
-                prefs.edit()
-                    .putString("owner_upi_id", etUpi.text.toString().trim().ifEmpty { DEFAULT_UPI_ID })
-                    .putString("owner_global_pay_url", etGlobal.text.toString().trim().ifEmpty { DEFAULT_GLOBAL_PAY_URL })
-                    .putString("owner_support_email", etEmail.text.toString().trim().ifEmpty { DEFAULT_SUPPORT_EMAIL })
-                    .apply()
-                refreshAllSummaries()
-                Toast.makeText(ctx, "Payment Profile Updated Successfully!", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
+    // VIDEO TO MP3 PICKER & CONVERTER LAUNCHER
     private fun showVideoPickerForMp3Conversion() {
         val ctx = context ?: return
         thread {
             val videoTitles = mutableListOf<String>()
             val videoPaths = mutableListOf<String>()
+
             try {
                 val proj = arrayOf(
                     MediaStore.Video.Media._ID,
@@ -468,7 +244,7 @@ class MeFragment : Fragment() {
                             ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id).toString()
                         }
                         val name = if (nameCol != -1) cursor.getString(nameCol) ?: File(path).name else File(path).name
-                        videoTitles.add(name)
+                        videoTitles.add("🎵 $name")
                         videoPaths.add(path)
                     }
                 }
@@ -492,7 +268,7 @@ class MeFragment : Fragment() {
                         try {
                             val intent = Intent(ctx, Mp3ConverterActivity::class.java).apply {
                                 putExtra("VIDEO_PATH", videoPaths[which])
-                                putExtra("VIDEO_TITLE", videoTitles[which])
+                                putExtra("VIDEO_TITLE", videoTitles[which].removePrefix("🎵 "))
                             }
                             startActivity(intent)
                         } catch (e: Exception) {
@@ -504,13 +280,14 @@ class MeFragment : Fragment() {
         }
     }
 
+    // PLAYIT STYLE FILE SHARE & TRANSFER
     private fun showFileShareAndTransferOptions() {
         val ctx = context ?: return
         val options = arrayOf(
-            "Open Wi-Fi / Offline File Transfer Hub",
-            "Quick Share a Video to Another Phone",
-            "Quick Share a Song / MP3 File",
-            "Share OG 8K Player APK Link"
+            "📡 Open Wi-Fi / Offline File Transfer Hub",
+            "🎬 Quick Share a Video to Another Phone",
+            "🎵 Quick Share a Song / MP3 File",
+            "📲 Share MAX Player Pro App Link"
         )
         showDarkStyledDialog("Share & File Transfer", options) { which ->
             when (which) {
@@ -588,6 +365,7 @@ class MeFragment : Fragment() {
         }
     }
 
+    // VIDEO PLAYER CONTROLS DIALOG
     private fun showVideoPlayerControlsDialog() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences("MAX_LAYOUT_PREFS", Context.MODE_PRIVATE)
@@ -597,12 +375,11 @@ class MeFragment : Fragment() {
         val holdSpeed = prefs.getFloat("player_long_press_speed", 4.0f)
 
         val options = arrayOf(
-            "Press & Hold Fast Speed: Currently ${holdSpeed}x (Tap to toggle 4x / 6x / 8x)",
-            if (dockSide) "Side Buttons Position: Bottom Bar (Tap for Left/Right)"
-            else "Side Buttons Position: Left & Right (Tap for Bottom Bar)",
-            if (showSide) "Floating Side Controls: Visible ✓" else "Floating Side Controls: Hidden",
-            if (showHdrCc) "Top HDR & CC Badges: Visible ✓" else "Top HDR & CC Badges: Hidden",
-            "Reset All Video Player Controls to Default"
+            "⚡ Press & Hold Fast Speed: Currently ${holdSpeed}x (Tap to toggle 4x / 6x / 8x)",
+            if (dockSide) "📌 Side Buttons Position: Bottom Bar (Tap for Left/Right)" else "📌 Side Buttons Position: Left & Right (Tap for Bottom Bar)",
+            if (showSide) "👁️ Floating Side Controls: Visible ✓" else "👁️ Floating Side Controls: Hidden",
+            if (showHdrCc) "✨ Top HDR & CC Badges: Visible ✓" else "✨ Top HDR & CC Badges: Hidden",
+            "🔄 Reset All Video Player Controls to Default"
         )
 
         showDarkStyledDialog("Video Player Controls", options) { which ->
@@ -633,19 +410,18 @@ class MeFragment : Fragment() {
         }
     }
 
+    // MUSIC / AUDIO PLAYER CONTROLS DIALOG
     private fun showAudioPlayerControlsDialog() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-        val shakeOn = prefs.getBoolean("double_shake_enabled", false)
+        val shakeOn = prefs.getBoolean("double_shake_enabled", true)
         val squareBox = prefs.getBoolean("square_album_style", false)
 
         val options = arrayOf(
-            if (shakeOn) "Pocket 2x Double-Shake Next Song: ON ✓"
-            else "Pocket 2x Double-Shake Next Song: OFF",
-            if (squareBox) "Player Center Style: Square Album Art (Tap for Rotating Vinyl)"
-            else "Player Center Style: Rotating Vinyl Disc (Tap for Square Box)",
-            "Open Dolby Equalizer & Bass Boost",
-            "Clear Saved Custom Audio Playlists"
+            if (shakeOn) "📳 Pocket 2x Double-Shake Next Song: ON ✓" else "📳 Pocket 2x Double-Shake Next Song: OFF",
+            if (squareBox) "💿 Player Center Style: Square Album Art (Tap for Rotating Vinyl)" else "💿 Player Center Style: Rotating Vinyl Disc (Tap for Square Box)",
+            "🎛️ Open Dolby Equalizer & Bass Boost",
+            "🗑️ Clear Saved Custom Audio Playlists"
         )
 
         showDarkStyledDialog("Music Player Controls", options) { which ->
@@ -682,10 +458,10 @@ class MeFragment : Fragment() {
             if (eqIntent.resolveActivity(ctx.packageManager) != null) {
                 startActivity(eqIntent)
             } else {
-                EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
+                Toast.makeText(ctx, "Built-in Dolby Bass Boost Active in Audio & Video Player!", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
+            Toast.makeText(ctx, "Built-in Dolby Bass Boost Active!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -694,7 +470,7 @@ class MeFragment : Fragment() {
         val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val editor = prefs.edit()
         for (key in prefs.all.keys) {
-            if (key.startsWith("history_time_") || key.startsWith("watched_pos_")) {
+            if (key.startsWith("history_time_")) {
                 editor.remove(key)
             }
         }
@@ -702,15 +478,17 @@ class MeFragment : Fragment() {
         Toast.makeText(ctx, "Watch History & Temp Cache Cleared!", Toast.LENGTH_SHORT).show()
     }
 
+    // 5-STAR RATING SYSTEM (In-App + Google Play Store Redirect)
     private fun showFiveStarRatingDialog() {
         val ctx = context ?: return
         val ratingOptions = arrayOf(
-            "★★★★★ 5 Stars (Excellent - Best 8K Media Player!)",
-            "★★★★☆ 4 Stars (Very Good)",
-            "★★★☆☆ 3 Stars (Good, Needs Improvement)",
-            "Rate & Review Directly on Google Play Store"
+            "★★★★★  5 Stars (Excellent - Best Media Player!)",
+            "★★★★☆  4 Stars (Very Good)",
+            "★★★☆☆  3 Stars (Good, Needs Improvement)",
+            "🌐 Rate & Review Directly on Google Play Store"
         )
-        showDarkStyledDialog("Rate OG 8K Player", ratingOptions) { which ->
+
+        showDarkStyledDialog("Rate MAX Player Pro", ratingOptions) { which ->
             when (which) {
                 0, 1, 2 -> {
                     Toast.makeText(ctx, "Thank you for rating us! Opening Play Store...", Toast.LENGTH_SHORT).show()
@@ -736,16 +514,18 @@ class MeFragment : Fragment() {
         }
     }
 
+    // BUG REPORT & PLAY STORE COMPLAINT SYSTEM
     private fun showBugReportAndComplaintDialog() {
         val ctx = context ?: return
         val bugCategories = arrayOf(
-            "Video Player Playback / Codec Issue",
-            "Music Player / Background Audio / Shake Issue",
-            "Volume / Equalizer / Sound Issue",
-            "VIP Payment / Activation Issue",
-            "Write Custom Bug Report or Complaint",
-            "Submit Feedback on Google Play Store"
+            "🎬 Video Player Playback / Codec Issue",
+            "🎵 Music Player / Background Audio / Shake Issue",
+            "🔊 Volume / Equalizer / Sound Issue",
+            "📂 File Transfer / MP3 Converter / Vault Issue",
+            "📝 Write Custom Bug Report or Suggestion",
+            "🏪 Submit Feedback on Google Play Store"
         )
+
         showDarkStyledDialog("Report a Bug / Complaint", bugCategories) { which ->
             if (which == 5) {
                 openPlayStoreListing()
@@ -758,9 +538,6 @@ class MeFragment : Fragment() {
 
     private fun promptBugDescriptionAndSend(topic: String) {
         val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        val supportEmail = prefs.getString("owner_support_email", DEFAULT_SUPPORT_EMAIL) ?: DEFAULT_SUPPORT_EMAIL
-
         val input = EditText(ctx).apply {
             hint = "Describe the bug or issue in detail..."
             setTextColor(Color.BLACK)
@@ -776,12 +553,13 @@ class MeFragment : Fragment() {
                 val userMsg = input.text.toString().trim().ifEmpty { "Bug reported by user." }
                 val body = "Issue Category: $topic\n" +
                     "Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})\n" +
-                    "App Version: OG 8K Player v3.0\n\n" +
+                    "App Version: MAX Player Pro v2.5.0\n\n" +
                     "User Description:\n$userMsg"
+
                 try {
                     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:$supportEmail")
-                        putExtra(Intent.EXTRA_SUBJECT, "OG 8K Player Bug Report: $topic")
+                        data = Uri.parse("mailto:$SUPPORT_EMAIL")
+                        putExtra(Intent.EXTRA_SUBJECT, "MAX Player Pro Bug Report: $topic")
                         putExtra(Intent.EXTRA_TEXT, body)
                     }
                     startActivity(Intent.createChooser(emailIntent, "Send Bug Report via"))
@@ -796,32 +574,32 @@ class MeFragment : Fragment() {
     private fun shareAppWithFriends() {
         val ctx = context ?: return
         val pkg = ctx.packageName
-        val shareText = "Download OG 8K Player - Crystal 8K Ultra HD Video Player (600% Zoom, 8x Speed) & Dolby Music Player!\n\n" +
+        val shareText = "Download MAX Player Pro - 4K Ultra HD Video Player (600% Zoom, 8x Speed) & Dolby Music Player with Pocket Shake!\n\n" +
             "https://play.google.com/store/apps/details?id=$pkg"
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
         }
-        startActivity(Intent.createChooser(shareIntent, "Share OG 8K Player"))
+        startActivity(Intent.createChooser(shareIntent, "Share MAX Player Pro"))
     }
 
     private fun showAboutAppDialog() {
         val ctx = context ?: return
         AlertDialog.Builder(ctx)
-            .setTitle("About OG 8K Player")
+            .setTitle("About MAX Player Pro")
             .setMessage(
-                "OG 8K Player v3.0 (Crystal Edition)\n\n" +
+                "MAX Player Pro v2.5.0 (100% Free Pro Edition)\n\n" +
                     "• 4K/8K Hardware Accelerated Video Engine\n" +
                     "• 600% Pinch-to-Zoom & Up to 8.0x Playback Speed\n" +
-                    "• Rotating Vinyl Audio Player & Slide-Out Queue\n" +
+                    "• Straight Waveform Audio Player & Slide-Out Queue\n" +
                     "• Pocket Double-Shake Next Track Sensor\n" +
-                    "• 5 Crystal & Neon Full-App Theme Combinations\n" +
-                    "• Global VIP Support (UPI & Worldwide PayPal)"
+                    "• Built-in Video to MP3 Converter & Privacy Vault"
             )
             .setPositiveButton("OK", null)
             .show()
     }
 
+    // PREMIUM DARK CARD DIALOG WITH PURE WHITE TEXT
     private fun showDarkStyledDialog(
         titleText: String,
         items: Array<String>,
@@ -829,19 +607,20 @@ class MeFragment : Fragment() {
     ) {
         val ctx = context ?: return
         val d = resources.displayMetrics.density
+
         val rootCard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#13263B"))
+                setColor(Color.parseColor("#141422"))
                 cornerRadius = 22f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#5CE1E6"))
+                setStroke((1 * d).toInt(), Color.parseColor("#3300FFFF"))
             }
         }
 
         val tvHeader = TextView(ctx).apply {
             text = titleText
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((12 * d).toInt(), (4 * d).toInt(), (12 * d).toInt(), (12 * d).toInt())
@@ -865,6 +644,7 @@ class MeFragment : Fragment() {
         val dialog = AlertDialog.Builder(ctx)
             .setView(rootCard)
             .create()
+
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         items.forEachIndexed { idx, label ->
@@ -881,6 +661,7 @@ class MeFragment : Fragment() {
                 }
             }
             listContainer.addView(tvItem)
+
             if (idx < items.size - 1) {
                 val sep = View(ctx).apply {
                     layoutParams = LinearLayout.LayoutParams(
