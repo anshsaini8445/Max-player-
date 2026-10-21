@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
@@ -20,10 +22,16 @@ import androidx.fragment.app.Fragment
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private var hasShownOpeningSplash = false
+    }
+
     private lateinit var rootMainLayout: RelativeLayout
     private lateinit var topBrandBar: LinearLayout
+    private lateinit var bottomNavBar: LinearLayout
     private lateinit var tvAppBrandName: TextView
     private lateinit var imgBrandStarBadge: ImageView
+    private lateinit var layoutOpeningSplash: LinearLayout
 
     private lateinit var navTabVideo: LinearLayout
     private lateinit var navTabAudio: LinearLayout
@@ -46,16 +54,15 @@ class MainActivity : AppCompatActivity() {
     private var meFragment: MeFragment? = null
 
     private var activeTabIndex = 0
-    private var activeAccentColor = Color.parseColor("#00FFFF")
+    private var activeAccentColor = Color.parseColor("#5CE1E6")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        window.statusBarColor = Color.parseColor("#0A0A10")
-        window.navigationBarColor = Color.parseColor("#101018")
-
         bindViews()
+        applySavedThemeColors()
+        handleOpeningSplash()
         requestNeededPermissions()
         setupBottomNavigation()
         switchTab(0)
@@ -69,8 +76,10 @@ class MainActivity : AppCompatActivity() {
     private fun bindViews() {
         rootMainLayout = findViewById(R.id.rootMainLayout)
         topBrandBar = findViewById(R.id.topBrandBar)
+        bottomNavBar = findViewById(R.id.bottomNavBar)
         tvAppBrandName = findViewById(R.id.tvAppBrandName)
         imgBrandStarBadge = findViewById(R.id.imgBrandStarBadge)
+        layoutOpeningSplash = findViewById(R.id.layoutOpeningSplash)
 
         navTabVideo = findViewById(R.id.navTabVideo)
         navTabAudio = findViewById(R.id.navTabAudio)
@@ -88,11 +97,13 @@ class MainActivity : AppCompatActivity() {
         tvNavMe = findViewById(R.id.tvNavMe)
 
         val prefs = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        tvAppBrandName.text = prefs.getString("custom_brand_title", "MAX Player") ?: "MAX Player"
+        val savedBrand = prefs.getString("custom_brand_title", "OG Player") ?: "OG Player"
+        val cleanBrand = if (savedBrand.contains("MAX", ignoreCase = true)) "OG Player" else savedBrand
+        tvAppBrandName.text = cleanBrand
+
         val showStar = prefs.getBoolean("show_brand_star", true)
         imgBrandStarBadge.visibility = if (showStar) View.VISIBLE else View.GONE
 
-        // Long press on brand title or star lets owner change title or hide/show the star icon anytime
         val brandEditClick = View.OnLongClickListener {
             val input = EditText(this).apply {
                 setText(tvAppBrandName.text.toString())
@@ -100,10 +111,10 @@ class MainActivity : AppCompatActivity() {
                 setPadding(40, 30, 40, 30)
             }
             AlertDialog.Builder(this)
-                .setTitle("Customize App Header & Star")
+                .setTitle("Customize Header Name & Star")
                 .setView(input)
-                .setPositiveButton("Save Title") { _, _ ->
-                    val newName = input.text.toString().trim().ifEmpty { "MAX Player" }
+                .setPositiveButton("Save") { _, _ ->
+                    val newName = input.text.toString().trim().ifEmpty { "OG Player" }
                     prefs.edit().putString("custom_brand_title", newName).apply()
                     tvAppBrandName.text = newName
                 }
@@ -118,6 +129,25 @@ class MainActivity : AppCompatActivity() {
         }
         tvAppBrandName.setOnLongClickListener(brandEditClick)
         imgBrandStarBadge.setOnLongClickListener(brandEditClick)
+    }
+
+    private fun handleOpeningSplash() {
+        if (hasShownOpeningSplash) {
+            layoutOpeningSplash.visibility = View.GONE
+            return
+        }
+        hasShownOpeningSplash = true
+        layoutOpeningSplash.visibility = View.VISIBLE
+        Handler(Looper.getMainLooper()).postDelayed({
+            layoutOpeningSplash.animate()
+                .alpha(0f)
+                .setDuration(360)
+                .withEndAction {
+                    layoutOpeningSplash.visibility = View.GONE
+                    layoutOpeningSplash.alpha = 1f
+                }
+                .start()
+        }, 1250)
     }
 
     private fun setupBottomNavigation() {
@@ -155,31 +185,40 @@ class MainActivity : AppCompatActivity() {
                 .replace(R.id.fragmentContainer, targetFragment)
                 .commitAllowingStateLoss()
 
-            updateBottomNavVisuals()
+            applySavedThemeColors()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun applySavedThemeColors() {
+    fun applySavedThemeColors() {
         try {
             val prefs = getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-            val bgHex = prefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
-            val accentHex = prefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+            // Default theme is the new OG Crystal Ice Blue combination matching the icon
+            val bgHex = prefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
+            val navHex = prefs.getString("app_nav_color", "#13263B") ?: "#13263B"
+            val accentHex = prefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
+
             val bgColor = Color.parseColor(bgHex)
+            val navColor = Color.parseColor(navHex)
             activeAccentColor = Color.parseColor(accentHex)
 
             rootMainLayout.setBackgroundColor(bgColor)
             topBrandBar.setBackgroundColor(bgColor)
+            bottomNavBar.setBackgroundColor(navColor)
+            layoutOpeningSplash.setBackgroundColor(bgColor)
+            imgBrandStarBadge.setColorFilter(activeAccentColor)
+
             window.statusBarColor = bgColor
+            window.navigationBarColor = navColor
             updateBottomNavVisuals()
         } catch (e: Exception) {
-            activeAccentColor = Color.parseColor("#00FFFF")
+            activeAccentColor = Color.parseColor("#5CE1E6")
         }
     }
 
     private fun updateBottomNavVisuals() {
-        val inactiveColor = Color.parseColor("#888899")
+        val inactiveColor = Color.parseColor("#99AACC")
 
         val vColor = if (activeTabIndex == 0) activeAccentColor else inactiveColor
         val aColor = if (activeTabIndex == 1) activeAccentColor else inactiveColor
