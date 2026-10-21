@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#0A0A10">
 
-    <!-- Clean Top Brand Bar: App Title + Editable/Toggleable Star Badge Only (No Top Search / No Top Lock) -->
+    <!-- Clean Top Brand Bar: Shows "OG Player" everywhere inside the app -->
     <LinearLayout
         android:id="@+id/topBrandBar"
         android:layout_width="match_parent"
@@ -22,7 +22,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:letterSpacing="0.03"
-            android:text="MAX Player"
+            android:text="OG Player"
             android:textColor="#FFFFFF"
             android:textSize="21sp"
             android:textStyle="bold" />
@@ -33,7 +33,7 @@
             android:layout_height="22dp"
             android:layout_marginStart="6dp"
             android:src="@android:drawable/btn_star_big_on"
-            app:tint="#FFD700" />
+            app:tint="#5CE1E6" />
     </LinearLayout>
 
     <!-- Main Fragment Container -->
@@ -49,7 +49,7 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_above="@+id/bottomNavBar"
-        android:background="#1AFFFFFF" />
+        android:background="#22FFFFFF" />
 
     <!-- Bottom Navigation Bar (Video | Music | Search | Me) -->
     <LinearLayout
@@ -76,7 +76,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_media_play"
-                app:tint="#00FFFF" />
+                app:tint="#5CE1E6" />
 
             <TextView
                 android:id="@+id/tvNavVideo"
@@ -84,7 +84,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="Video"
-                android:textColor="#00FFFF"
+                android:textColor="#5CE1E6"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -103,7 +103,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="#888899" />
+                app:tint="#99AACC" />
 
             <TextView
                 android:id="@+id/tvNavAudio"
@@ -111,7 +111,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="Music"
-                android:textColor="#888899"
+                android:textColor="#99AACC"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -130,7 +130,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_menu_search"
-                app:tint="#888899" />
+                app:tint="#99AACC" />
 
             <TextView
                 android:id="@+id/tvNavSearch"
@@ -138,7 +138,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="Search"
-                android:textColor="#888899"
+                android:textColor="#99AACC"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -157,7 +157,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_menu_myplaces"
-                app:tint="#888899" />
+                app:tint="#99AACC" />
 
             <TextView
                 android:id="@+id/tvNavMe"
@@ -165,11 +165,58 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="Me"
-                android:textColor="#888899"
+                android:textColor="#99AACC"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
+    </LinearLayout>
+
+    <!-- Initial Opening Splash Screen: Exclusively displays "OG 8K Player" on startup -->
+    <LinearLayout
+        android:id="@+id/layoutOpeningSplash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0D1B2A"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="138dp"
+            android:layout_height="138dp"
+            app:cardBackgroundColor="#8AC3E6"
+            app:cardCornerRadius="34dp"
+            app:cardElevation="14dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_launcher_foreground" />
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tvSplashMainTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:letterSpacing="0.05"
+            android:text="OG 8K Player"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Play Smooth • 8K Ultra Crystal Engine"
+            android:textColor="#8CE7FF"
+            android:textSize="13.5sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </RelativeLayout>
