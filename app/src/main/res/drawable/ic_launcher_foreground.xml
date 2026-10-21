@@ -5,26 +5,51 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- Rounded Crystal Ice Blue App Icon Base -->
+    <path
+        android:fillColor="#7EB6D9"
+        android:pathData="M22,4 L86,4 A18,18 0 0,1 104,22 L104,86 A18,18 0 0,1 86,104 L22,104 A18,18 0 0,1 4,86 L4,22 A18,18 0 0,1 22,4 Z" />
+
+    <!-- Soft Inner Frosted Layer -->
+    <path
+        android:fillColor="#97CAE9"
+        android:pathData="M24,8 L84,8 A16,16 0 0,1 100,24 L100,84 A16,16 0 0,1 84,100 L24,100 A16,16 0 0,1 8,84 L8,24 A16,16 0 0,1 24,8 Z" />
+
+    <!-- Outer Water Splash Highlight Circle -->
+    <path
+        android:fillColor="#B8E2FA"
+        android:pathData="M54,49m-36,0a36,36 0,1 1,72 0a36,36 0,1 1,-72 0" />
+
+    <!-- Inner Crystal Sphere Core -->
+    <path
+        android:fillColor="#8AC3E6"
+        android:pathData="M54,49m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0" />
+
     <!-- Crystal Sphere Outer White Glass Rim -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M54,48m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"
+        android:pathData="M54,49m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"
         android:strokeWidth="1.8"
         android:strokeColor="#EEFFFFFF" />
+
+    <!-- Top Glass Specular Arc -->
+    <path
+        android:fillColor="#44FFFFFF"
+        android:pathData="M26,37 C34,21 74,21 82,37 C70,26 38,26 26,37 Z" />
 
     <!-- Water Droplet Accents Around Sphere -->
     <path
         android:fillColor="#EEFFFFFF"
-        android:pathData="M20,26m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
+        android:pathData="M19,25m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
     <path
         android:fillColor="#EEFFFFFF"
-        android:pathData="M87,28m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+        android:pathData="M88,27m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
     <path
         android:fillColor="#EEFFFFFF"
-        android:pathData="M18,68m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+        android:pathData="M17,69m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
     <path
         android:fillColor="#EEFFFFFF"
-        android:pathData="M89,67m-2.3,0a2.3,2.3 0,1 1,4.6 0a2.3,2.3 0,1 1,-4.6 0" />
+        android:pathData="M90,68m-2.3,0a2.3,2.3 0,1 1,4.6 0a2.3,2.3 0,1 1,-4.6 0" />
 
     <!-- Left Crystal Letter "O" -->
     <path
@@ -38,7 +63,7 @@
         android:strokeWidth="1.4"
         android:strokeColor="#5A9EC8" />
 
-    <!-- Center Crystal Play Triangle "▶" -->
+    <!-- Center Crystal Play Triangle -->
     <path
         android:fillColor="#55FFFFFF"
         android:pathData="M45,32 L45,58 L66,45 Z"
