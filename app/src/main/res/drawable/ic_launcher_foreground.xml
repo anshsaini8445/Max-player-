@@ -4,22 +4,79 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Outer Neon Cyan Ring -->
+
+    <!-- Crystal Sphere Outer White Glass Rim -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M54,54m-31,0a31,31 0,1 1,62 0a31,31 0,1 1,-62 0"
-        android:strokeWidth="3.5"
-        android:strokeColor="#00FFFF" />
-    <!-- Inner Subtle Ring -->
+        android:pathData="M54,48m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"
+        android:strokeWidth="1.8"
+        android:strokeColor="#EEFFFFFF" />
+
+    <!-- Water Droplet Accents Around Sphere -->
     <path
-        android:fillColor="#1A00FFFF"
-        android:pathData="M54,54m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0" />
-    <!-- Crisp Cyan Play Triangle -->
+        android:fillColor="#EEFFFFFF"
+        android:pathData="M20,26m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
     <path
-        android:fillColor="#00FFFF"
-        android:pathData="M45,38L45,70L72,54Z" />
-    <!-- Gold VIP Star Accent -->
+        android:fillColor="#EEFFFFFF"
+        android:pathData="M87,28m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M74,28l2.2,4.5l4.9,0.7l-3.5,3.4l0.8,4.9l-4.4,-2.3l-4.4,2.3l0.8,-4.9l-3.5,-3.4l4.9,-0.7z" />
+        android:fillColor="#EEFFFFFF"
+        android:pathData="M18,68m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+    <path
+        android:fillColor="#EEFFFFFF"
+        android:pathData="M89,67m-2.3,0a2.3,2.3 0,1 1,4.6 0a2.3,2.3 0,1 1,-4.6 0" />
+
+    <!-- Left Crystal Letter "O" -->
+    <path
+        android:fillColor="#26FFFFFF"
+        android:pathData="M31,45m-9.5,0a9.5,9.5 0,1 1,19 0a9.5,9.5 0,1 1,-19 0"
+        android:strokeWidth="3.6"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M31,45m-9.5,0a9.5,9.5 0,1 1,19 0a9.5,9.5 0,1 1,-19 0"
+        android:strokeWidth="1.4"
+        android:strokeColor="#5A9EC8" />
+
+    <!-- Center Crystal Play Triangle "▶" -->
+    <path
+        android:fillColor="#55FFFFFF"
+        android:pathData="M45,32 L45,58 L66,45 Z"
+        android:strokeWidth="3.2"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#33AEE6FF"
+        android:pathData="M47,35 L47,55 L63,45 Z" />
+
+    <!-- Right Crystal Letter "G" -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M83,39 A9.5,9.5 0 1,0 84,50 L84,45 L76,45"
+        android:strokeWidth="3.6"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Bottom Crystal Pill for "8K" -->
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M42,63 L66,63 A6,6 0 0,1 72,69 L72,71 A6,6 0 0,1 66,77 L42,77 A6,6 0 0,1 36,71 L36,69 A6,6 0 0,1 42,63 Z"
+        android:strokeWidth="1.8"
+        android:strokeColor="#FFFFFF" />
+
+    <!-- "8" inside the 8K Pill -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M48,67.5m-2.1,0a2.1,2.1 0,1 1,4.2 0a2.1,2.1 0,1 1,-4.2 0 M48,72.2m-2.4,0a2.4,2.4 0,1 1,4.8 0a2.4,2.4 0,1 1,-4.8 0"
+        android:strokeWidth="1.8"
+        android:strokeColor="#FFFFFF" />
+
+    <!-- "K" inside the 8K Pill -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M56,65.5 L56,74.5 M61.5,65.8 L56.5,70 L61.8,74.5"
+        android:strokeWidth="1.9"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>
