@@ -3,16 +3,19 @@ package com.app.mediaplayer
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -29,12 +32,17 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @OptIn(UnstableApi::class)
 class ShortsPlayerActivity : AppCompatActivity() {
 
     private lateinit var rvShortsPager: RecyclerView
     private lateinit var layoutManager: LinearLayoutManager
+    private lateinit var bottomSeekBarStrip: LinearLayout
+    private lateinit var sbShortsProgress: SeekBar
+    private lateinit var tvShortsTimeStamp: TextView
+
     private var shortsPlayer: ExoPlayer? = null
 
     private val shortsPaths = mutableListOf<String>()
@@ -42,6 +50,23 @@ class ShortsPlayerActivity : AppCompatActivity() {
     private var currentActivePos = -1
     private var isAutoScrollEnabled = true
     private var currentShortsSpeed = 1.0f
+
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val updateShortsBarRunnable = object : Runnable {
+        override fun run() {
+            try {
+                shortsPlayer?.let { p ->
+                    val cur = p.currentPosition.coerceAtLeast(0L)
+                    val dur = p.duration.coerceAtLeast(1L)
+                    sbShortsProgress.max = dur.toInt()
+                    sbShortsProgress.progress = cur.toInt()
+                    tvShortsTimeStamp.text = "${formatShortTime(cur)} / ${formatShortTime(dur)}"
+                }
+            } catch (_: Exception) {
+            }
+            progressHandler.postDelayed(this, 200L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +92,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
         PagerSnapHelper().attachToRecyclerView(rvShortsPager)
         root.addView(rvShortsPager)
 
-        // Top Back & Mode Badge Row
+        // Crisp Top Bar with Clean Back Arrow Icon
         val topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -79,14 +104,17 @@ class ShortsPlayerActivity : AppCompatActivity() {
             )
         }
 
-        val btnBack = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
-            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
-            setImageResource(android.R.drawable.ic_menu_revert)
-            setColorFilter(Color.WHITE)
+        val btnBack = TextView(this).apply {
+            text = "←"
+            setTextColor(Color.WHITE)
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt())
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#66000000"))
+                setColor(Color.parseColor("#880A0A10"))
+                setStroke((1.3f * d).toInt(), Color.parseColor("#00FFFF"))
             }
             setOnClickListener { finish() }
         }
@@ -104,11 +132,54 @@ class ShortsPlayerActivity : AppCompatActivity() {
         topBar.addView(tvHeader)
         root.addView(topBar)
 
+        // Glowing Bottom Seekbar Strip (Shines clearly at the bottom of the screen)
+        bottomSeekBarStrip = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((14 * d).toInt(), (6 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
+            background = GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(Color.parseColor("#CC0A0A10"), Color.TRANSPARENT)
+            )
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM
+            )
+        }
+
+        tvShortsTimeStamp = TextView(this).apply {
+            text = "00:00 / 00:00"
+            setTextColor(Color.parseColor("#00FFFF"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((4 * d).toInt(), 0, 0, (2 * d).toInt())
+        }
+
+        sbShortsProgress = SeekBar(this).apply {
+            max = 1000
+            progressDrawable.setColorFilter(Color.parseColor("#00FFFF"), PorterDuff.Mode.SRC_IN)
+            thumb.setColorFilter(Color.parseColor("#00FFFF"), PorterDuff.Mode.SRC_IN)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        shortsPlayer?.seekTo(p.toLong())
+                    }
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }
+
+        bottomSeekBarStrip.addView(tvShortsTimeStamp)
+        bottomSeekBarStrip.addView(sbShortsProgress)
+        root.addView(bottomSeekBarStrip)
+
         setContentView(root)
 
         loadShortsData()
         initSharedShortsExoPlayer()
         setupShortsPagerAdapter()
+        progressHandler.post(updateShortsBarRunnable)
     }
 
     private fun loadShortsData() {
@@ -173,11 +244,30 @@ class ShortsPlayerActivity : AppCompatActivity() {
                 }
                 pageFrame.addView(pv)
 
-                // Right Side Vertical Actions Column (Like, Share, Speed, 3-Dots)
+                val tvCenterPauseBadge = TextView(this@ShortsPlayerActivity).apply {
+                    text = "▶"
+                    setTextColor(Color.parseColor("#00FFFF"))
+                    textSize = 36f
+                    gravity = Gravity.CENTER
+                    visibility = View.GONE
+                    layoutParams = FrameLayout.LayoutParams(
+                        (76 * d).toInt(),
+                        (76 * d).toInt(),
+                        Gravity.CENTER
+                    )
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#990A0A10"))
+                        setStroke((2f * d).toInt(), Color.parseColor("#00FFFF"))
+                    }
+                }
+                pageFrame.addView(tvCenterPauseBadge)
+
+                // Right Side Vertical Actions Column (Heart Like Icon, Share, Speed, Menu)
                 val rightCol = LinearLayout(this@ShortsPlayerActivity).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER_HORIZONTAL
-                    setPadding((10 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (90 * d).toInt())
+                    setPadding((10 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (110 * d).toInt())
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -185,10 +275,10 @@ class ShortsPlayerActivity : AppCompatActivity() {
                     )
                 }
 
-                val btnLike = createCircleActionButton("Like", d)
-                val btnShare = createCircleActionButton("Share", d)
-                val btnSpeed = createCircleActionButton("1.0x", d)
-                val btnMore = createCircleActionButton("Menu", d)
+                val btnLike = createCircleActionButton("🤍\nLike", d)
+                val btnShare = createCircleActionButton("📤\nShare", d)
+                val btnSpeed = createCircleActionButton("⚡\n1.0x", d)
+                val btnMore = createCircleActionButton("⋮\nMenu", d)
 
                 rightCol.addView(btnLike)
                 rightCol.addView(btnShare)
@@ -196,13 +286,12 @@ class ShortsPlayerActivity : AppCompatActivity() {
                 rightCol.addView(btnMore)
                 pageFrame.addView(rightCol)
 
-                // Bottom Left Title & Status Info
                 val tvTitle = TextView(this@ShortsPlayerActivity).apply {
                     setTextColor(Color.WHITE)
-                    textSize = 14.5f
+                    textSize = 14f
                     typeface = Typeface.DEFAULT_BOLD
                     maxLines = 2
-                    setPadding((16 * d).toInt(), (10 * d).toInt(), (84 * d).toInt(), (28 * d).toInt())
+                    setPadding((16 * d).toInt(), (10 * d).toInt(), (88 * d).toInt(), (56 * d).toInt())
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -211,33 +300,44 @@ class ShortsPlayerActivity : AppCompatActivity() {
                 }
                 pageFrame.addView(tvTitle)
 
-                return ShortPageVH(pageFrame, pv, tvTitle, btnLike, btnShare, btnSpeed, btnMore)
+                return ShortPageVH(pageFrame, pv, tvCenterPauseBadge, tvTitle, btnLike, btnShare, btnSpeed, btnMore)
             }
 
             override fun onBindViewHolder(holder: ShortPageVH, position: Int) {
                 val path = shortsPaths[position]
                 val title = shortsTitles.getOrElse(position) { File(path).name }
                 holder.tvTitle.text = title
+                holder.tvCenterPauseBadge.visibility = View.GONE
 
                 val isFav = prefs.getBoolean("fav_$path", false)
-                holder.btnLike.text = if (isFav) "Liked *" else "Like"
-                holder.btnLike.setTextColor(if (isFav) Color.parseColor("#FF4081") else Color.WHITE)
-                holder.btnSpeed.text = String.format(Locale.US, "%.1fx", currentShortsSpeed)
+                updateHeartButtonVisual(holder.btnLike, isFav)
+                holder.btnSpeed.text = String.format(Locale.US, "⚡\n%.1fx", currentShortsSpeed)
 
                 holder.pv.setOnClickListener {
                     shortsPlayer?.let { p ->
-                        if (p.isPlaying) p.pause() else p.play()
+                        if (p.isPlaying) {
+                            p.pause()
+                            holder.tvCenterPauseBadge.visibility = View.VISIBLE
+                        } else {
+                            p.play()
+                            holder.tvCenterPauseBadge.visibility = View.GONE
+                        }
                     }
+                }
+
+                holder.tvCenterPauseBadge.setOnClickListener {
+                    shortsPlayer?.play()
+                    holder.tvCenterPauseBadge.visibility = View.GONE
                 }
 
                 holder.btnLike.setOnClickListener {
                     val curFav = prefs.getBoolean("fav_$path", false)
-                    prefs.edit().putBoolean("fav_$path", !curFav).apply()
-                    holder.btnLike.text = if (!curFav) "Liked *" else "Like"
-                    holder.btnLike.setTextColor(if (!curFav) Color.parseColor("#FF4081") else Color.WHITE)
+                    val newFav = !curFav
+                    prefs.edit().putBoolean("fav_$path", newFav).apply()
+                    updateHeartButtonVisual(holder.btnLike, newFav)
                     Toast.makeText(
                         this@ShortsPlayerActivity,
-                        if (!curFav) "Added to Favorite Videos" else "Removed from Favorites",
+                        if (newFav) "Added to Favorites ❤️" else "Removed from Favorites",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -251,7 +351,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
                     val nextIdx = (speeds.indexOfFirst { it == currentShortsSpeed } + 1) % speeds.size
                     currentShortsSpeed = speeds[nextIdx]
                     shortsPlayer?.playbackParameters = PlaybackParameters(currentShortsSpeed)
-                    holder.btnSpeed.text = String.format(Locale.US, "%.1fx", currentShortsSpeed)
+                    holder.btnSpeed.text = String.format(Locale.US, "⚡\n%.1fx", currentShortsSpeed)
                 }
 
                 holder.btnMore.setOnClickListener {
@@ -284,6 +384,16 @@ class ShortsPlayerActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateHeartButtonVisual(btn: TextView, isLiked: Boolean) {
+        if (isLiked) {
+            btn.text = "❤️\nLiked"
+            btn.setTextColor(Color.parseColor("#FF4081"))
+        } else {
+            btn.text = "🤍\nLike"
+            btn.setTextColor(Color.WHITE)
+        }
+    }
+
     private fun playShortAtPosition(pos: Int) {
         if (pos !in shortsPaths.indices) return
         currentActivePos = pos
@@ -293,6 +403,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
             val child = rvShortsPager.getChildAt(i)
             val vh = rvShortsPager.getChildViewHolder(child) as? ShortPageVH
             vh?.pv?.player = null
+            vh?.tvCenterPauseBadge?.visibility = View.GONE
         }
 
         val activeVh = rvShortsPager.findViewHolderForAdapterPosition(pos) as? ShortPageVH
@@ -309,11 +420,11 @@ class ShortsPlayerActivity : AppCompatActivity() {
 
     private fun showMultiPlatformShareMenu(path: String, title: String) {
         val options = arrayOf(
-            "Share to WhatsApp Status / Chat",
-            "Share to Instagram Reels / Story",
-            "Share to Telegram",
-            "Send Phone-to-Phone (Wi-Fi Direct Fast Transfer)",
-            "Share to Other Apps (System Chooser)"
+            "💚   Share to WhatsApp Status / Chat",
+            "📸   Share to Instagram Reels / Story",
+            "✈️   Share to Telegram",
+            "⚡   Send Phone-to-Phone (Wi-Fi Direct Fast Transfer)",
+            "📤   Share to Other Apps (System Chooser)"
         )
         VideoFragment.showBrightVideoMenuDialog(this, "Multi-Share Short Video", options) { which ->
             val fileUri = if (path.startsWith("content://")) Uri.parse(path) else Uri.parse(path)
@@ -326,7 +437,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
                         startActivity(Intent(this, FileTransferActivity::class.java).apply {
                             putExtra("SEND_FILE_PATH", path)
                         })
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         shareGeneric(fileUri, title)
                     }
                 }
@@ -344,7 +455,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(intent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             shareGeneric(uri, "Share Video")
         }
     }
@@ -357,7 +468,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Share $title"))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Toast.makeText(this, "Unable to share video", Toast.LENGTH_SHORT).show()
         }
     }
@@ -365,11 +476,11 @@ class ShortsPlayerActivity : AppCompatActivity() {
     private fun showShortsThreeDotsMenu(path: String, title: String, position: Int) {
         val prefs = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val options = arrayOf(
-            if (isAutoScrollEnabled) "[Active] Auto-Scroll Next Short: ON" else "Auto-Scroll Next Short: OFF (Loop 1)",
-            "Save Status / Short to Gallery Permanently",
-            "Open in Full 8K Landscape Player",
-            "Convert Short Video to MP3 Ringtone",
-            "Delete Short Video Permanently"
+            if (isAutoScrollEnabled) "🔄   [Active] Auto-Scroll Next Short: ON" else "🔂   Auto-Scroll Next Short: OFF (Loop 1)",
+            "💾   Save Status / Short to Gallery Permanently",
+            "🎬   Open in Full 8K Landscape Player",
+            "🎵   Convert Short Video to MP3 Ringtone",
+            "🗑️   Delete Short Video Permanently"
         )
         VideoFragment.showBrightVideoMenuDialog(this, title, options) { which ->
             when (which) {
@@ -405,6 +516,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
                         path = path,
                         isVideo = true
                     ) {
+                        DeepMediaScanner.invalidateCache()
                         if (position in shortsPaths.indices) {
                             shortsPaths.removeAt(position)
                             shortsTitles.removeAt(position)
@@ -422,25 +534,33 @@ class ShortsPlayerActivity : AppCompatActivity() {
         return TextView(this).apply {
             text = label
             setTextColor(Color.WHITE)
-            textSize = 11.5f
+            textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
-                (62 * d).toInt(),
-                (44 * d).toInt()
+                (58 * d).toInt(),
+                (54 * d).toInt()
             ).apply { bottomMargin = (14 * d).toInt() }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#8012121E"))
-                cornerRadius = 22f * d
-                setStroke((1.2f * d).toInt(), Color.parseColor("#5CE1E6"))
+                setColor(Color.parseColor("#990A0A10"))
+                cornerRadius = 27f * d
+                setStroke((1.3f * d).toInt(), Color.parseColor("#00FFFF"))
             }
         }
+    }
+
+    private fun formatShortTime(millis: Long): String {
+        val safe = millis.coerceAtLeast(0L)
+        val mins = TimeUnit.MILLISECONDS.toMinutes(safe)
+        val secs = TimeUnit.MILLISECONDS.toSeconds(safe) % 60
+        return String.format(Locale.US, "%02d:%02d", mins, secs)
     }
 
     private class ShortPageVH(
         view: View,
         val pv: PlayerView,
+        val tvCenterPauseBadge: TextView,
         val tvTitle: TextView,
         val btnLike: TextView,
         val btnShare: TextView,
@@ -455,6 +575,7 @@ class ShortsPlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        progressHandler.removeCallbacks(updateShortsBarRunnable)
         shortsPlayer?.release()
         shortsPlayer = null
     }
