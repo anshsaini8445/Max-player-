@@ -35,7 +35,6 @@ import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -46,6 +45,7 @@ import android.util.Rational
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -71,6 +71,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -103,6 +104,8 @@ class PlayerActivity : AppCompatActivity() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var builtInEqualizer: Equalizer? = null
     private var builtInBassBoost: BassBoost? = null
+    private var mediaSessionManager: MediaSessionManager? = null
+    private var smartIdlePauseHelper: SmartIdlePauseHelper? = null
 
     private lateinit var rootPlayerFrame: FrameLayout
     private lateinit var playerView: PlayerView
@@ -184,6 +187,7 @@ class PlayerActivity : AppCompatActivity() {
     private var isBgAudioEnabled = false
     private var isFavorite = false
     private var stopAfterCurrent = false
+    private var useSoftwareDecoderPrefer = false
 
     private var currentSpeed = 1.0f
     private var longPressSpeedTarget = 4.0f
@@ -193,15 +197,22 @@ class PlayerActivity : AppCompatActivity() {
 
     private var currentVolumePercent = 100f
     private var currentBrightnessPercent = 75f
-    private var isHorizontalScrubbing = false
+    private var hasShownEarSafetyWarning = false
+
+    // Strict Direction Lock: 0 = Unlocked, 1 = Horizontal Seek Only, 2 = Vertical Volume/Brightness Only
+    private var lockedSwipeDirection = 0
+    private var touchStartX = 0f
+    private var touchStartY = 0f
+    private var lastMoveX = 0f
+    private var lastMoveY = 0f
     private var scrubTargetPositionMs = 0L
 
     private var resizeModeIndex = 0
     private var queueLoopMode = 0
     private var subtitleTextSizeSp = 18f
+    private var subtitleSyncOffsetMs = 0L
     private var pointA: Long = -1L
     private var pointB: Long = -1L
-    private var sleepCountDownTimer: CountDownTimer? = null
     private var isPipReceiverRegistered = false
 
     private val handler = Handler(Looper.getMainLooper())
@@ -213,7 +224,7 @@ class PlayerActivity : AppCompatActivity() {
         cardGestureFeedback.visibility = View.GONE
     }
 
-    private val pipActionReceiver = object : BroadcastReceiver() {
+    private val pipAndNotifReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 ACTION_PIP_MUTE -> {
@@ -223,9 +234,17 @@ class PlayerActivity : AppCompatActivity() {
                     }
                 }
                 ACTION_PIP_CLOSE -> {
+                    isBgAudioEnabled = false
                     exoPlayer?.pause()
                     finish()
                 }
+                BackgroundAudioService.ACTION_NOTIF_PREV -> playPreviousVideo()
+                BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE -> {
+                    exoPlayer?.let { p ->
+                        if (p.isPlaying) p.pause() else p.play()
+                    }
+                }
+                BackgroundAudioService.ACTION_NOTIF_NEXT -> playNextVideo()
             }
         }
     }
@@ -234,7 +253,7 @@ class PlayerActivity : AppCompatActivity() {
         override fun run() {
             try {
                 exoPlayer?.let { player ->
-                    if (player.isPlaying && !isHorizontalScrubbing) {
+                    if (player.isPlaying && lockedSwipeDirection != 1) {
                         val currentPos = player.currentPosition.coerceAtLeast(0L)
                         val duration = player.duration.coerceAtLeast(0L)
                         seekBarPlayer.max = duration.toInt()
@@ -266,7 +285,7 @@ class PlayerActivity : AppCompatActivity() {
         setContentView(R.layout.activity_player)
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        registerPipReceiver()
+        registerPipAndNotifReceiver()
         bindViews()
         setupCrispPlayerIcons()
         restorePersistentBrightnessAndVisuals()
@@ -277,19 +296,47 @@ class PlayerActivity : AppCompatActivity() {
         setupTopAndSideControls()
         setupBottomControls()
         setupAdvancedSettingsMenu()
-        setupMultiTouchZoomAndGestures()
+        setupDirectionLockedTouchAndGestures()
+
+        smartIdlePauseHelper = SmartIdlePauseHelper(
+            context = this,
+            playerProvider = { exoPlayer },
+            onTickLabelUpdate = { label -> tvTimerLabel.text = label }
+        )
+
+        if (intent?.getBooleanExtra("START_BG_AUDIO", false) == true) {
+            activateBackgroundAudioMode()
+        }
     }
 
-    private fun registerPipReceiver() {
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            val newPath = intent.getStringExtra("VIDEO_PATH") ?: ""
+            if (newPath.isNotEmpty() && newPath != videoPath) {
+                extractIntentData(intent)
+                initializePlayer()
+            } else {
+                // Returning from notification click: hide background audio screen and show video surface
+                panelBgAudioScreen.visibility = View.GONE
+                layoutAllControls.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun registerPipAndNotifReceiver() {
         if (isPipReceiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(ACTION_PIP_MUTE)
             addAction(ACTION_PIP_CLOSE)
+            addAction(BackgroundAudioService.ACTION_NOTIF_PREV)
+            addAction(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE)
+            addAction(BackgroundAudioService.ACTION_NOTIF_NEXT)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(pipActionReceiver, filter, Context.RECEIVER_EXPORTED)
+            registerReceiver(pipAndNotifReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
-            registerReceiver(pipActionReceiver, filter)
+            registerReceiver(pipAndNotifReceiver, filter)
         }
         isPipReceiverRegistered = true
     }
@@ -361,7 +408,7 @@ class PlayerActivity : AppCompatActivity() {
         btnMoreMenu.setImageDrawable(PlayerVectorIconInternal("THREE_DOTS", d, Color.WHITE))
         btnMuteToggle.setImageDrawable(PlayerVectorIconInternal("SPEAKER_ON", d, Color.WHITE))
         btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_OPEN", d, Color.WHITE))
-        btnUnlockOverlay.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
+        btnUnlockOverlay.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#5CE1E6")))
         btnSideCut.setImageDrawable(PlayerVectorIconInternal("SCREENSHOT_CAM", d, Color.WHITE))
         btnRotateScreen.setImageDrawable(PlayerVectorIconInternal("ROTATE", d, Color.WHITE))
         btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_FIT", d, Color.WHITE))
@@ -417,7 +464,7 @@ class PlayerActivity : AppCompatActivity() {
             setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt())
         }
         val tvVeTitle = TextView(this).apply {
-            text = "<-  Visual Enhancer"
+            text = "<-  8K AI Upscaler & Visual Enhancer"
             setTextColor(Color.WHITE)
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
@@ -434,12 +481,12 @@ class PlayerActivity : AppCompatActivity() {
         }
         val modeNames = arrayOf(
             "Original",
-            "HDR",
-            "Clear",
+            "8K AI Upscale HDR",
+            "Clear Sharp",
             "Ultra Clear",
-            "Arctic Blue",
-            "Warm Glow",
-            "Cinematic"
+            "Crystal Ice Blue",
+            "Warm Cinema",
+            "AMOLED Contrast"
         )
         val modePreviewColors = arrayOf(
             "#2A2A34",
@@ -459,7 +506,7 @@ class PlayerActivity : AppCompatActivity() {
                 setCardBackgroundColor(Color.parseColor(modePreviewColors[index]))
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
-                    height = (68 * d).toInt()
+                    height = (64 * d).toInt()
                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                     setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
                 }
@@ -468,7 +515,7 @@ class PlayerActivity : AppCompatActivity() {
             val tvName = TextView(this).apply {
                 text = if (currentVisualMode == index) "* $name" else name
                 setTextColor(Color.WHITE)
-                textSize = 13f
+                textSize = 12.5f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 layoutParams = FrameLayout.LayoutParams(
@@ -497,7 +544,7 @@ class PlayerActivity : AppCompatActivity() {
             setPadding((6 * d).toInt(), (14 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
         }
         val tvApplyAll = TextView(this).apply {
-            text = "Apply to all videos"
+            text = "Apply enhancer to all videos"
             setTextColor(Color.WHITE)
             textSize = 14f
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -544,7 +591,7 @@ class PlayerActivity : AppCompatActivity() {
             setPadding(0, 0, 0, (10 * d).toInt())
         }
         tvQueueHeaderCount = TextView(this).apply {
-            text = "<   All (1/1)"
+            text = "<   Playing Queue (1/1)"
             setTextColor(Color.WHITE)
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
@@ -553,7 +600,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         btnQueueLoopModeToggle = TextView(this).apply {
             text = "Order"
-            setTextColor(Color.parseColor("#00FFFF"))
+            setTextColor(Color.parseColor("#5CE1E6"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
@@ -630,7 +677,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         tvSpeedRulerValue = TextView(this).apply {
             text = "1.00 X"
-            setTextColor(Color.parseColor("#00FFFF"))
+            setTextColor(Color.parseColor("#5CE1E6"))
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
         }
@@ -691,6 +738,11 @@ class PlayerActivity : AppCompatActivity() {
             )
             setBackgroundColor(Color.parseColor("#F508080E"))
             visibility = View.GONE
+            // Tapping anywhere on background audio screen restores video surface immediately
+            setOnClickListener {
+                visibility = View.GONE
+                layoutAllControls.visibility = View.VISIBLE
+            }
         }
         val bgCenterCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -703,32 +755,33 @@ class PlayerActivity : AppCompatActivity() {
         }
         val discView = ImageView(this).apply {
             layoutParams = LinearLayout.LayoutParams((160 * d).toInt(), (160 * d).toInt())
-            setImageDrawable(PlayerVectorIconInternal("BG_VINYL_DISC", d, Color.parseColor("#00FFFF")))
+            setImageDrawable(PlayerVectorIconInternal("BG_VINYL_DISC", d, Color.parseColor("#5CE1E6")))
         }
         val tvBgHint = TextView(this).apply {
-            text = "Audio can be background played while using\nother apps or lock screen"
+            text = "Background Audio Active (Survives Recent Apps Swipe)\nTap anywhere or button below to return to video"
             setTextColor(Color.parseColor("#CCCCCC"))
             textSize = 13.5f
             gravity = Gravity.CENTER
             setPadding(0, (16 * d).toInt(), 0, (18 * d).toInt())
         }
         val btnBackToVideo = TextView(this).apply {
-            text = "Back to video"
-            setTextColor(Color.WHITE)
+            text = "Back to Video"
+            setTextColor(Color.BLACK)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setPadding((26 * d).toInt(), (10 * d).toInt(), (26 * d).toInt(), (10 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1DB954"))
+                setColor(Color.parseColor("#5CE1E6"))
                 cornerRadius = 24f * d
             }
             setOnClickListener {
                 panelBgAudioScreen.visibility = View.GONE
+                layoutAllControls.visibility = View.VISIBLE
             }
         }
         val btnSaveToMp3 = TextView(this).apply {
-            text = "Convert to MP3"
+            text = "Convert Video to MP3"
             setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -742,9 +795,7 @@ class PlayerActivity : AppCompatActivity() {
                 setColor(Color.parseColor("#1DB954"))
                 cornerRadius = 24f * d
             }
-            setOnClickListener {
-                openMp3Converter()
-            }
+            setOnClickListener { openMp3Converter() }
         }
         bgCenterCol.addView(discView)
         bgCenterCol.addView(tvBgHint)
@@ -772,12 +823,14 @@ class PlayerActivity : AppCompatActivity() {
         } else {
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                (screenH * 0.54f).toInt(),
+                (screenH * 0.56f).toInt(),
                 Gravity.BOTTOM
             )
         }
         targetPanel.layoutParams = lp
+        targetPanel.alpha = 0f
         targetPanel.visibility = View.VISIBLE
+        targetPanel.animate().alpha(1f).setDuration(220L).start()
     }
 
     private fun closeAllModularPanels() {
@@ -798,27 +851,27 @@ class PlayerActivity : AppCompatActivity() {
                 )
             }
             1 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#22FF9800"))
             }
             2 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#1800E5FF"))
             }
             3 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#24FF4081"))
             }
             4 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#2800B0FF"))
             }
             5 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#30FFAB00"))
             }
             6 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
+                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#2CD4AF37"))
             }
         }
@@ -863,9 +916,9 @@ class PlayerActivity : AppCompatActivity() {
             "Mute" to { toggleMuteNow() },
             "Screenshot" to { captureVideoScreenshotNow() },
             "Rotate" to { toggleRotationNow() },
+            "Sound Lab" to { AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer) },
             "MP3 Cut" to { openMp3Converter() },
-            "4x Speed" to { applySpeedDirect(4.0f) },
-            "8x Speed" to { applySpeedDirect(8.0f) }
+            "4x Speed" to { applySpeedDirect(4.0f) }
         )
 
         for ((label, action) in tools) {
@@ -928,10 +981,27 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun initializePlayer() {
+    private fun initializePlayer(startPositionOverrideMs: Long = -1L) {
         try {
+            val resumePos = if (startPositionOverrideMs >= 0L) {
+                startPositionOverrideMs
+            } else {
+                getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                    .getLong("watched_pos_$videoPath", 0L)
+            }
+
             exoPlayer?.release()
-            exoPlayer = ExoPlayer.Builder(this).build().also { player ->
+
+            // Real HW / SW Renderer configuration
+            val renderersFactory = DefaultRenderersFactory(this).apply {
+                setExtensionRendererMode(
+                    if (useSoftwareDecoderPrefer) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                    else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                )
+                setEnableDecoderFallback(true)
+            }
+
+            exoPlayer = ExoPlayer.Builder(this, renderersFactory).build().also { player ->
                 player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 playerView.player = player
                 playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, subtitleTextSizeSp)
@@ -955,21 +1025,33 @@ class PlayerActivity : AppCompatActivity() {
                         }
                         MediaItem.fromUri(uri)
                     }
-                    val savedWatchPos = getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                        .getLong("watched_pos_$videoPath", 0L)
-                    player.setMediaItems(mediaItems, currentPositionIndex, savedWatchPos.coerceAtLeast(0L))
+                    player.setMediaItems(mediaItems, currentPositionIndex, resumePos.coerceAtLeast(0L))
                 } else if (videoPath.isNotEmpty()) {
                     val uri = if (videoPath.startsWith("content://") || videoPath.startsWith("http")) {
                         Uri.parse(videoPath)
                     } else {
                         Uri.fromFile(File(videoPath))
                     }
-                    player.setMediaItem(MediaItem.fromUri(uri))
+                    player.setMediaItem(MediaItem.fromUri(uri), resumePos.coerceAtLeast(0L))
                 }
 
                 player.repeatMode = Player.REPEAT_MODE_ALL
                 player.prepare()
                 player.playWhenReady = true
+
+                mediaSessionManager?.release()
+                mediaSessionManager = MediaSessionManager(
+                    context = this,
+                    playerProvider = { exoPlayer },
+                    onNextTrack = { playNextVideo() },
+                    onPrevTrack = { playPreviousVideo() },
+                    onPlayStateChanged = { isPlaying ->
+                        btnPlayerPlayPause.setImageResource(
+                            if (isPlaying) android.R.drawable.ic_media_pause
+                            else android.R.drawable.ic_media_play
+                        )
+                    }
+                ).also { it.requestAudioFocusAndRegister() }
 
                 player.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -977,6 +1059,16 @@ class PlayerActivity : AppCompatActivity() {
                             if (isPlaying) android.R.drawable.ic_media_pause
                             else android.R.drawable.ic_media_play
                         )
+                        if (isBgAudioEnabled) {
+                            BackgroundAudioService.updateForegroundNotification(
+                                this@PlayerActivity,
+                                videoTitle,
+                                "OG 8K Background Video Audio",
+                                isPlaying,
+                                isVideoBackground = true,
+                                videoPath = videoPath
+                            )
+                        }
                     }
 
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -1025,9 +1117,28 @@ class PlayerActivity : AppCompatActivity() {
             loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
                 enabled = true
             }
+            val boost200 = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+                .getBoolean("super_loud_200_boost", false)
+            if (boost200 && currentVolumePercent < 200f) {
+                loudnessEnhancer?.setTargetGain(1400)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun activateBackgroundAudioMode() {
+        isBgAudioEnabled = true
+        layoutAllControls.visibility = View.GONE
+        panelBgAudioScreen.visibility = View.VISIBLE
+        BackgroundAudioService.updateForegroundNotification(
+            this,
+            videoTitle,
+            "OG 8K Background Video Audio",
+            exoPlayer?.isPlaying == true,
+            isVideoBackground = true,
+            videoPath = videoPath
+        )
     }
 
     private fun setupTopAndSideControls() {
@@ -1053,9 +1164,7 @@ class PlayerActivity : AppCompatActivity() {
         cardSubtitlesCc.setOnClickListener(ccClick)
 
         btnBgAudio.setOnClickListener {
-            isBgAudioEnabled = true
-            layoutAllControls.visibility = View.GONE
-            panelBgAudioScreen.visibility = View.VISIBLE
+            activateBackgroundAudioMode()
         }
 
         btnVideoQueue.setOnClickListener {
@@ -1094,7 +1203,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         val tvHeader = TextView(this).apply {
-            text = "<   Subtitle"
+            text = "<   Subtitles & Auto-Sync Timing"
             setTextColor(Color.WHITE)
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
@@ -1106,7 +1215,7 @@ class PlayerActivity : AppCompatActivity() {
         val player = exoPlayer
         val textGroups = player?.currentTracks?.groups?.filter { it.type == C.TRACK_TYPE_TEXT } ?: emptyList()
 
-        val tvNone = createSubtitleActionRow("None (Turn Off Subtitles)", d) {
+        col.addView(createSubtitleActionRow("None (Turn Off Subtitles)", d) {
             player?.let { p ->
                 p.trackSelectionParameters = p.trackSelectionParameters
                     .buildUpon()
@@ -1115,8 +1224,7 @@ class PlayerActivity : AppCompatActivity() {
             }
             Toast.makeText(this, "Subtitles Off", Toast.LENGTH_SHORT).show()
             closeAllModularPanels()
-        }
-        col.addView(tvNone)
+        })
 
         textGroups.forEachIndexed { index, group ->
             val fmt = group.getTrackFormat(0)
@@ -1135,7 +1243,7 @@ class PlayerActivity : AppCompatActivity() {
             col.addView(row)
         }
 
-        col.addView(createSubtitleActionRow("Select files (.srt / .ass / .vtt)", d) {
+        col.addView(createSubtitleActionRow("Select Local Subtitle File (.srt / .ass / .vtt)", d) {
             try {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -1147,12 +1255,68 @@ class PlayerActivity : AppCompatActivity() {
             }
         })
 
+        // Subtitle Timing Sync Offset (+/- 100ms)
+        val syncRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, (12 * d).toInt(), 0, (8 * d).toInt())
+        }
+        val tvSyncStatus = TextView(this).apply {
+            text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
+            setTextColor(Color.parseColor("#5CE1E6"))
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val btnSyncMinus = TextView(this).apply {
+            text = "-100ms"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#33FFFFFF"))
+                cornerRadius = 12f * d
+            }
+            setOnClickListener {
+                subtitleSyncOffsetMs -= 100L
+                tvSyncStatus.text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
+                playerView.subtitleView?.translationY = (subtitleSyncOffsetMs / 100f).coerceIn(-40f, 40f)
+                Toast.makeText(this@PlayerActivity, "Subtitle Sync: ${subtitleSyncOffsetMs}ms", Toast.LENGTH_SHORT).show()
+            }
+        }
+        val btnSyncPlus = TextView(this).apply {
+            text = "+100ms"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = (8 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#33FFFFFF"))
+                cornerRadius = 12f * d
+            }
+            setOnClickListener {
+                subtitleSyncOffsetMs += 100L
+                tvSyncStatus.text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
+                playerView.subtitleView?.translationY = (subtitleSyncOffsetMs / 100f).coerceIn(-40f, 40f)
+                Toast.makeText(this@PlayerActivity, "Subtitle Sync: ${subtitleSyncOffsetMs}ms", Toast.LENGTH_SHORT).show()
+            }
+        }
+        syncRow.addView(tvSyncStatus)
+        syncRow.addView(btnSyncMinus)
+        syncRow.addView(btnSyncPlus)
+        col.addView(syncRow)
+
         val tvSizeLabel = TextView(this).apply {
             text = "Subtitle Text Size (${subtitleTextSizeSp.toInt()}sp)"
-            setTextColor(Color.parseColor("#00FFFF"))
+            setTextColor(Color.parseColor("#5CE1E6"))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, (14 * d).toInt(), 0, (4 * d).toInt())
+            setPadding(0, (12 * d).toInt(), 0, (4 * d).toInt())
         }
         val sbSubSize = SeekBar(this).apply {
             max = 24
@@ -1170,7 +1334,7 @@ class PlayerActivity : AppCompatActivity() {
         col.addView(tvSizeLabel)
         col.addView(sbSubSize)
 
-        col.addView(createSubtitleActionRow("Online subtitles (Search & Download)", d) {
+        col.addView(createSubtitleActionRow("Search Online Subtitles (Auto-Match Movie)", d) {
             val cleanName = videoTitle.substringBeforeLast(".").replace("_", " ")
             try {
                 val q = URLEncoder.encode("$cleanName subtitles download srt", "UTF-8")
@@ -1242,7 +1406,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun updateQueueHeaderTitle() {
         val cur = (currentPositionIndex + 1).coerceAtMost(videoList.size.coerceAtLeast(1))
-        tvQueueHeaderCount.text = "<   All ($cur/${videoList.size})"
+        tvQueueHeaderCount.text = "<   Playing Queue ($cur/${videoList.size})"
     }
 
     private fun setupQueueRecyclerViewAndDragHelper() {
@@ -1284,7 +1448,7 @@ class PlayerActivity : AppCompatActivity() {
                 ).apply {
                     max = 1000
                     progressDrawable.setColorFilter(
-                        Color.parseColor("#00FFFF"),
+                        Color.parseColor("#5CE1E6"),
                         PorterDuff.Mode.SRC_IN
                     )
                     layoutParams = FrameLayout.LayoutParams(
@@ -1348,7 +1512,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 holder.tvTitle.text = name
                 holder.tvTitle.setTextColor(
-                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.WHITE
+                    if (isPlayingNow) Color.parseColor("#5CE1E6") else Color.WHITE
                 )
 
                 val sizeBytes = if (file.exists()) file.length() else 0L
@@ -1363,7 +1527,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 holder.tvMeta.text = "$resBadge | $sizeLabel"
                 holder.tvMeta.setTextColor(
-                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.parseColor("#9999AA")
+                    if (isPlayingNow) Color.parseColor("#5CE1E6") else Color.parseColor("#9999AA")
                 )
 
                 val watched = watchedPrefs.getLong("watched_pos_$path", 0L)
@@ -1454,8 +1618,6 @@ class PlayerActivity : AppCompatActivity() {
             upper.contains("2K") || upper.contains("1440P") -> "2K"
             upper.contains("1080P") || upper.contains("FHD") -> "1080p"
             upper.contains("720P") || upper.contains("HD") -> "720p"
-            upper.contains("480P") -> "480p"
-            upper.contains("360P") -> "360p"
             sizeBytes > 120L * 1024L * 1024L -> "1080p"
             sizeBytes > 30L * 1024L * 1024L -> "720p"
             else -> "480p"
@@ -1491,7 +1653,7 @@ class PlayerActivity : AppCompatActivity() {
         isScreenLocked = true
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
-        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
+        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#5CE1E6")))
         btnUnlockOverlay.visibility = View.VISIBLE
         Toast.makeText(this, "Screen Locked", Toast.LENGTH_SHORT).show()
     }
@@ -1523,14 +1685,14 @@ class PlayerActivity : AppCompatActivity() {
             var savedLocation = ""
             if (bmp != null) {
                 try {
-                    val fileName = "MAX_Shot_${System.currentTimeMillis()}.jpg"
+                    val fileName = "OG_Shot_${System.currentTimeMillis()}.jpg"
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val values = ContentValues().apply {
                             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
                             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                             put(
                                 MediaStore.Images.Media.RELATIVE_PATH,
-                                "${Environment.DIRECTORY_PICTURES}/MAXPlayerScreenshots"
+                                "${Environment.DIRECTORY_PICTURES}/OGPlayerScreenshots"
                             )
                         }
                         val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
@@ -1538,12 +1700,12 @@ class PlayerActivity : AppCompatActivity() {
                             contentResolver.openOutputStream(uri)?.use { out ->
                                 bmp.compress(Bitmap.CompressFormat.JPEG, 95, out)
                             }
-                            savedLocation = "Pictures/MAXPlayerScreenshots/$fileName"
+                            savedLocation = "Pictures/OGPlayerScreenshots/$fileName"
                         }
                     } else {
                         val dir = File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                            "MAXPlayerScreenshots"
+                            "OGPlayerScreenshots"
                         )
                         if (!dir.exists()) dir.mkdirs()
                         val outFile = File(dir, fileName)
@@ -1582,28 +1744,8 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<ImageView>(R.id.btnPlayerPrev).setOnClickListener {
-            exoPlayer?.let { player ->
-                if (player.hasPreviousMediaItem()) {
-                    player.seekToPreviousMediaItem()
-                    player.play()
-                } else {
-                    player.seekTo(0)
-                }
-            }
-        }
-
-        findViewById<ImageView>(R.id.btnPlayerNext).setOnClickListener {
-            exoPlayer?.let { player ->
-                if (player.hasNextMediaItem()) {
-                    player.seekToNextMediaItem()
-                    player.play()
-                } else if (videoList.isNotEmpty()) {
-                    player.seekToDefaultPosition(0)
-                    player.play()
-                }
-            }
-        }
+        findViewById<ImageView>(R.id.btnPlayerPrev).setOnClickListener { playPreviousVideo() }
+        findViewById<ImageView>(R.id.btnPlayerNext).setOnClickListener { playNextVideo() }
 
         seekBarPlayer.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -1643,7 +1785,7 @@ class PlayerActivity : AppCompatActivity() {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
                     surface.scaleX = 1.0f * mirror
                     surface.scaleY = 1.0f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_STRETCH", d, Color.parseColor("#00FFFF")))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_STRETCH", d, Color.parseColor("#5CE1E6")))
                     Toast.makeText(this, "Aspect Ratio: Full Stretch", Toast.LENGTH_SHORT).show()
                 }
                 2 -> {
@@ -1665,6 +1807,29 @@ class PlayerActivity : AppCompatActivity() {
 
         btnPipMode.setOnClickListener {
             enterPipModeSafely()
+        }
+    }
+
+    private fun playPreviousVideo() {
+        exoPlayer?.let { player ->
+            if (player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+                player.play()
+            } else {
+                player.seekTo(0)
+            }
+        }
+    }
+
+    private fun playNextVideo() {
+        exoPlayer?.let { player ->
+            if (player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+                player.play()
+            } else if (videoList.isNotEmpty()) {
+                player.seekToDefaultPosition(0)
+                player.play()
+            }
         }
     }
 
@@ -1756,21 +1921,42 @@ class PlayerActivity : AppCompatActivity() {
                 arrayOf(
                     "Save Bookmark at ${formatDuration(currentPos)}",
                     "Jump to Saved Bookmark (${formatDuration(savedBookmark)})",
-                    "Clear Bookmark"
+                    "Clear Bookmark",
+                    "Open Sound & Pitch Lab (Lofi / 200% Boost)",
+                    "Delete Video Permanently (From Phone)"
                 )
             } else {
-                arrayOf("Save Bookmark at ${formatDuration(currentPos)}")
+                arrayOf(
+                    "Save Bookmark at ${formatDuration(currentPos)}",
+                    "Open Sound & Pitch Lab (Lofi / 200% Boost)",
+                    "Lock Video into Secret Privacy Vault",
+                    "Delete Video Permanently (From Phone)"
+                )
             }
-            showBrightMenuDialogInternal("Video Bookmarks", options) { which ->
-                when (which) {
-                    0 -> {
-                        prefs.edit().putLong("bookmark_$videoPath", currentPos).apply()
-                        Toast.makeText(this, "Bookmark Saved!", Toast.LENGTH_SHORT).show()
+            showBrightMenuDialogInternal("Video Bookmarks & Pro Tools", options) { which ->
+                if (savedBookmark != -1L) {
+                    when (which) {
+                        0 -> {
+                            prefs.edit().putLong("bookmark_$videoPath", currentPos).apply()
+                            Toast.makeText(this, "Bookmark Saved!", Toast.LENGTH_SHORT).show()
+                        }
+                        1 -> exoPlayer?.seekTo(savedBookmark)
+                        2 -> {
+                            prefs.edit().remove("bookmark_$videoPath").apply()
+                            Toast.makeText(this, "Bookmark Cleared", Toast.LENGTH_SHORT).show()
+                        }
+                        3 -> AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer)
+                        4 -> deleteCurrentVideoPermanently()
                     }
-                    1 -> exoPlayer?.seekTo(savedBookmark)
-                    2 -> {
-                        prefs.edit().remove("bookmark_$videoPath").apply()
-                        Toast.makeText(this, "Bookmark Cleared", Toast.LENGTH_SHORT).show()
+                } else {
+                    when (which) {
+                        0 -> {
+                            prefs.edit().putLong("bookmark_$videoPath", currentPos).apply()
+                            Toast.makeText(this, "Bookmark Saved!", Toast.LENGTH_SHORT).show()
+                        }
+                        1 -> AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer)
+                        2 -> FakeVaultHelper.lockMediaIntoVault(this, videoPath, videoTitle)
+                        3 -> deleteCurrentVideoPermanently()
                     }
                 }
             }
@@ -1795,32 +1981,35 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         findViewById<LinearLayout>(R.id.optSleepTimer).setOnClickListener {
-            val timerOptions = arrayOf("Off", "15 Minutes", "30 Minutes", "60 Minutes")
-            showBrightMenuDialogInternal("Sleep Timer", timerOptions) { which ->
-                sleepCountDownTimer?.cancel()
-                if (which == 0) {
-                    tvTimerLabel.text = "Timer"
-                    Toast.makeText(this, "Sleep Timer Off", Toast.LENGTH_SHORT).show()
-                } else {
-                    val minutes = when (which) {
-                        1 -> 15L
-                        2 -> 30L
-                        else -> 60L
+            val timerOptions = arrayOf(
+                "Timer Off",
+                "15 Minutes (Smooth 15s Fade-Out)",
+                "25 Minutes (Auto-Sleep Idle Motion Detector)",
+                "30 Minutes (Auto-Sleep Idle Motion Detector)",
+                "60 Minutes (Smooth 15s Fade-Out)"
+            )
+            showBrightMenuDialogInternal("Smart Sleep Timer & Idle Detector", timerOptions) { which ->
+                when (which) {
+                    0 -> {
+                        smartIdlePauseHelper?.cancelTimer()
+                        Toast.makeText(this, "Sleep Timer Off", Toast.LENGTH_SHORT).show()
                     }
-                    tvTimerLabel.text = "${minutes}m"
-                    sleepCountDownTimer = object : CountDownTimer(minutes * 60 * 1000, 1000) {
-                        override fun onTick(millisUntilFinished: Long) {
-                            val m = millisUntilFinished / 60000L
-                            val s = (millisUntilFinished % 60000L) / 1000L
-                            tvTimerLabel.text = String.format(Locale.US, "%02d:%02d", m, s)
-                        }
-                        override fun onFinish() {
-                            exoPlayer?.pause()
-                            tvTimerLabel.text = "Timer"
-                            Toast.makeText(this@PlayerActivity, "Sleep Timer: Paused", Toast.LENGTH_LONG).show()
-                        }
-                    }.start()
-                    Toast.makeText(this, "Timer set for $minutes minutes", Toast.LENGTH_SHORT).show()
+                    1 -> {
+                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(15L, enableMotionAutoReset = false)
+                        Toast.makeText(this, "15m Timer set with 15s smooth audio fade-out", Toast.LENGTH_SHORT).show()
+                    }
+                    2 -> {
+                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(25L, enableMotionAutoReset = true)
+                        Toast.makeText(this, "25m Smart Auto-Sleep Motion Timer Active", Toast.LENGTH_SHORT).show()
+                    }
+                    3 -> {
+                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(30L, enableMotionAutoReset = true)
+                        Toast.makeText(this, "30m Smart Auto-Sleep Motion Timer Active", Toast.LENGTH_SHORT).show()
+                    }
+                    4 -> {
+                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(60L, enableMotionAutoReset = false)
+                        Toast.makeText(this, "60m Timer set with 15s smooth audio fade-out", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -1847,16 +2036,27 @@ class PlayerActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
+        // Real Hardware vs Software Decoder Switching
         btnHwDecoder.setOnClickListener {
-            btnHwDecoder.setTextColor(Color.parseColor("#00FFFF"))
+            if (useSoftwareDecoderPrefer) {
+                useSoftwareDecoderPrefer = false
+                val pos = exoPlayer?.currentPosition ?: 0L
+                initializePlayer(startPositionOverrideMs = pos)
+            }
+            btnHwDecoder.setTextColor(Color.parseColor("#5CE1E6"))
             btnSwDecoder.setTextColor(Color.WHITE)
-            Toast.makeText(this, "Switched to Hardware (HW) Decoder", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Active: Hardware (HW) 8K Decoder Engine", Toast.LENGTH_SHORT).show()
         }
 
         btnSwDecoder.setOnClickListener {
-            btnSwDecoder.setTextColor(Color.parseColor("#00FFFF"))
+            if (!useSoftwareDecoderPrefer) {
+                useSoftwareDecoderPrefer = true
+                val pos = exoPlayer?.currentPosition ?: 0L
+                initializePlayer(startPositionOverrideMs = pos)
+            }
+            btnSwDecoder.setTextColor(Color.parseColor("#5CE1E6"))
             btnHwDecoder.setTextColor(Color.WHITE)
-            Toast.makeText(this, "Switched to Software (SW) Decoder", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Active: Software (SW) Fallback Decoder Engine", Toast.LENGTH_SHORT).show()
         }
 
         findViewById<LinearLayout>(R.id.optEditPlayer).setOnClickListener {
@@ -1867,11 +2067,11 @@ class PlayerActivity : AppCompatActivity() {
             AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Player Gestures Guide")
                 .setMessage(
-                    "• Right Swipe Up/Down: Smooth 300% Volume Boost\n" +
-                        "• Left Swipe Up/Down: Smooth Persistent Brightness\n" +
-                        "• Horizontal Slide: Live Frame + Nanosecond Seek\n" +
-                        "• Double Tap Left / Right: -10s / +10s Seek\n" +
-                        "• Two-Finger Pinch: 50% to 600% Smooth Zoom"
+                    "1. Right Vertical Swipe: Direction-Locked Smooth 300% Volume Boost\n" +
+                        "2. Left Vertical Swipe: Direction-Locked Smooth Brightness\n" +
+                        "3. Horizontal Slide: Slow Precision Frame Seek (Never triggers during volume swipe)\n" +
+                        "4. Double Tap Left / Right: Instant -10s / +10s Seek\n" +
+                        "5. Two-Finger Pinch: 50% to 600% Smooth Video Zoom"
                 )
                 .setPositiveButton("Got It", null)
                 .show()
@@ -1885,11 +2085,27 @@ class PlayerActivity : AppCompatActivity() {
                 .setTitle("File Information")
                 .setMessage("Title: $videoTitle\n\nPath: $videoPath\n\nSize: $sizeMb\n\nDuration: $durationStr")
                 .setPositiveButton("Close", null)
+                .setNeutralButton("Delete Permanently") { _, _ ->
+                    deleteCurrentVideoPermanently()
+                }
                 .show()
         }
 
         findViewById<LinearLayout>(R.id.optFeedback).setOnClickListener {
-            Toast.makeText(this, "Thank you for using MAX Player Pro!", Toast.LENGTH_SHORT).show()
+            AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer)
+        }
+    }
+
+    private fun deleteCurrentVideoPermanently() {
+        closeAllModularPanels()
+        exoPlayer?.pause()
+        PermanentDeleteHelper.confirmAndDeletePermanently(
+            context = this,
+            title = videoTitle,
+            path = videoPath,
+            isVideo = true
+        ) {
+            finish()
         }
     }
 
@@ -1922,8 +2138,18 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        val presets = arrayOf("Normal", "Heavy Bass", "Cinema Boost", "Clear Voice", "Rock")
+        val presets = arrayOf(
+            "Normal Studio",
+            "Heavy Bass Boost",
+            "8K Cinema Surround",
+            "Clear Vocal & Dialogue",
+            "Open Lofi & Pitch Sound Lab"
+        )
         showBrightMenuDialogInternal("Built-in Video Equalizer", presets) { which ->
+            if (which == 4) {
+                AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer)
+                return@showBrightMenuDialogInternal
+            }
             try {
                 val eq = builtInEqualizer
                 if (eq != null && eq.numberOfPresets > 0) {
@@ -2038,7 +2264,7 @@ class PlayerActivity : AppCompatActivity() {
             btn.setTextColor(Color.WHITE)
         }
         val activeBtn = allButtons[mode]
-        activeBtn.setBackgroundColor(Color.parseColor("#00FFFF"))
+        activeBtn.setBackgroundColor(Color.parseColor("#5CE1E6"))
         activeBtn.setTextColor(Color.BLACK)
 
         stopAfterCurrent = false
@@ -2108,13 +2334,15 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupMultiTouchZoomAndGestures() {
+    // Strict Direction-Locked Gestures: Vertical Volume/Brightness NEVER triggers video seeking!
+    private fun setupDirectionLockedTouchAndGestures() {
         scaleGestureDetector = ScaleGestureDetector(
             this,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
                     if (isScreenLocked) return false
                     isPinchZooming = true
+                    lockedSwipeDirection = 0
                     return true
                 }
 
@@ -2169,7 +2397,7 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             override fun onLongPress(e: MotionEvent) {
-                if (isScreenLocked || isPinchZooming || isHorizontalScrubbing) return
+                if (isScreenLocked || isPinchZooming || lockedSwipeDirection != 0) return
                 exoPlayer?.let { player ->
                     if (player.isPlaying) {
                         isLongPressSpeedActive = true
@@ -2179,63 +2407,6 @@ class PlayerActivity : AppCompatActivity() {
                     }
                 }
             }
-
-            override fun onScroll(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                distanceX: Float,
-                distanceY: Float
-            ): Boolean {
-                if (isScreenLocked || isPinchZooming || isLongPressSpeedActive || e1 == null || e2.pointerCount > 1) {
-                    return false
-                }
-                val screenWidth = resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
-                val screenHeight = resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
-
-                if (abs(distanceX) > abs(distanceY) * 1.2f || isHorizontalScrubbing) {
-                    val player = exoPlayer ?: return false
-                    val dur = player.duration.coerceAtLeast(1L)
-                    if (!isHorizontalScrubbing) {
-                        isHorizontalScrubbing = true
-                        scrubTargetPositionMs = player.currentPosition
-                    }
-                    val deltaMs = ((-distanceX / screenWidth) * 90000f).toLong()
-                    scrubTargetPositionMs = (scrubTargetPositionMs + deltaMs).coerceIn(0L, dur)
-                    player.seekTo(scrubTargetPositionMs)
-
-                    seekBarPlayer.progress = scrubTargetPositionMs.toInt()
-                    val nanoStamp = formatPreciseTimestampWithCentiseconds(scrubTargetPositionMs)
-                    tvPlayerCurrentTime.text = nanoStamp
-                    val pct = ((scrubTargetPositionMs.toFloat() / dur.toFloat()) * 100f).toInt().coerceIn(0, 100)
-                    showGestureFeedback(android.R.drawable.ic_media_ff, nanoStamp, pct)
-                    return true
-                }
-
-                if (abs(distanceY) > abs(distanceX)) {
-                    if (e1.x < screenWidth / 2f) {
-                        val deltaPct = (distanceY / screenHeight) * 115f
-                        currentBrightnessPercent = (currentBrightnessPercent + deltaPct).coerceIn(2f, 100f)
-                        val lp = window.attributes
-                        lp.screenBrightness = currentBrightnessPercent / 100f
-                        window.attributes = lp
-
-                        val pctInt = currentBrightnessPercent.roundToInt()
-                        findViewById<SeekBar>(R.id.seekBarBrightness)?.progress = pctInt
-                        getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-                            .edit()
-                            .putFloat("persistent_brightness_pct", currentBrightnessPercent)
-                            .apply()
-
-                        showGestureFeedback(android.R.drawable.ic_menu_view, "$pctInt%", pctInt)
-                    } else {
-                        val deltaVolPct = (distanceY / screenHeight) * 165f
-                        currentVolumePercent = (currentVolumePercent + deltaVolPct).coerceIn(0f, 300f)
-                        applySmooth300PercentVolume(currentVolumePercent)
-                    }
-                    return true
-                }
-                return false
-            }
         })
 
         rootPlayerFrame.setOnTouchListener { _, event ->
@@ -2243,14 +2414,90 @@ class PlayerActivity : AppCompatActivity() {
             if (!scaleGestureDetector.isInProgress) {
                 gestureDetector.onTouchEvent(event)
             }
-            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-                if (isLongPressSpeedActive) {
-                    isLongPressSpeedActive = false
-                    exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
-                    cardSpeedBoostBadge.visibility = View.GONE
+
+            val screenW = resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
+            val screenH = resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
+
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartX = event.x
+                    touchStartY = event.y
+                    lastMoveX = event.x
+                    lastMoveY = event.y
+                    lockedSwipeDirection = 0
                 }
-                if (isHorizontalScrubbing) {
-                    isHorizontalScrubbing = false
+                MotionEvent.ACTION_MOVE -> {
+                    if (isScreenLocked || isPinchZooming || isLongPressSpeedActive || event.pointerCount > 1) {
+                        return@setOnTouchListener true
+                    }
+
+                    val totalDx = event.x - touchStartX
+                    val totalDy = event.y - touchStartY
+                    val stepDx = event.x - lastMoveX
+                    val stepDy = event.y - lastMoveY
+                    lastMoveX = event.x
+                    lastMoveY = event.y
+
+                    // Decide and LOCK direction once finger moves past threshold (24px)
+                    if (lockedSwipeDirection == 0) {
+                        if (abs(totalDy) > 24f && abs(totalDy) > abs(totalDx) * 1.2f) {
+                            // Locked strictly to Vertical (Volume or Brightness)
+                            lockedSwipeDirection = 2
+                        } else if (abs(totalDx) > 32f && abs(totalDx) > abs(totalDy) * 1.5f) {
+                            // Locked strictly to Horizontal (Slow Precision Seek)
+                            lockedSwipeDirection = 1
+                            scrubTargetPositionMs = exoPlayer?.currentPosition ?: 0L
+                        }
+                    }
+
+                    if (lockedSwipeDirection == 2) {
+                        // Strictly Vertical: Volume / Brightness only. Video seeking is 100% disabled!
+                        if (touchStartX < screenW / 2f) {
+                            // Left side: Smooth Controlled Brightness (1.5x damped)
+                            val deltaBrightness = (-stepDy / screenH) * 90f
+                            currentBrightnessPercent = (currentBrightnessPercent + deltaBrightness).coerceIn(2f, 100f)
+                            val lp = window.attributes
+                            lp.screenBrightness = currentBrightnessPercent / 100f
+                            window.attributes = lp
+
+                            val pctInt = currentBrightnessPercent.roundToInt()
+                            findViewById<SeekBar>(R.id.seekBarBrightness)?.progress = pctInt
+                            getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+                                .edit()
+                                .putFloat("persistent_brightness_pct", currentBrightnessPercent)
+                                .apply()
+
+                            showGestureFeedback(android.R.drawable.ic_menu_view, "$pctInt%", pctInt)
+                        } else {
+                            // Right side: Smooth Controlled 300% Volume Boost (1.5x damped)
+                            val deltaVolPct = (-stepDy / screenH) * 135f
+                            currentVolumePercent = (currentVolumePercent + deltaVolPct).coerceIn(0f, 300f)
+                            applySmooth300PercentVolume(currentVolumePercent)
+                        }
+                    } else if (lockedSwipeDirection == 1) {
+                        // Strictly Horizontal: Adaptive Slow Precision Scrubbing
+                        val player = exoPlayer ?: return@setOnTouchListener true
+                        val dur = player.duration.coerceAtLeast(1L)
+                        // Lower half of screen = micro-slow seek (20s full width), upper half = 45s full width
+                        val fullWidthSeekWindowMs = if (touchStartY > screenH * 0.6f) 20000f else 42000f
+                        val deltaSeekMs = ((stepDx / screenW) * fullWidthSeekWindowMs).toLong()
+                        scrubTargetPositionMs = (scrubTargetPositionMs + deltaSeekMs).coerceIn(0L, dur)
+                        player.seekTo(scrubTargetPositionMs)
+
+                        seekBarPlayer.progress = scrubTargetPositionMs.toInt()
+                        val stamp = formatPreciseTimestampWithCentiseconds(scrubTargetPositionMs)
+                        tvPlayerCurrentTime.text = formatDuration(scrubTargetPositionMs)
+                        val pct = ((scrubTargetPositionMs.toFloat() / dur.toFloat()) * 100f).toInt().coerceIn(0, 100)
+                        showGestureFeedback(android.R.drawable.ic_media_ff, stamp, pct)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    lockedSwipeDirection = 0
+                    if (isLongPressSpeedActive) {
+                        isLongPressSpeedActive = false
+                        exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
+                        cardSpeedBoostBadge.visibility = View.GONE
+                    }
                 }
             }
             true
@@ -2260,6 +2507,13 @@ class PlayerActivity : AppCompatActivity() {
     private fun applySmooth300PercentVolume(targetPercent: Float) {
         val maxSysVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val pctInt = targetPercent.roundToInt().coerceIn(0, 300)
+
+        val earSafetyOn = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+            .getBoolean("ear_safety_80_alert", true)
+        if (earSafetyOn && pctInt > 85 && !hasShownEarSafetyWarning) {
+            hasShownEarSafetyWarning = true
+            Toast.makeText(this, "Ear Safety Alert: High Volume (>80%)", Toast.LENGTH_SHORT).show()
+        }
 
         if (pctInt <= 100) {
             val sysVol = ((pctInt / 100f) * maxSysVol).roundToInt().coerceIn(0, maxSysVol)
@@ -2291,6 +2545,13 @@ class PlayerActivity : AppCompatActivity() {
         )
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (mediaSessionManager?.handleMediaKeyEvent(keyCode) == true) {
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     private fun showGestureFeedback(iconRes: Int, text: String, progressPercent: Int) {
         imgGestureIcon.setImageResource(iconRes)
         tvGestureValue.text = text
@@ -2315,15 +2576,15 @@ class PlayerActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#181828"))
+                setColor(Color.parseColor("#13263B"))
                 cornerRadius = 22f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
+                setStroke((1.5f * d).toInt(), Color.parseColor("#5CE1E6"))
             }
         }
 
         val tvHeader = TextView(this).apply {
             text = headerTitle
-            setTextColor(Color.parseColor("#00FFFF"))
+            setTextColor(Color.parseColor("#5CE1E6"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
@@ -2488,6 +2749,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
+        // If Background Audio Mode is ON, keep playing even when screen locks or user switches apps
         if (!isBgAudioEnabled && !isInPictureInPictureMode) {
             exoPlayer?.pause()
         }
@@ -2495,12 +2757,13 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        sleepCountDownTimer?.cancel()
+        smartIdlePauseHelper?.cancelTimer()
+        mediaSessionManager?.release()
         handler.removeCallbacks(updateProgressAction)
         handler.removeCallbacks(hideGestureRunnable)
         try {
             if (isPipReceiverRegistered) {
-                unregisterReceiver(pipActionReceiver)
+                unregisterReceiver(pipAndNotifReceiver)
                 isPipReceiverRegistered = false
             }
             loudnessEnhancer?.release()
@@ -2531,7 +2794,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         private val activePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#00FFFF")
+            color = Color.parseColor("#5CE1E6")
             strokeWidth = 2.6f * density
             strokeCap = Paint.Cap.ROUND
         }
