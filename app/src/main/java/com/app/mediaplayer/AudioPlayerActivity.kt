@@ -2,9 +2,6 @@ package com.app.mediaplayer
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ContentUris
 import android.content.Context
@@ -17,19 +14,18 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.text.TextUtils
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -37,13 +33,11 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
-import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -61,13 +55,10 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     companion object {
         private const val REQ_PICK_CUSTOM_PHOTO = 7201
-        private const val NOTIF_CHANNEL_ID = "max_music_playback_channel"
-        private const val NOTIF_ID = 4402
-        private const val ACTION_NOTIF_PREV = "com.app.mediaplayer.ACTION_NOTIF_PREV"
-        private const val ACTION_NOTIF_PLAY_PAUSE = "com.app.mediaplayer.ACTION_NOTIF_PLAY_PAUSE"
-        private const val ACTION_NOTIF_NEXT = "com.app.mediaplayer.ACTION_NOTIF_NEXT"
+        private const val ACTION_QUEUE_ENQUEUE = "com.app.mediaplayer.ACTION_QUEUE_ENQUEUE"
 
         private var sharedExoPlayer: ExoPlayer? = null
+        private var sharedMediaSessionManager: MediaSessionManager? = null
         private val sharedPaths = mutableListOf<String>()
         private val sharedTitles = mutableListOf<String>()
         private val sharedArtists = mutableListOf<String>()
@@ -101,6 +92,7 @@ class AudioPlayerActivity : AppCompatActivity() {
     }
 
     private lateinit var pocketShakeDetector: PocketShakeDetector
+    private var smartIdlePauseHelper: SmartIdlePauseHelper? = null
 
     private lateinit var rootAudioPlayer: RelativeLayout
     private lateinit var tvAudioPlayerTitle: TextView
@@ -165,26 +157,48 @@ class AudioPlayerActivity : AppCompatActivity() {
     private var discRotationAngle = 0f
     private var pointA = -1L
     private var pointB = -1L
-    private var sleepTimer: CountDownTimer? = null
-    private var activeAccentColor = Color.parseColor("#00FFFF")
-    private var isNotifReceiverRegistered = false
+    private var activeAccentColor = Color.parseColor("#5CE1E6")
+    private var isReceiverRegistered = false
 
     // Order of the 4 customizable tool slots: 0=Equalizer, 1=AB Repeat, 2=Speed, 3=Sleep Timer
     private val toolSlotMapping = intArrayOf(0, 1, 2, 3)
 
     private val handler = Handler(Looper.getMainLooper())
 
-    private val notifReceiver = object : BroadcastReceiver() {
+    private val notifAndQueueReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                ACTION_NOTIF_PREV -> playPreviousTrack()
-                ACTION_NOTIF_PLAY_PAUSE -> {
+                BackgroundAudioService.ACTION_NOTIF_PREV -> playPreviousTrack()
+                BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE -> {
                     sharedExoPlayer?.let { p ->
                         if (p.isPlaying) p.pause() else p.play()
                     }
-                    showOrUpdateMediaNotification()
+                    syncBackgroundNotification()
                 }
-                ACTION_NOTIF_NEXT -> playNextTrack()
+                BackgroundAudioService.ACTION_NOTIF_NEXT -> playNextTrack()
+                ACTION_QUEUE_ENQUEUE -> {
+                    val songPath = intent.getStringExtra("SONG_PATH") ?: return
+                    val songTitle = intent.getStringExtra("SONG_TITLE") ?: File(songPath).name
+                    val songArtist = intent.getStringExtra("SONG_ARTIST") ?: "Unknown Artist"
+                    val playNext = intent.getBooleanExtra("PLAY_NEXT", false)
+                    val uri = if (songPath.startsWith("content://")) Uri.parse(songPath) else Uri.fromFile(File(songPath))
+                    val item = MediaItem.fromUri(uri)
+
+                    if (playNext && sharedPaths.isNotEmpty()) {
+                        val insertPos = (sharedIndex + 1).coerceAtMost(sharedPaths.size)
+                        sharedPaths.add(insertPos, songPath)
+                        sharedTitles.add(insertPos, songTitle)
+                        sharedArtists.add(insertPos, songArtist)
+                        sharedExoPlayer?.addMediaItem(insertPos, item)
+                    } else {
+                        sharedPaths.add(songPath)
+                        sharedTitles.add(songTitle)
+                        sharedArtists.add(songArtist)
+                        sharedExoPlayer?.addMediaItem(item)
+                    }
+                    refreshCurrentSongMetadataAndArt()
+                    rvSlidingAudioQueue.adapter?.notifyDataSetChanged()
+                }
             }
         }
     }
@@ -193,7 +207,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             updatePlayPauseButtonVisual(isPlaying)
             animateTonearm(isPlaying)
-            showOrUpdateMediaNotification()
+            syncBackgroundNotification()
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -205,7 +219,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 pointB = -1L
                 refreshCurrentSongMetadataAndArt()
                 rvSlidingAudioQueue.adapter?.notifyDataSetChanged()
-                showOrUpdateMediaNotification()
+                syncBackgroundNotification()
             }
         }
 
@@ -236,8 +250,9 @@ class AudioPlayerActivity : AppCompatActivity() {
                         player.seekTo(pointA)
                     }
 
+                    // Slow & Cinematic Vinyl Rotation (0.95 degrees per frame)
                     if (player.isPlaying && !isSquareAlbumStyle && !isLyricsPageVisible) {
-                        discRotationAngle = (discRotationAngle + 1.35f) % 360f
+                        discRotationAngle = (discRotationAngle + 0.95f) % 360f
                         cardVinylOuterDisc.rotation = discRotationAngle
                     }
                 }
@@ -252,7 +267,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_audio_player)
 
-        registerNotificationReceiver()
+        registerNotificationAndQueueReceiver()
         bindViews()
         applySavedThemeColors()
         setupVinylAndTonearmDrawables()
@@ -261,6 +276,28 @@ class AudioPlayerActivity : AppCompatActivity() {
         setupSwipeBetweenVinylAndLyrics()
         setupAllControlClicks()
         setupSlidingQueueRecyclerView()
+
+        smartIdlePauseHelper = SmartIdlePauseHelper(
+            context = this,
+            playerProvider = { sharedExoPlayer },
+            onTickLabelUpdate = { label ->
+                val timerSlotIdx = toolSlotMapping.indexOf(3)
+                if (timerSlotIdx in 0..3) {
+                    val slots = arrayOf(btnToolSlot1, btnToolSlot2, btnToolSlot3, btnToolSlot4)
+                    slots[timerSlotIdx].text = label
+                    slots[timerSlotIdx].setTextColor(
+                        if (label == "Timer") Color.WHITE else activeAccentColor
+                    )
+                }
+            }
+        )
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            handleIncomingIntent(intent)
+        }
     }
 
     override fun onResume() {
@@ -269,19 +306,20 @@ class AudioPlayerActivity : AppCompatActivity() {
         handler.post(spinAndProgressRunnable)
     }
 
-    private fun registerNotificationReceiver() {
-        if (isNotifReceiverRegistered) return
+    private fun registerNotificationAndQueueReceiver() {
+        if (isReceiverRegistered) return
         val filter = IntentFilter().apply {
-            addAction(ACTION_NOTIF_PREV)
-            addAction(ACTION_NOTIF_PLAY_PAUSE)
-            addAction(ACTION_NOTIF_NEXT)
+            addAction(BackgroundAudioService.ACTION_NOTIF_PREV)
+            addAction(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE)
+            addAction(BackgroundAudioService.ACTION_NOTIF_NEXT)
+            addAction(ACTION_QUEUE_ENQUEUE)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(notifReceiver, filter, Context.RECEIVER_EXPORTED)
+            registerReceiver(notifAndQueueReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
-            registerReceiver(notifReceiver, filter)
+            registerReceiver(notifAndQueueReceiver, filter)
         }
-        isNotifReceiverRegistered = true
+        isReceiverRegistered = true
     }
 
     private fun bindViews() {
@@ -354,16 +392,20 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun applySavedThemeColors() {
         val prefs = getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val bgHex = prefs.getString("app_bg_color", "#08080E") ?: "#08080E"
-        val accentHex = prefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        val bgHex = prefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
+        val cardHex = prefs.getString("app_card_color", "#142538") ?: "#142538"
+        val accentHex = prefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
         try {
             val bgColor = Color.parseColor(bgHex)
+            val cardColor = Color.parseColor(cardHex)
             activeAccentColor = Color.parseColor(accentHex)
             rootAudioPlayer.setBackgroundColor(bgColor)
+            cardSquareArtBox.setCardBackgroundColor(cardColor)
+            drawerPlayingQueueRight.setBackgroundColor(cardColor)
             window.statusBarColor = bgColor
             window.navigationBarColor = bgColor
         } catch (e: Exception) {
-            activeAccentColor = Color.parseColor("#00FFFF")
+            activeAccentColor = Color.parseColor("#5CE1E6")
         }
 
         val d = resources.displayMetrics.density
@@ -387,7 +429,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun restoreUserAudioPreferences() {
         val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-        // Pocket Shake MUST be OFF by default when app is installed/opened unless enabled by user
+        // Strictly OFF by default so user is never annoyed by accidental pocket shakes
         isPocketShakeEnabled = prefs.getBoolean("double_shake_enabled", false)
         isSquareAlbumStyle = prefs.getBoolean("square_album_style", false)
         isWaveformMode = prefs.getBoolean("waveform_scrubber_mode", true)
@@ -417,11 +459,11 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun updatePocketShakeVisual() {
         if (isPocketShakeEnabled) {
-            btnBottomLeftPocketShake.text = "📳  Pocket Shake: ON"
+            btnBottomLeftPocketShake.text = "Pocket Shake: ON"
             btnBottomLeftPocketShake.setTextColor(activeAccentColor)
             pocketShakeDetector.startListening()
         } else {
-            btnBottomLeftPocketShake.text = "📳  Pocket Shake: OFF"
+            btnBottomLeftPocketShake.text = "Pocket Shake: OFF"
             btnBottomLeftPocketShake.setTextColor(Color.parseColor("#B0B0C0"))
             pocketShakeDetector.stopListening()
         }
@@ -518,11 +560,34 @@ class AudioPlayerActivity : AppCompatActivity() {
             player.prepare()
             player.playWhenReady = true
 
+            sharedMediaSessionManager?.release()
+            sharedMediaSessionManager = MediaSessionManager(
+                context = applicationContext,
+                playerProvider = { sharedExoPlayer },
+                onNextTrack = { playNextTrack() },
+                onPrevTrack = { playPreviousTrack() },
+                onPlayStateChanged = { isPlaying ->
+                    updatePlayPauseButtonVisual(isPlaying)
+                    animateTonearm(isPlaying)
+                    syncBackgroundNotification()
+                }
+            ).also { it.requestAudioFocusAndRegister() }
+
             refreshCurrentSongMetadataAndArt()
-            showOrUpdateMediaNotification()
+            syncBackgroundNotification()
         } catch (e: Exception) {
             Toast.makeText(this, "Unable to play audio track", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun syncBackgroundNotification() {
+        BackgroundAudioService.updateForegroundNotification(
+            context = applicationContext,
+            title = currentAudioTitle,
+            artist = currentAudioArtist,
+            isPlaying = sharedExoPlayer?.isPlaying == true,
+            isVideoBackground = false
+        )
     }
 
     private fun refreshCurrentSongMetadataAndArt() {
@@ -538,16 +603,16 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         val total = sharedPaths.size.coerceAtLeast(1)
         val curNum = (sharedIndex + 1).coerceIn(1, total)
-        btnBottomRightPlayingQueue.text = "≡  Playing Queue ($curNum/$total)"
+        btnBottomRightPlayingQueue.text = "Playing Queue ($curNum/$total)"
         tvDrawerQueueHeader.text = "Playing Queue ($curNum/$total)"
 
         val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
         val isFav = prefs.getBoolean("fav_audio_$currentAudioPath", false)
         if (isFav) {
-            btnLyricsAddToFavorite.text = "♥  Added to Favorite"
+            btnLyricsAddToFavorite.text = "* Added to Favorite"
             btnLyricsAddToFavorite.setTextColor(Color.parseColor("#FF4081"))
         } else {
-            btnLyricsAddToFavorite.text = "♡  Add to Favorite"
+            btnLyricsAddToFavorite.text = "+ Add to Favorite"
             btnLyricsAddToFavorite.setTextColor(Color.WHITE)
         }
 
@@ -576,7 +641,6 @@ class AudioPlayerActivity : AppCompatActivity() {
             return
         }
 
-        // Try loading embedded album art via MediaStore album ID lookup
         var albumId = -1L
         try {
             contentResolver.query(
@@ -622,10 +686,11 @@ class AudioPlayerActivity : AppCompatActivity() {
         )
     }
 
+    // 450ms Smooth & Cinematic Tonearm (Danda) Animation
     private fun animateTonearm(isPlaying: Boolean) {
         imgVinylTonearm.animate()
             .rotation(if (isPlaying) 4f else -18f)
-            .setDuration(400)
+            .setDuration(450L)
             .start()
     }
 
@@ -642,7 +707,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
-                if (abs(diffX) > abs(diffY) && abs(diffX) > 85) {
+                if (abs(diffX) > abs(diffY) && abs(diffX) > 75) {
                     if (diffX < 0) {
                         switchCenterPage(showLyrics = true)
                     } else {
@@ -667,10 +732,14 @@ class AudioPlayerActivity : AppCompatActivity() {
         isLyricsPageVisible = showLyrics
         if (showLyrics) {
             pageVinylAndArt.visibility = View.GONE
+            pageLyricsContainer.alpha = 0f
             pageLyricsContainer.visibility = View.VISIBLE
+            pageLyricsContainer.animate().alpha(1f).setDuration(220L).start()
         } else {
             pageLyricsContainer.visibility = View.GONE
+            pageVinylAndArt.alpha = 0f
             pageVinylAndArt.visibility = View.VISIBLE
+            pageVinylAndArt.animate().alpha(1f).setDuration(220L).start()
         }
         updateFlatDashIndicators()
     }
@@ -697,9 +766,9 @@ class AudioPlayerActivity : AppCompatActivity() {
                 }
                 1 -> {
                     tv.text = when {
-                        pointA != -1L && pointB != -1L -> "A⇌B ON"
+                        pointA != -1L && pointB != -1L -> "A-B ON"
                         pointA != -1L -> "A Set"
-                        else -> "A⇌B"
+                        else -> "A-B"
                     }
                     tv.setTextColor(if (pointA != -1L) activeAccentColor else Color.WHITE)
                 }
@@ -708,19 +777,17 @@ class AudioPlayerActivity : AppCompatActivity() {
                     tv.setTextColor(if (abs(currentPlaybackSpeed - 1.0f) > 0.05f) activeAccentColor else Color.WHITE)
                 }
                 3 -> {
-                    if (sleepTimer == null) {
-                        tv.text = "Timer"
-                        tv.setTextColor(Color.WHITE)
-                    }
+                    tv.text = "Timer"
+                    tv.setTextColor(Color.WHITE)
                 }
             }
             tv.setOnClickListener {
-                triggerToolAction(toolSlotMapping[i], tv)
+                triggerToolAction(toolSlotMapping[i])
             }
         }
     }
 
-    private fun triggerToolAction(toolType: Int, targetView: TextView) {
+    private fun triggerToolAction(toolType: Int) {
         when (toolType) {
             0 -> EqualizerHelper.showEqualizerDialog(this, getSharedAudioSessionId())
             1 -> {
@@ -754,33 +821,23 @@ class AudioPlayerActivity : AppCompatActivity() {
                 refreshCustomizableToolSlotsText()
             }
             3 -> {
-                val options = arrayOf("Timer Off", "15 Minutes", "30 Minutes", "60 Minutes")
-                VideoFragment.showBrightVideoMenuDialog(this, "Sleep Timer", options) { which ->
-                    sleepTimer?.cancel()
-                    sleepTimer = null
-                    if (which == 0) {
-                        refreshCustomizableToolSlotsText()
-                        Toast.makeText(this, "Sleep Timer Off", Toast.LENGTH_SHORT).show()
-                    } else {
-                        val mins = when (which) {
-                            1 -> 15L
-                            2 -> 30L
-                            else -> 60L
+                val options = arrayOf(
+                    "Timer Off",
+                    "15 Minutes (Smooth 15s Fade-Out)",
+                    "25 Minutes (Smart Motion Idle Sleep)",
+                    "30 Minutes (Smart Motion Idle Sleep)",
+                    "60 Minutes (Smooth 15s Fade-Out)"
+                )
+                VideoFragment.showBrightVideoMenuDialog(this, "Smart Sleep Timer", options) { which ->
+                    when (which) {
+                        0 -> {
+                            smartIdlePauseHelper?.cancelTimer()
+                            Toast.makeText(this, "Sleep Timer Off", Toast.LENGTH_SHORT).show()
                         }
-                        sleepTimer = object : CountDownTimer(mins * 60 * 1000L, 1000L) {
-                            override fun onTick(millisUntilFinished: Long) {
-                                val m = millisUntilFinished / 60000L
-                                val s = (millisUntilFinished % 60000L) / 1000L
-                                targetView.text = String.format(Locale.US, "%02d:%02d", m, s)
-                                targetView.setTextColor(activeAccentColor)
-                            }
-                            override fun onFinish() {
-                                sharedExoPlayer?.pause()
-                                sleepTimer = null
-                                refreshCustomizableToolSlotsText()
-                            }
-                        }.start()
-                        Toast.makeText(this, "Music will stop in $mins minutes", Toast.LENGTH_SHORT).show()
+                        1 -> smartIdlePauseHelper?.startSmoothFadeSleepTimer(15L, false)
+                        2 -> smartIdlePauseHelper?.startSmoothFadeSleepTimer(25L, true)
+                        3 -> smartIdlePauseHelper?.startSmoothFadeSleepTimer(30L, true)
+                        4 -> smartIdlePauseHelper?.startSmoothFadeSleepTimer(60L, false)
                     }
                 }
             }
@@ -803,7 +860,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             }
         }
 
-        // 3-Dots Menu with Custom Photo, Vinyl/Square Switch, Waveform/Line Switch, Song Details & Bottom Replace/Swap Tool Icons
+        // 3-Dots Menu with Custom Photo, Vinyl/Square Switch, Waveform/Line Switch, Lofi Lab, Permanent Delete & Bottom Replace/Swap Tool Icons
         btnAudioThreeDots.setOnClickListener {
             val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
             val hasCustomArt = !prefs.getString("custom_art_$currentAudioPath", null).isNullOrEmpty()
@@ -812,7 +869,9 @@ class AudioPlayerActivity : AppCompatActivity() {
                 if (hasCustomArt) "Remove Custom Photo (Reset Default)" else "Switch Rotating Vinyl Disc / Square Box",
                 if (isSquareAlbumStyle) "Center Style: Switch to Rotating Vinyl Disc" else "Center Style: Switch to Square Album Box",
                 if (isWaveformMode) "Seekbar Style: Switch to Simple Straight Line" else "Seekbar Style: Switch to Waveform Bars (|||||)",
+                "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
                 "Song Details & File Info",
+                "Delete Song Permanently (From Phone)",
                 "Replace / Swap Tool Icons Position (Equalizer, A-B, Speed, Timer)"
             )
 
@@ -834,8 +893,30 @@ class AudioPlayerActivity : AppCompatActivity() {
                         prefs.edit().putBoolean("waveform_scrubber_mode", isWaveformMode).apply()
                         updateScrubberModeVisual()
                     }
-                    4 -> showSongDetailsDialog()
-                    5 -> showReplaceToolIconsOrderDialog()
+                    4 -> AudioPitchHelper.showSoundAndPitchLabDialog(this, sharedExoPlayer)
+                    5 -> showSongDetailsDialog()
+                    6 -> {
+                        PermanentDeleteHelper.confirmAndDeletePermanently(
+                            context = this,
+                            title = currentAudioTitle,
+                            path = currentAudioPath,
+                            isVideo = false
+                        ) {
+                            if (sharedPaths.size > 1 && sharedIndex in sharedPaths.indices) {
+                                val delIdx = sharedIndex
+                                sharedPaths.removeAt(delIdx)
+                                if (delIdx in sharedTitles.indices) sharedTitles.removeAt(delIdx)
+                                if (delIdx in sharedArtists.indices) sharedArtists.removeAt(delIdx)
+                                sharedExoPlayer?.removeMediaItem(delIdx)
+                                sharedIndex = sharedExoPlayer?.currentMediaItemIndex?.coerceAtLeast(0) ?: 0
+                                refreshCurrentSongMetadataAndArt()
+                            } else {
+                                sharedExoPlayer?.stop()
+                                finish()
+                            }
+                        }
+                    }
+                    7 -> showReplaceToolIconsOrderDialog()
                 }
             }
         }
@@ -848,7 +929,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             refreshCurrentSongMetadataAndArt()
             Toast.makeText(
                 this,
-                if (!curFav) "Added to Favorite Songs ♥" else "Removed from Favorite Songs",
+                if (!curFav) "Added to Favorite Songs *" else "Removed from Favorite Songs",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -890,16 +971,16 @@ class AudioPlayerActivity : AppCompatActivity() {
             val player = sharedExoPlayer ?: return@setOnClickListener
             if (player.repeatMode == Player.REPEAT_MODE_ONE) {
                 player.repeatMode = Player.REPEAT_MODE_ALL
-                btnAudioLoopMode.text = "🔁"
+                btnAudioLoopMode.text = "All"
                 Toast.makeText(this, "Loop All Songs", Toast.LENGTH_SHORT).show()
             } else {
                 player.repeatMode = Player.REPEAT_MODE_ONE
-                btnAudioLoopMode.text = "🔂"
+                btnAudioLoopMode.text = "1x"
                 Toast.makeText(this, "Repeat Current Song", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // Bottom-Left Corner: Pocket Shake Toggle (Default OFF)
+        // Bottom-Left Corner: Pocket Shake Toggle (Strictly OFF by default)
         btnBottomLeftPocketShake.setOnClickListener {
             isPocketShakeEnabled = !isPocketShakeEnabled
             getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
@@ -909,7 +990,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             updatePocketShakeVisual()
             Toast.makeText(
                 this,
-                if (isPocketShakeEnabled) "Pocket Shake ON (Shake 2x for Next Song)" else "Pocket Shake OFF",
+                if (isPocketShakeEnabled) "Pocket Shake ON (Double Shake for Next Song)" else "Pocket Shake OFF",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -930,7 +1011,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         drawerPlayingQueueRight.translationX = 900f
         drawerPlayingQueueRight.animate()
             .translationX(0f)
-            .setDuration(240)
+            .setDuration(240L)
             .start()
         rvSlidingAudioQueue.scrollToPosition(sharedIndex.coerceAtLeast(0))
     }
@@ -938,7 +1019,7 @@ class AudioPlayerActivity : AppCompatActivity() {
     private fun closeRightSlidingQueueDrawer() {
         drawerPlayingQueueRight.animate()
             .translationX(drawerPlayingQueueRight.width.toFloat().coerceAtLeast(800f))
-            .setDuration(220)
+            .setDuration(220L)
             .withEndAction {
                 drawerPlayingQueueRight.visibility = View.GONE
                 scrimQueueOutside.visibility = View.GONE
@@ -951,7 +1032,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         rvSlidingAudioQueue.layoutManager = LinearLayoutManager(this)
         rvSlidingAudioQueue.adapter = object : RecyclerView.Adapter<QueueSongVH>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QueueSongVH {
-                // Compact 48dp height so 10 to 11 songs fit cleanly in the sliding queue
+                // Compact 48dp height so 10 to 11 songs + Singer Name fit cleanly in the sliding queue
                 val row = LinearLayout(this@AudioPlayerActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
@@ -984,7 +1065,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 textCol.addView(tvSinger)
 
                 val btnRemoveSong = TextView(this@AudioPlayerActivity).apply {
-                    text = "✕"
+                    text = "X"
                     setTextColor(Color.parseColor("#888899"))
                     textSize = 13f
                     gravity = Gravity.CENTER
@@ -1006,7 +1087,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
                 holder.tvSinger.text = singer
                 holder.tvSinger.setTextColor(
-                    if (isCurrent) activeAccentColor else Color.parseColor("#AAAA99")
+                    if (isCurrent) activeAccentColor else Color.parseColor("#B0C4DE")
                 )
 
                 holder.itemView.setOnClickListener {
@@ -1067,10 +1148,10 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun showReplaceToolIconsOrderDialog() {
         val presets = arrayOf(
-            "Default: Equalizer | A⇌B | Speed | Timer",
-            "Layout 2: Timer | Speed | A⇌B | Equalizer",
-            "Layout 3: Speed | Equalizer | Timer | A⇌B",
-            "Layout 4: A⇌B | Timer | Equalizer | Speed"
+            "Default: Equalizer | A-B | Speed | Timer",
+            "Layout 2: Timer | Speed | A-B | Equalizer",
+            "Layout 3: Speed | Equalizer | Timer | A-B",
+            "Layout 4: A-B | Timer | Equalizer | Speed"
         )
         val orders = arrayOf("0,1,2,3", "3,2,1,0", "2,0,3,1", "1,3,0,2")
 
@@ -1160,57 +1241,11 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Media Notification with Play/Pause, Previous & Next Controls
-    private fun showOrUpdateMediaNotification() {
-        try {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    NOTIF_CHANNEL_ID,
-                    "MAX Music Playback",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "Shows currently playing song controls"
-                    setSound(null, null)
-                }
-                nm.createNotificationChannel(channel)
-            }
-
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-
-            val openIntent = Intent(this, AudioPlayerActivity::class.java).apply {
-                putExtra("RESUME_EXISTING", true)
-            }
-            val contentPi = PendingIntent.getActivity(this, 801, openIntent, flags)
-            val prevPi = PendingIntent.getBroadcast(this, 802, Intent(ACTION_NOTIF_PREV).setPackage(packageName), flags)
-            val playPausePi = PendingIntent.getBroadcast(this, 803, Intent(ACTION_NOTIF_PLAY_PAUSE).setPackage(packageName), flags)
-            val nextPi = PendingIntent.getBroadcast(this, 804, Intent(ACTION_NOTIF_NEXT).setPackage(packageName), flags)
-
-            val isPlaying = sharedExoPlayer?.isPlaying == true
-            val notif = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle(currentAudioTitle)
-                .setContentText(currentAudioArtist)
-                .setContentIntent(contentPi)
-                .setOngoing(isPlaying)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .addAction(android.R.drawable.ic_media_previous, "Prev", prevPi)
-                .addAction(
-                    if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                    if (isPlaying) "Pause" else "Play",
-                    playPausePi
-                )
-                .addAction(android.R.drawable.ic_media_next, "Next", nextPi)
-                .build()
-
-            nm.notify(NOTIF_ID, notif)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (sharedMediaSessionManager?.handleMediaKeyEvent(keyCode) == true) {
+            return true
         }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun formatTime(millis: Long): String {
@@ -1230,16 +1265,15 @@ class AudioPlayerActivity : AppCompatActivity() {
         pocketShakeDetector.stopListening()
         handler.removeCallbacks(spinAndProgressRunnable)
         try {
-            if (isNotifReceiverRegistered) {
-                unregisterReceiver(notifReceiver)
-                isNotifReceiverRegistered = false
+            if (isReceiverRegistered) {
+                unregisterReceiver(notifAndQueueReceiver)
+                isReceiverRegistered = false
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // Custom Waveform Bar Scrubber matching Screenshot 1 (|||||vertical bars|||||)
     private class WaveformScrubberView(
         context: Context,
         private val onSeekRatio: (Float) -> Unit
@@ -1248,7 +1282,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         private var progressRatio = 0f
         private val d = context.resources.displayMetrics.density
         private val playedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#00FFFF")
+            color = Color.parseColor("#5CE1E6")
             strokeWidth = 3f * d
             strokeCap = Paint.Cap.ROUND
         }
@@ -1302,7 +1336,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Subtle concentric grooves on the dark vinyl platter
     private class VinylGroovesDrawable(private val d: Float) : Drawable() {
         private val groovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#252538")
@@ -1328,7 +1361,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    // Crisp White Stylus Tonearm (Danda) positioned above the Vinyl Disc as in Screenshot 1
     private class WhiteStylusTonearmDrawable(private val d: Float) : Drawable() {
         private val armPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
