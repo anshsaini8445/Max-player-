@@ -8,8 +8,11 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <!-- Storage & Media Permissions for Android 6 to Android 16 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -69,6 +72,13 @@
             android:launchMode="singleTop"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
+        <!-- Vertical Swipe Shorts / Reels & Status Player Activity -->
+        <activity
+            android:name=".ShortsPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+
         <!-- Folder Videos Listing Activity -->
         <activity
             android:name=".FolderVideosActivity"
@@ -97,6 +107,14 @@
             android:name=".FileTransferActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- Persistent Background Audio & Video-Audio Service (Survives Task Removal) -->
+        <service
+            android:name=".BackgroundAudioService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="mediaPlayback" />
 
     </application>
 
