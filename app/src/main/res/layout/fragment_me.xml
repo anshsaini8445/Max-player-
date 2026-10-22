@@ -4,8 +4,9 @@
     android:id="@+id/rootMeScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1B2A"
-    android:fillViewport="true">
+    android:background="#0A0A10"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,25 +14,42 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Top VIP Badge Header -->
-        <TextView
-            android:id="@+id/tvVipBadgeTop"
-            android:layout_width="wrap_content"
+        <!-- Top Header Row with VIP Level Badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#245CE1E6"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="6dp"
-            android:text="Bronze Player"
-            android:textColor="#5CE1E6"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="OG 8K Control Center"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvVipBadgeTop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#1A00FFFF"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
+                android:text="Bronze Player"
+                android:textColor="#00FFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <!-- VIP Banner Card -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardVipBanner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             app:cardBackgroundColor="#142538"
             app:cardCornerRadius="18dp"
             app:cardElevation="6dp">
@@ -48,7 +66,7 @@
                     android:layout_height="wrap_content"
                     android:text="OG Player Member"
                     android:textColor="#FFFFFF"
-                    android:textSize="18sp"
+                    android:textSize="17sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -56,9 +74,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="Keep watching daily to unlock Gold 8K Master Icon & VIP"
+                    android:text="Keep watching daily to unlock Gold 8K Master Icon &amp; VIP"
                     android:textColor="#B0C4DE"
-                    android:textSize="13sp" />
+                    android:textSize="12.5sp" />
 
                 <TextView
                     android:id="@+id/tvPaymentIdDisplay"
@@ -66,7 +84,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="UPI ID: anshsaini@upi | Global PayPal"
-                    android:textColor="#5CE1E6"
+                    android:textColor="#00FFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -75,15 +93,186 @@
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
                     android:layout_marginTop="14dp"
-                    android:background="#5CE1E6"
+                    android:background="#00FFFF"
                     android:gravity="center"
                     android:text="GET VIP / PAY"
-                    android:textColor="#0D1B2A"
+                    android:textColor="#0A0A10"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+
+        <!-- 2x2 Quick Tools Grid (MP3 Converter, Offline Share, Private Vault, Sound Lab) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardToolMp3Converter"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#142538"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Video to MP3"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:gravity="center"
+                            android:text="Fast Audio Extractor"
+                            android:textColor="#00FFFF"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardToolFileTransfer"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#142538"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Offline Share"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:gravity="center"
+                            android:text="5GHz Wi-Fi Direct"
+                            android:textColor="#00FFFF"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardToolPrivacyVault"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#142538"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Privacy Vault"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:gravity="center"
+                            android:text="Real &amp; Fake PIN Lock"
+                            android:textColor="#FFD700"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardToolEqualizer"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#142538"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="Sound &amp; Pitch Lab"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:gravity="center"
+                            android:text="Lofi &amp; 200% Booster"
+                            android:textColor="#00FFFF"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Theme & Wallpaper Studio Card -->
         <androidx.cardview.widget.CardView
@@ -102,13 +291,13 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:orientation="vertical"
-                android:padding="18dp">
+                android:padding="16dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="OG Theme &amp; Wallpaper Studio"
-                    android:textColor="#5CE1E6"
+                    android:textColor="#00FFFF"
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
@@ -117,79 +306,78 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="Active: OG Crystal Ice Blue"
+                    android:text="Active: OG Crystal Ice Blue (Icon Theme)"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textSize="12.5sp" />
 
-                <!-- Color Presets Row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="horizontal"
                     android:weightSum="5">
 
                     <TextView
                         android:id="@+id/btnThemeIceCrystal"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:background="#5CE1E6"
                         android:gravity="center"
                         android:text="Ice"
-                        android:textColor="#0D1B2A"
+                        android:textColor="#0A0A10"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/btnThemeAquaGlass"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="5dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
                         android:background="#72EFDD"
                         android:gravity="center"
                         android:text="Aqua"
-                        android:textColor="#0D1B2A"
+                        android:textColor="#0A0A10"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/btnThemeCyberDark"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="5dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
                         android:background="#00FFFF"
                         android:gravity="center"
                         android:text="Cyber"
-                        android:textColor="#0D1B2A"
+                        android:textColor="#0A0A10"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/btnThemeRoyalPurple"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="5dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
                         android:background="#E0AAFF"
                         android:gravity="center"
                         android:text="Royal"
-                        android:textColor="#0D1B2A"
+                        android:textColor="#0A0A10"
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/btnThemeEmeraldPro"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="5dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
                         android:background="#00F5D4"
                         android:gravity="center"
-                        android:text="Emerald"
-                        android:textColor="#0D1B2A"
+                        android:text="Mint"
+                        android:textColor="#0A0A10"
                         android:textSize="11sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -197,95 +385,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Pro Tools Grid Cards -->
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:columnCount="2">
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardToolMp3Converter"
-                android:layout_width="0dp"
-                android:layout_height="78dp"
-                android:layout_columnWeight="1"
-                android:layout_marginEnd="6dp"
-                android:layout_marginBottom="6dp"
-                app:cardBackgroundColor="#142538"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="Video to MP3 Converter"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardToolFileTransfer"
-                android:layout_width="0dp"
-                android:layout_height="78dp"
-                android:layout_columnWeight="1"
-                android:layout_marginStart="6dp"
-                android:layout_marginBottom="6dp"
-                app:cardBackgroundColor="#142538"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="Wi-Fi Direct Share Hub"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardToolPrivacyVault"
-                android:layout_width="0dp"
-                android:layout_height="78dp"
-                android:layout_columnWeight="1"
-                android:layout_marginTop="6dp"
-                android:layout_marginEnd="6dp"
-                app:cardBackgroundColor="#142538"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="Private Vault (Dual-PIN)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardToolEqualizer"
-                android:layout_width="0dp"
-                android:layout_height="78dp"
-                android:layout_columnWeight="1"
-                android:layout_marginStart="6dp"
-                android:layout_marginTop="6dp"
-                app:cardBackgroundColor="#142538"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="Sound Lab &amp; Equalizer"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </androidx.cardview.widget.CardView>
-        </GridLayout>
-
-        <!-- Player Controls & Settings Card -->
+        <!-- Player Controls & Cleaner Settings Card -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardControlsBox"
             android:layout_width="match_parent"
@@ -309,6 +409,7 @@
                     android:focusable="true"
                     android:orientation="vertical"
                     android:paddingVertical="10dp">
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -316,6 +417,7 @@
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold" />
+
                     <TextView
                         android:id="@+id/tvVideoControlsSummary"
                         android:layout_width="match_parent"
@@ -339,6 +441,7 @@
                     android:focusable="true"
                     android:orientation="vertical"
                     android:paddingVertical="10dp">
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -346,6 +449,7 @@
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold" />
+
                     <TextView
                         android:id="@+id/tvAudioControlsSummary"
                         android:layout_width="match_parent"
@@ -369,6 +473,7 @@
                     android:focusable="true"
                     android:orientation="vertical"
                     android:paddingVertical="10dp">
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -376,6 +481,7 @@
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold" />
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -398,18 +504,20 @@
                     android:focusable="true"
                     android:orientation="vertical"
                     android:paddingVertical="10dp">
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Storage Cleaner &amp; Duplicate Cache Hub"
+                        android:text="Storage Cleaner &amp; Duplicate File Scanner"
                         android:textColor="#00E676"
                         android:textSize="14sp"
                         android:textStyle="bold" />
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Free up space and erase duplicate videos/audio"
+                        android:text="Clean app cache and remove duplicate media safely"
                         android:textColor="#B0C4DE"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -417,13 +525,13 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Support & About Card -->
+        <!-- Support & About Card (Strictly LinearLayouts to match MeFragment.kt types) -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardSupportBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="28dp"
             app:cardBackgroundColor="#142538"
             app:cardCornerRadius="18dp"
             app:cardElevation="6dp">
@@ -434,59 +542,108 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
+                <LinearLayout
                     android:id="@+id/rowRateApp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingVertical="10dp"
-                    android:text="Rate 5 Stars on Play Store"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp">
 
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22FFFFFF" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Rate 5 Stars on Google Play"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
-                <TextView
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="*****"
+                        android:textColor="#FFD700"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <LinearLayout
                     android:id="@+id/rowReportBug"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingVertical="10dp"
-                    android:text="Report a Bug / Send Complaint"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp">
 
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22FFFFFF" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Report a Bug / Send Feedback"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
-                <TextView
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <LinearLayout
                     android:id="@+id/rowShareApp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingVertical="10dp"
-                    android:text="Share OG 8K Player with Friends"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp">
 
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22FFFFFF" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Share OG 8K Player with Friends"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
-                <TextView
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#22FFFFFF" />
+
+                <LinearLayout
                     android:id="@+id/rowAppInfo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingVertical="10dp"
-                    android:text="About OG 8K Player v3.0"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="About OG 8K Player v3.0"
+                        android:textColor="#00FFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
