@@ -14,10 +14,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import java.util.Locale
@@ -26,19 +28,27 @@ import kotlin.concurrent.thread
 class SearchFragment : Fragment() {
 
     private lateinit var rootSearchLayout: LinearLayout
-    private lateinit var etSearchInput: EditText
-    private lateinit var tvFilterVideos: TextView
-    private lateinit var tvFilterAudio: TextView
-    private lateinit var rvSearchResults: RecyclerView
-    private lateinit var tvEmptySearch: TextView
+    private lateinit var tvTabVideosLeft: TextView
+    private lateinit var tvTabAudioRight: TextView
+    private lateinit var rvHorizontalSplitPager: RecyclerView
+    private lateinit var etSearchInputBottom: EditText
+
+    private var rvVideoPage: RecyclerView? = null
+    private var rvAudioPage: RecyclerView? = null
+    private var tvEmptyVideoPage: TextView? = null
+    private var tvEmptyAudioPage: TextView? = null
 
     private val allVideos = mutableListOf<VideoModel>()
     private val allAudios = mutableListOf<AudioTrackModel>()
     private val filteredVideos = mutableListOf<VideoModel>()
     private val filteredAudios = mutableListOf<AudioTrackModel>()
 
-    private var activeFilter = 0
-    private var accentColor = Color.parseColor("#00FFFF")
+    private var videoAdapter: VideoAdapter? = null
+    private var audioAdapter: AudioAdapter? = null
+
+    private var activePageIndex = 0
+    private var accentColor = Color.parseColor("#5CE1E6")
+    private var isIndexing = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -49,71 +59,140 @@ class SearchFragment : Fragment() {
         val d = ctx.resources.displayMetrics.density
 
         val themePrefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val bgHex = themePrefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
-        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
-        accentColor = try { Color.parseColor(accentHex) } catch (e: Exception) { Color.parseColor("#00FFFF") }
+        val bgHex = themePrefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
+        val accentHex = themePrefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
+        accentColor = try {
+            Color.parseColor(accentHex)
+        } catch (_: Exception) {
+            Color.parseColor("#5CE1E6")
+        }
 
         rootSearchLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(try { Color.parseColor(bgHex) } catch (e: Exception) { Color.parseColor("#0A0A10") })
+            setBackgroundColor(
+                try {
+                    Color.parseColor(bgHex)
+                } catch (_: Exception) {
+                    Color.parseColor("#0D1B2A")
+                }
+            )
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
+            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
         }
 
-        // Top Filter Pills (Videos | Music / Audio)
-        val filterRow = LinearLayout(ctx).apply {
+        // Top Split Tabs: Left = Videos | Right = Music / Audio
+        val topSplitTabsRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, (4 * d).toInt(), 0, (8 * d).toInt())
+            weightSum = 2f
+            setPadding(0, (4 * d).toInt(), 0, (10 * d).toInt())
         }
 
-        tvFilterVideos = createFilterPill("Videos", true, d) {
-            activeFilter = 0
-            updateFilterPills()
-            runSearchQuery(etSearchInput.text.toString())
+        tvTabVideosLeft = createSplitTabButton("Videos (0)", true, d) {
+            scrollToPage(0)
         }
-        tvFilterAudio = createFilterPill("Music / Audio", false, d) {
-            activeFilter = 1
-            updateFilterPills()
-            runSearchQuery(etSearchInput.text.toString())
+        tvTabAudioRight = createSplitTabButton("Music / Audio (0)", false, d) {
+            scrollToPage(1)
         }
 
-        filterRow.addView(tvFilterVideos)
-        filterRow.addView(tvFilterAudio)
-        rootSearchLayout.addView(filterRow)
+        topSplitTabsRow.addView(tvTabVideosLeft)
+        topSplitTabsRow.addView(tvTabAudioRight)
+        rootSearchLayout.addView(topSplitTabsRow)
 
-        // Results RecyclerView in the Middle
-        rvSearchResults = RecyclerView(ctx).apply {
-            layoutManager = LinearLayoutManager(ctx)
+        // Two-Page Horizontal Swipe Pager: Page 0 = All Videos (Left), Page 1 = All Audio (Right)
+        val pagerLayoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+        rvHorizontalSplitPager = RecyclerView(ctx).apply {
+            layoutManager = pagerLayoutManager
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 0,
                 1f
             )
         }
-        rootSearchLayout.addView(rvSearchResults)
+        PagerSnapHelper().attachToRecyclerView(rvHorizontalSplitPager)
 
-        tvEmptySearch = TextView(ctx).apply {
-            text = "No matching media found"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            gravity = Gravity.CENTER
-            visibility = View.GONE
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+        rvHorizontalSplitPager.adapter = object : RecyclerView.Adapter<SplitPageVH>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SplitPageVH {
+                val frame = FrameLayout(ctx).apply {
+                    layoutParams = RecyclerView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+                val rv = RecyclerView(ctx).apply {
+                    layoutManager = LinearLayoutManager(ctx)
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    clipToPadding = false
+                }
+                InShotScrollAnimator.attachToRecyclerView(rv)
+
+                val tvEmpty = TextView(ctx).apply {
+                    text = "No matching media found"
+                    setTextColor(Color.parseColor("#B0C4DE"))
+                    textSize = 14f
+                    gravity = Gravity.CENTER
+                    visibility = View.GONE
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+
+                frame.addView(rv)
+                frame.addView(tvEmpty)
+                return SplitPageVH(frame, rv, tvEmpty)
+            }
+
+            override fun onBindViewHolder(holder: SplitPageVH, position: Int) {
+                if (position == 0) {
+                    rvVideoPage = holder.rv
+                    tvEmptyVideoPage = holder.tvEmpty
+                    if (videoAdapter == null) {
+                        videoAdapter = VideoAdapter(ctx, filteredVideos)
+                    }
+                    holder.rv.adapter = videoAdapter
+                    updateEmptyStateForPage(0)
+                } else {
+                    rvAudioPage = holder.rv
+                    tvEmptyAudioPage = holder.tvEmpty
+                    if (audioAdapter == null) {
+                        audioAdapter = AudioAdapter(ctx, filteredAudios)
+                    }
+                    holder.rv.adapter = audioAdapter
+                    updateEmptyStateForPage(1)
+                }
+            }
+
+            override fun getItemCount(): Int = 2
         }
-        rootSearchLayout.addView(tvEmptySearch)
 
-        // Search Input Box Placed at the BOTTOM of the Search Screen
-        etSearchInput = EditText(ctx).apply {
+        rvHorizontalSplitPager.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    val pos = pagerLayoutManager.findFirstCompletelyVisibleItemPosition()
+                        .takeIf { it != RecyclerView.NO_POSITION }
+                        ?: pagerLayoutManager.findFirstVisibleItemPosition()
+                    if (pos in 0..1 && pos != activePageIndex) {
+                        activePageIndex = pos
+                        updateSplitTabVisuals()
+                    }
+                }
+            }
+        })
+
+        rootSearchLayout.addView(rvHorizontalSplitPager)
+
+        // Bottom Search Bar (Strictly at the bottom of the Search screen)
+        etSearchInputBottom = EditText(ctx).apply {
             hint = "Search videos, movies, songs, artists..."
-            setHintTextColor(Color.parseColor("#B0B0C0"))
+            setHintTextColor(Color.parseColor("#99AACC"))
             setTextColor(Color.WHITE)
             textSize = 14.5f
             setSingleLine(true)
@@ -126,26 +205,32 @@ class SearchFragment : Fragment() {
                 bottomMargin = (4 * d).toInt()
             }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#181828"))
+                setColor(Color.parseColor("#142538"))
                 cornerRadius = 26f * d
                 setStroke((1.5f * d).toInt(), accentColor)
             }
         }
-        rootSearchLayout.addView(etSearchInput)
+        rootSearchLayout.addView(etSearchInputBottom)
 
-        etSearchInput.addTextChangedListener(object : TextWatcher {
+        etSearchInputBottom.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                runSearchQuery(s?.toString() ?: "")
+                filterBothVideoAndAudioPages(s?.toString() ?: "")
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        loadSearchableMediaIndex()
+        loadSearchableMediaInBackground()
         return rootSearchLayout
     }
 
-    private fun createFilterPill(
+    private class SplitPageVH(
+        view: View,
+        val rv: RecyclerView,
+        val tvEmpty: TextView
+    ) : RecyclerView.ViewHolder(view)
+
+    private fun createSplitTabButton(
         label: String,
         selected: Boolean,
         d: Float,
@@ -153,78 +238,61 @@ class SearchFragment : Fragment() {
     ): TextView {
         return TextView(requireContext()).apply {
             text = label
-            textSize = 13f
+            textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding((16 * d).toInt(), (7 * d).toInt(), (16 * d).toInt(), (7 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = (10 * d).toInt() }
+            gravity = Gravity.CENTER
+            setPadding((12 * d).toInt(), (9 * d).toInt(), (12 * d).toInt(), (9 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * d).toInt()
+                marginStart = (6 * d).toInt()
+            }
             setTextColor(if (selected) Color.BLACK else Color.WHITE)
             background = GradientDrawable().apply {
-                setColor(if (selected) accentColor else Color.parseColor("#1E1E2E"))
-                cornerRadius = 18f * d
+                setColor(if (selected) accentColor else Color.parseColor("#162A40"))
+                cornerRadius = 20f * d
             }
             setOnClickListener { onClick() }
         }
     }
 
-    private fun updateFilterPills() {
+    private fun scrollToPage(pageIdx: Int) {
+        activePageIndex = pageIdx.coerceIn(0, 1)
+        rvHorizontalSplitPager.smoothScrollToPosition(activePageIndex)
+        updateSplitTabVisuals()
+    }
+
+    private fun updateSplitTabVisuals() {
         val d = resources.displayMetrics.density
-        val isVideo = activeFilter == 0
-        tvFilterVideos.setTextColor(if (isVideo) Color.BLACK else Color.WHITE)
-        tvFilterVideos.background = GradientDrawable().apply {
-            setColor(if (isVideo) accentColor else Color.parseColor("#1E1E2E"))
-            cornerRadius = 18f * d
+        val isVideoActive = activePageIndex == 0
+
+        tvTabVideosLeft.text = "Videos (${filteredVideos.size})"
+        tvTabVideosLeft.setTextColor(if (isVideoActive) Color.BLACK else Color.WHITE)
+        tvTabVideosLeft.background = GradientDrawable().apply {
+            setColor(if (isVideoActive) accentColor else Color.parseColor("#162A40"))
+            cornerRadius = 20f * d
         }
-        tvFilterAudio.setTextColor(if (!isVideo) Color.BLACK else Color.WHITE)
-        tvFilterAudio.background = GradientDrawable().apply {
-            setColor(if (!isVideo) accentColor else Color.parseColor("#1E1E2E"))
-            cornerRadius = 18f * d
+
+        tvTabAudioRight.text = "Music / Audio (${filteredAudios.size})"
+        tvTabAudioRight.setTextColor(if (!isVideoActive) Color.BLACK else Color.WHITE)
+        tvTabAudioRight.background = GradientDrawable().apply {
+            setColor(if (!isVideoActive) accentColor else Color.parseColor("#162A40"))
+            cornerRadius = 20f * d
         }
     }
 
-    private fun loadSearchableMediaIndex() {
+    private fun loadSearchableMediaInBackground() {
+        if (isIndexing) return
+        isIndexing = true
         val ctx = context ?: return
-        thread {
-            val vList = mutableListOf<VideoModel>()
-            val aList = mutableListOf<AudioTrackModel>()
-            try {
-                val vProj = arrayOf(
-                    MediaStore.Video.Media._ID,
-                    MediaStore.Video.Media.DISPLAY_NAME,
-                    MediaStore.Video.Media.DATA,
-                    MediaStore.Video.Media.SIZE,
-                    MediaStore.Video.Media.DURATION
-                )
-                ctx.contentResolver.query(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                    vProj,
-                    null,
-                    null,
-                    "${MediaStore.Video.Media.DATE_ADDED} DESC"
-                )?.use { c ->
-                    val idC = c.getColumnIndex(MediaStore.Video.Media._ID)
-                    val nameC = c.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
-                    val dataC = c.getColumnIndex(MediaStore.Video.Media.DATA)
-                    val sizeC = c.getColumnIndex(MediaStore.Video.Media.SIZE)
-                    val durC = c.getColumnIndex(MediaStore.Video.Media.DURATION)
-                    while (c.moveToNext()) {
-                        val id = if (idC != -1) c.getLong(idC) else 0L
-                        val raw = if (dataC != -1) c.getString(dataC) else null
-                        val path = if (!raw.isNullOrEmpty()) raw else ContentUris.withAppendedId(
-                            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                            id
-                        ).toString()
-                        val title = if (nameC != -1) c.getString(nameC) ?: File(path).name else File(path).name
-                        val size = if (sizeC != -1) c.getLong(sizeC) else 0L
-                        val dur = if (durC != -1) c.getLong(durC) else 0L
-                        vList.add(VideoModel(id, title, path, size, dur))
-                    }
-                }
 
+        thread {
+            val vList = DeepMediaScanner.scanAllVideosEverywhere(ctx)
+            val aList = mutableListOf<AudioTrackModel>()
+
+            try {
                 val aProj = arrayOf(
                     MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.ALBUM_ID,
                     MediaStore.Audio.Media.DISPLAY_NAME,
                     MediaStore.Audio.Media.ARTIST,
                     MediaStore.Audio.Media.ALBUM,
@@ -240,26 +308,33 @@ class SearchFragment : Fragment() {
                     "${MediaStore.Audio.Media.DATE_ADDED} DESC"
                 )?.use { c ->
                     val idC = c.getColumnIndex(MediaStore.Audio.Media._ID)
+                    val albIdC = c.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
                     val nameC = c.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
                     val artC = c.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                     val albC = c.getColumnIndex(MediaStore.Audio.Media.ALBUM)
                     val dataC = c.getColumnIndex(MediaStore.Audio.Media.DATA)
                     val sizeC = c.getColumnIndex(MediaStore.Audio.Media.SIZE)
                     val durC = c.getColumnIndex(MediaStore.Audio.Media.DURATION)
+
                     while (c.moveToNext()) {
                         val id = if (idC != -1) c.getLong(idC) else 0L
+                        val albumId = if (albIdC != -1) c.getLong(albIdC) else id
                         val raw = if (dataC != -1) c.getString(dataC) else null
-                        val path = if (!raw.isNullOrEmpty()) raw else ContentUris.withAppendedId(
-                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                            id
-                        ).toString()
+                        val path = if (!raw.isNullOrEmpty()) {
+                            raw
+                        } else {
+                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
+                        }
+                        if (PermanentDeleteHelper.isMarkedDeleted(ctx, path)) continue
+
                         val title = if (nameC != -1) c.getString(nameC) ?: File(path).name else File(path).name
-                        val artist = if (artC != -1) c.getString(artC) ?: "Unknown Artist" else "Unknown Artist"
+                        val artistRaw = if (artC != -1) c.getString(artC) else null
+                        val artist = if (artistRaw.isNullOrEmpty() || artistRaw == "<unknown>") "Unknown Artist" else artistRaw
                         val album = if (albC != -1) c.getString(albC) ?: "Music" else "Music"
                         val size = if (sizeC != -1) c.getLong(sizeC) else 0L
                         val dur = if (durC != -1) c.getLong(durC) else 0L
                         if (dur >= 1000L) {
-                            aList.add(AudioTrackModel(id, title, artist, album, path, size, dur))
+                            aList.add(AudioTrackModel(albumId, title, artist, album, path, size, dur))
                         }
                     }
                 }
@@ -268,47 +343,57 @@ class SearchFragment : Fragment() {
             }
 
             activity?.runOnUiThread {
+                isIndexing = false
                 if (!isAdded) return@runOnUiThread
                 allVideos.clear()
                 allVideos.addAll(vList)
                 allAudios.clear()
                 allAudios.addAll(aList)
-                runSearchQuery(etSearchInput.text.toString())
+                filterBothVideoAndAudioPages(etSearchInputBottom.text.toString())
             }
         }
     }
 
-    private fun runSearchQuery(queryText: String) {
-        val ctx = context ?: return
+    private fun filterBothVideoAndAudioPages(queryText: String) {
         val q = queryText.trim().lowercase(Locale.getDefault())
 
-        if (activeFilter == 0) {
-            filteredVideos.clear()
-            if (q.isEmpty()) {
-                filteredVideos.addAll(allVideos)
-            } else {
-                filteredVideos.addAll(allVideos.filter { it.title.lowercase(Locale.getDefault()).contains(q) })
-            }
-            rvSearchResults.adapter = VideoAdapter(ctx, filteredVideos)
-            val empty = filteredVideos.isEmpty()
-            rvSearchResults.visibility = if (empty) View.GONE else View.VISIBLE
-            tvEmptySearch.visibility = if (empty) View.VISIBLE else View.GONE
+        filteredVideos.clear()
+        if (q.isEmpty()) {
+            filteredVideos.addAll(allVideos)
         } else {
-            filteredAudios.clear()
-            if (q.isEmpty()) {
-                filteredAudios.addAll(allAudios)
-            } else {
-                filteredAudios.addAll(
-                    allAudios.filter {
-                        it.title.lowercase(Locale.getDefault()).contains(q) ||
-                            it.artist.lowercase(Locale.getDefault()).contains(q)
-                    }
-                )
-            }
-            rvSearchResults.adapter = AudioAdapter(ctx, filteredAudios)
+            filteredVideos.addAll(
+                allVideos.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
+            )
+        }
+        videoAdapter?.notifyDataSetChanged()
+        updateEmptyStateForPage(0)
+
+        filteredAudios.clear()
+        if (q.isEmpty()) {
+            filteredAudios.addAll(allAudios)
+        } else {
+            filteredAudios.addAll(
+                allAudios.filter {
+                    it.title.lowercase(Locale.getDefault()).contains(q) ||
+                        it.artist.lowercase(Locale.getDefault()).contains(q)
+                }
+            )
+        }
+        audioAdapter?.notifyDataSetChanged()
+        updateEmptyStateForPage(1)
+
+        updateSplitTabVisuals()
+    }
+
+    private fun updateEmptyStateForPage(page: Int) {
+        if (page == 0) {
+            val empty = filteredVideos.isEmpty()
+            rvVideoPage?.visibility = if (empty) View.GONE else View.VISIBLE
+            tvEmptyVideoPage?.visibility = if (empty) View.VISIBLE else View.GONE
+        } else {
             val empty = filteredAudios.isEmpty()
-            rvSearchResults.visibility = if (empty) View.GONE else View.VISIBLE
-            tvEmptySearch.visibility = if (empty) View.VISIBLE else View.GONE
+            rvAudioPage?.visibility = if (empty) View.GONE else View.VISIBLE
+            tvEmptyAudioPage?.visibility = if (empty) View.VISIBLE else View.GONE
         }
     }
 }
