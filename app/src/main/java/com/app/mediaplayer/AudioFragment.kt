@@ -55,13 +55,13 @@ class AudioFragment : Fragment() {
     private var activeSubTab = 0
     private var sortOrderMode = 0
     private var isScanningAudio = false
-    private var accentColor = Color.parseColor("#00FFFF")
+    private var accentColor = Color.parseColor("#5CE1E6")
 
     private val miniPlayerHandler = Handler(Looper.getMainLooper())
     private val miniPlayerSyncRunnable = object : Runnable {
         override fun run() {
             syncBottomMiniPlayerBar()
-            miniPlayerHandler.postDelayed(this, 600)
+            miniPlayerHandler.postDelayed(this, 500)
         }
     }
 
@@ -114,18 +114,21 @@ class AudioFragment : Fragment() {
         rvAudioList.layoutManager = LinearLayoutManager(requireContext())
         audioAdapter = AudioAdapter(requireContext(), displayedSongsList)
         rvAudioList.adapter = audioAdapter
+        InShotScrollAnimator.attachToRecyclerView(rvAudioList)
     }
 
     private fun applySavedTheme() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val bgHex = prefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
-        val accentHex = prefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        val bgHex = prefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
+        val cardHex = prefs.getString("app_card_color", "#142538") ?: "#142538"
+        val accentHex = prefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
         try {
             rootAudioFragment.setBackgroundColor(Color.parseColor(bgHex))
+            cardBottomMiniPlayer.setCardBackgroundColor(Color.parseColor(cardHex))
             accentColor = Color.parseColor(accentHex)
-        } catch (e: Exception) {
-            accentColor = Color.parseColor("#00FFFF")
+        } catch (_: Exception) {
+            accentColor = Color.parseColor("#5CE1E6")
         }
         btnShuffleAllAudio.setTextColor(accentColor)
         tvMiniPlayerArtist.setTextColor(accentColor)
@@ -189,23 +192,25 @@ class AudioFragment : Fragment() {
             startActivity(intent)
         }
 
-        // High-Contrast Pure White 3-Dots Sort & Filter Dialog
         btnAudioSortMenu.setOnClickListener {
             val ctx = context ?: return@setOnClickListener
             val items = arrayOf(
-                if (sortOrderMode == 0) "✓ Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
-                if (sortOrderMode == 1) "✓ Sort: Name (A to Z)" else "Sort: Name (A to Z)",
-                if (sortOrderMode == 2) "✓ Sort: Artist Name" else "Sort: Artist Name",
-                if (sortOrderMode == 3) "✓ Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
-                if (sortOrderMode == 4) "✓ Sort: Largest File Size" else "Sort: Largest File Size",
+                if (sortOrderMode == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
+                if (sortOrderMode == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
+                if (sortOrderMode == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
+                if (sortOrderMode == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
+                if (sortOrderMode == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
+                "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
                 "Open Built-in 5-Band Equalizer"
             )
             VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
-                if (which == 5) {
-                    EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
-                } else {
-                    sortOrderMode = which
-                    refreshDisplayedSongs()
+                when (which) {
+                    5 -> AudioPitchHelper.showSoundAndPitchLabDialog(ctx, null)
+                    6 -> EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
+                    else -> {
+                        sortOrderMode = which
+                        refreshDisplayedSongs()
+                    }
                 }
             }
         }
@@ -240,7 +245,7 @@ class AudioFragment : Fragment() {
         tvMiniPlayerTitle.isSelected = true
 
         val playing = AudioPlayerActivity.isSharedPlayerPlaying()
-        btnMiniPlayerPlayPause.text = if (playing) "||" else "▶"
+        btnMiniPlayerPlayPause.text = if (playing) "||" else "Play"
 
         val audioPrefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
         val customArt = audioPrefs.getString("custom_art_$curPath", null)
@@ -301,6 +306,8 @@ class AudioFragment : Fragment() {
                         } else {
                             ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
                         }
+                        if (PermanentDeleteHelper.isMarkedDeleted(ctx, path)) continue
+
                         val name = if (dispCol != -1) cursor.getString(dispCol) else null
                         val title = name ?: (if (titleCol != -1) cursor.getString(titleCol) else null) ?: File(path).name
                         val artistRaw = if (artistCol != -1) cursor.getString(artistCol) else null
