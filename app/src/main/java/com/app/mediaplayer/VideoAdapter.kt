@@ -40,17 +40,20 @@ class VideoAdapter(
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
-        // Apply InShot Music/Video Player style smooth bottom-to-top expand animation
         InShotScrollAnimator.animateRowOnBind(holder.itemView)
 
         val video = videoList[position]
         val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
         val themePrefs = context.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val accentHex = themePrefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
-        val accentColor = try { Color.parseColor(accentHex) } catch (_: Exception) { Color.parseColor("#5CE1E6") }
+        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
+        val accentColor = try {
+            Color.parseColor(accentHex)
+        } catch (_: Exception) {
+            Color.parseColor("#00FFFF")
+        }
 
         val isFav = prefs.getBoolean("fav_${video.path}", false)
-        val favMark = if (isFav) " *" else ""
+        val favMark = if (isFav) "  ♥" else ""
 
         holder.tvTitle.text = video.title
         holder.tvTitle.setTextColor(Color.WHITE)
@@ -58,7 +61,7 @@ class VideoAdapter(
 
         val resBadge = computeResolutionBadge(video.title, video.size)
         val ext = File(video.path).extension.uppercase(Locale.US).ifEmpty { "MP4" }
-        holder.tvSizeAndFormat.text = "$resBadge | ${formatSize(video.size)} | $ext$favMark"
+        holder.tvSizeAndFormat.text = "$resBadge  •  ${formatSize(video.size)}  •  $ext$favMark"
         holder.tvSizeAndFormat.setTextColor(accentColor)
 
         val watchedPos = prefs.getLong("watched_pos_${video.path}", 0L)
@@ -79,7 +82,8 @@ class VideoAdapter(
 
         Glide.with(context)
             .load(modelTarget)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+            .dontAnimate()
             .placeholder(android.R.color.darker_gray)
             .centerCrop()
             .into(holder.imgThumbnail)
@@ -95,15 +99,15 @@ class VideoAdapter(
             val curFav = prefs.getBoolean("fav_${item.path}", false)
 
             val menuOptions = arrayOf(
-                "Play in 8K Ultra Player",
-                "Play in Vertical Shorts / Reels Mode",
-                "Play in Background Audio Mode",
-                if (curFav) "Remove from Favorites" else "Add to Favorites *",
-                "Convert Video to MP3 Audio",
-                "Lock Video into Secret Privacy Vault",
-                "Share Video (WhatsApp / Wi-Fi Direct)",
-                "Video Details & Path",
-                "Delete Video Permanently (From Phone)"
+                "▶   Play in 8K Ultra Player",
+                "📱   Play in Vertical Shorts / Reels Mode",
+                "🎧   Play in Background Audio Mode",
+                if (curFav) "💔   Remove from Favorites" else "❤️   Add to Favorites",
+                "🎵   Convert Video to MP3 Audio",
+                "🔒   Lock Video into Secret Privacy Vault",
+                "📤   Share Video (WhatsApp / Wi-Fi Direct)",
+                "ℹ️   Video Details & File Path",
+                "🗑️   Delete Video Permanently (From Phone)"
             )
 
             VideoFragment.showBrightVideoMenuDialog(context, item.title, menuOptions) { which ->
@@ -116,15 +120,13 @@ class VideoAdapter(
                             putExtra("START_INDEX", pos)
                         })
                     }
-                    2 -> {
-                        openVideoInPlayer(pos, startInBgAudio = true)
-                    }
+                    2 -> openVideoInPlayer(pos, startInBgAudio = true)
                     3 -> {
                         prefs.edit().putBoolean("fav_${item.path}", !curFav).apply()
                         notifyItemChanged(pos)
                         Toast.makeText(
                             context,
-                            if (!curFav) "Added to Favorites" else "Removed from Favorites",
+                            if (!curFav) "Added to Favorites ♥" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -134,9 +136,7 @@ class VideoAdapter(
                             putExtra("VIDEO_TITLE", item.title)
                         })
                     }
-                    5 -> {
-                        FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
-                    }
+                    5 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
                     6 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -145,7 +145,7 @@ class VideoAdapter(
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Share Video"))
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -170,6 +170,7 @@ class VideoAdapter(
                             mediaId = item.id,
                             isVideo = true
                         ) {
+                            DeepMediaScanner.invalidateCache()
                             if (pos in videoList.indices) {
                                 videoList.removeAt(pos)
                                 notifyItemRemoved(pos)
