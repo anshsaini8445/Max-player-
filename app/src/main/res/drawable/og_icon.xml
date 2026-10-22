@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Outer Dark Teal Squircle Base -->
+    <path
+        android:pathData="M112,8 L400,8 A104,104 0 0,1 504,112 L504,400 A104,104 0 0,1 400,504 L112,504 A104,104 0 0,1 8,400 L8,112 A104,104 0 0,1 112,8 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="256"
+                android:centerY="220"
+                android: endColor="#041016"
+                android:gradientRadius="320"
+                android:startColor="#144A5C"
+                android:type="radial" />
+        </aapt:attr>
+    </path>
+
+    <!-- Golden Glass Outer Squircle Rim -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M112,12 L400,12 A100,100 0 0,1 500,112 L500,400 A100,100 0 0,1 400,500 L112,500 A100,100 0 0,1 12,400 L12,112 A100,100 0 0,1 112,12 Z"
+        android:strokeWidth="5"
+        android:strokeColor="#D4AF37" />
+
+    <!-- Soft Inner Gold Glow Rim -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M112,18 L400,18 A94,94 0 0,1 494,112 L494,400 A94,94 0 0,1 400,494 L112,494 A94,94 0 0,1 18,400 L18,112 A94,94 0 0,1 112,18 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#66FFE89E" />
+
+    <!-- Golden Water Splash Waves (Top Left, Top Right, Bottom Left, Bottom Right) -->
+    <path
+        android:fillColor="#88D4AF37"
+        android:pathData="M88,164 C62,118 96,68 142,86 C118,52 162,38 188,68 C154,78 122,116 104,168 Z" />
+    <path
+        android:fillColor="#AAFFE082"
+        android:pathData="M424,168 C452,116 418,64 368,84 C394,48 352,34 324,66 C362,78 392,114 408,170 Z" />
+    <path
+        android:fillColor="#99D4AF37"
+        android:pathData="M78,312 C38,348 48,412 108,426 C64,394 76,352 114,334 Z" />
+    <path
+        android:fillColor="#AAFFE082"
+        android:pathData="M434,312 C474,348 464,412 404,426 C448,394 436,352 398,334 Z" />
+
+    <!-- Fine Golden Splash Tendrils -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M72,140 Q105,82 168,66 M440,140 Q407,82 344,66 M58,336 Q90,398 152,424 M454,336 Q422,398 360,424"
+        android:strokeWidth="4.5"
+        android:strokeColor="#E6C35C"
+        android:strokeLineCap="round" />
+
+    <!-- Main Central 3D Crystal Water Sphere Shadow -->
+    <path
+        android:fillColor="#66000000"
+        android:pathData="M256,246m-178,0a178,178 0,1 1,356 0a178,178 0,1 1,-356 0" />
+
+    <!-- Main Central 3D Crystal Water Sphere Fill -->
+    <path
+        android:pathData="M256,240m-174,0a174,174 0,1 1,348 0a174,174 0,1 1,-348 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="230"
+                android:centerY="190"
+                android:endColor="#082734"
+                android:gradientRadius="190"
+                android:startColor="#1E6982"
+                android:type="radial" />
+        </aapt:attr>
+    </path>
+
+    <!-- Sphere Top Glass Reflection Highlight -->
+    <path
+        android:fillColor="#28FFFFFF"
+        android:pathData="M118,162 C162,84 350,84 394,162 C342,110 170,110 118,162 Z" />
+
+    <!-- Sphere Outer Golden-Crystal Rim -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M256,240m-174,0a174,174 0,1 1,348 0a174,174 0,1 1,-348 0"
+        android:strokeWidth="5.5"
+        android:strokeColor="#E5C158" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M256,240m-169,0a169,169 0,1 1,338 0a169,169 0,1 1,-338 0"
+        android:strokeWidth="2"
+        android:strokeColor="#88FFFFFF" />
+
+    <!-- Left 3D Water-Gold Letter "O" -->
+    <path
+        android:fillColor="#22000000"
+        android:pathData="M144,242m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0"
+        android:strokeWidth="20"
+        android:strokeColor="#55000000" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M142,238m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0"
+        android:strokeWidth="18"
+        android:strokeColor="#D4AF37" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M142,238m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0"
+        android:strokeWidth="10"
+        android:strokeColor="#991A5E75" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M142,238m-47,0a47,47 0,1 1,94 0a47,47 0,1 1,-94 0"
+        android:strokeWidth="3"
+        android:strokeColor="#FFF6D1" />
+
+    <!-- Center 3D Liquid Glass & Gold Play Triangle -->
+    <path
+        android:fillColor="#441E7896"
+        android:pathData="M204,166 Q204,152 218,159 L316,226 Q330,236 316,246 L218,313 Q204,320 204,306 Z"
+        android:strokeWidth="10"
+        android:strokeColor="#D4AF37" />
+    <path
+        android:fillColor="#33FFE082"
+        android:pathData="M212,174 L306,236 L212,298 Z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFF8DC" />
+
+    <!-- Right 3D Water-Gold Letter "G" -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M404,206 A45,45 0 1,0 412,252 L412,238 L374,238"
+        android:strokeWidth="18"
+        android:strokeColor="#D4AF37"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M404,206 A45,45 0 1,0 412,252 L412,238 L374,238"
+        android:strokeWidth="9"
+        android:strokeColor="#991A5E75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M404,206 A45,45 0 1,0 412,252 L412,238 L374,238"
+        android:strokeWidth="3"
+        android:strokeColor="#FFF6D1"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Bottom Golden 3D Pill Badge for "8K" -->
+    <path
+        android:pathData="M214,340 L298,340 A27,27 0 0,1 325,367 L325,369 A27,27 0 0,1 298,396 L214,396 A27,27 0 0,1 187,369 L187,367 A27,27 0 0,1 214,340 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endColor="#5C4008"
+                android:startColor="#C99E2C"
+                android:type="linear"
+                android:endX="256"
+                android:endY="396"
+                android:startX="256"
+                android:startY="340" />
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M214,340 L298,340 A27,27 0 0,1 325,367 L325,369 A27,27 0 0,1 298,396 L214,396 A27,27 0 0,1 187,369 L187,367 A27,27 0 0,1 214,340 Z"
+        android:strokeWidth="4"
+        android:strokeColor="#FFE89E" />
+
+    <!-- "8" inside 8K Golden Pill -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M236,358m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0 M236,376m-9.5,0a9.5,9.5 0,1 1,19 0a9.5,9.5 0,1 1,-19 0"
+        android:strokeWidth="5.5"
+        android:strokeColor="#FFF4C2" />
+
+    <!-- "K" inside 8K Golden Pill -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M262,350 L262,386 M284,351 L264,368 L285,386"
+        android:strokeWidth="6"
+        android:strokeColor="#FFF4C2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Water & Gold Droplets Around Sphere and Letters -->
+    <path
+        android:fillColor="#FFE082"
+        android:pathData="M86,108m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0 M428,96m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0 M64,232m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0 M446,244m-5.5,0a5.5,5.5 0,1 1,11 0a5.5,5.5 0,1 1,-11 0 M112,390m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0 M402,388m-6.5,0a6.5,6.5 0,1 1,13 0a6.5,6.5 0,1 1,-13 0 M232,126m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0 M302,142m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0 M162,324m-4.5,0a4.5,4.5 0,1 1,9 0a4.5,4.5 0,1 1,-9 0 M346,320m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+
+    <!-- Bottom 3D Golden Text: "OG 8K Player" -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M86,458m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0 M148,444 A18,18 0 1,0 152,464 L152,458 L138,458 M192,449m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0 M192,466m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0 M216,440 L216,476 M236,441 L218,458 L237,476 M268,440 L268,476 M268,440 L284,440 A9,9 0 0,1 284,458 L268,458 M304,438 L304,476 M332,452m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0 M343,450 L343,476 M358,450 L370,474 L382,450 M370,474 L364,486 M396,462 L416,462 A10,10 0 1,0 412,474 M428,450 L428,476 M428,458 A10,10 0 0,1 442,450"
+        android:strokeWidth="6.2"
+        android:strokeColor="#E6C35C"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M86,458m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0 M148,444 A18,18 0 1,0 152,464 L152,458 L138,458 M192,449m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0 M192,466m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0 M216,440 L216,476 M236,441 L218,458 L237,476 M268,440 L268,476 M268,440 L284,440 A9,9 0 0,1 284,458 L268,458 M304,438 L304,476 M332,452m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0 M343,450 L343,476 M358,450 L370,474 L382,450 M370,474 L364,486 M396,462 L416,462 A10,10 0 1,0 412,474 M428,450 L428,476 M428,458 A10,10 0 0,1 442,450"
+        android:strokeWidth="2.2"
+        android:strokeColor="#FFF9D6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
