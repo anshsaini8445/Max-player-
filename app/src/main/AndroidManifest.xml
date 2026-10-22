@@ -24,9 +24,9 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@drawable/og_icon"
         android:label="OG 8K Player"
-        android:roundIcon="@drawable/ic_launcher_foreground"
+        android:roundIcon="@drawable/og_icon"
         android:supportsRtl="true"
         android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true"
