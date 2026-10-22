@@ -13,14 +13,15 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 
 class BackgroundAudioService : Service() {
 
     companion object {
-        const val CHANNEL_ID = "og_8k_background_media_channel"
+        const val CHANNEL_ID = "og_8k_system_media_channel"
         const val NOTIF_ID = 8801
 
         const val ACTION_START_OR_UPDATE = "com.app.mediaplayer.ACTION_BG_START_OR_UPDATE"
@@ -28,6 +29,9 @@ class BackgroundAudioService : Service() {
         const val ACTION_NOTIF_PREV = "com.app.mediaplayer.ACTION_NOTIF_PREV"
         const val ACTION_NOTIF_PLAY_PAUSE = "com.app.mediaplayer.ACTION_NOTIF_PLAY_PAUSE"
         const val ACTION_NOTIF_NEXT = "com.app.mediaplayer.ACTION_NOTIF_NEXT"
+
+        private var cachedPath: String = ""
+        private var cachedCoverBitmap: Bitmap? = null
 
         fun updateForegroundNotification(
             context: Context,
@@ -67,40 +71,44 @@ class BackgroundAudioService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_START_OR_UPDATE -> {
-                val title = intent.getStringExtra("TITLE") ?: "OG 8K Player"
-                val artist = intent.getStringExtra("ARTIST") ?: "Playing in Background"
+                val title = intent.getStringExtra("TITLE")?.replace("_", " ") ?: "OG 8K Player"
+                val artist = intent.getStringExtra("ARTIST") ?: "OG 8K Studio"
                 val isPlaying = intent.getBooleanExtra("IS_PLAYING", true)
                 val isVideoBg = intent.getBooleanExtra("IS_VIDEO_BG", false)
-                val videoPath = intent.getStringExtra("VIDEO_PATH") ?: ""
+                val mediaPath = intent.getStringExtra("VIDEO_PATH") ?: ""
 
-                val notif = buildModernMediaNotification(title, artist, isPlaying, isVideoBg, videoPath)
+                val notif = buildSystemMediaStyleNotification(
+                    title = title,
+                    artist = artist,
+                    isPlaying = isPlaying,
+                    isVideoBg = isVideoBg,
+                    mediaPath = mediaPath
+                )
                 startForeground(NOTIF_ID, notif)
             }
         }
-        // START_STICKY guarantees playback continues even if user swipes the app from Recent Apps
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Keep playing in background when user removes app from Recent Tasks
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun buildModernMediaNotification(
+    private fun buildSystemMediaStyleNotification(
         title: String,
         artist: String,
         isPlaying: Boolean,
         isVideoBg: Boolean,
-        videoPath: String
+        mediaPath: String
     ): Notification {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "OG Player Playback Controls",
+                "OG 8K Media Playback",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Lock-screen & background media player controls"
+                description = "System Media Controls with Seekbar and Bluetooth Sync"
                 setShowBadge(false)
                 setSound(null, null)
             }
@@ -113,10 +121,9 @@ class BackgroundAudioService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
 
-        // Single tap on Notification opens full Music Player or Video Player screen immediately
-        val openPlayerIntent = if (isVideoBg && videoPath.isNotEmpty()) {
+        val openPlayerIntent = if (isVideoBg && mediaPath.isNotEmpty()) {
             Intent(this, PlayerActivity::class.java).apply {
-                putExtra("VIDEO_PATH", videoPath)
+                putExtra("VIDEO_PATH", mediaPath)
                 putExtra("VIDEO_TITLE", title)
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
@@ -153,38 +160,114 @@ class BackgroundAudioService : Service() {
             piFlags
         )
 
-        val largeCoverBmp = generateStylizedBlurCoverBitmap(title)
+        val largeCoverBmp = resolveCoverArtBitmap(mediaPath, title)
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+
+        val mediaStyle = Notification.MediaStyle()
+            .setShowActionsInCompactView(0, 1, 2)
+
+        MediaSessionManager.activeSessionToken?.let { token ->
+            mediaStyle.setMediaSession(token)
+        }
+
+        builder.setSmallIcon(android.R.drawable.ic_media_play)
             .setLargeIcon(largeCoverBmp)
             .setContentTitle(title)
             .setContentText(artist)
-            .setSubText("OG Player")
+            .setSubText("OG 8K Player")
             .setContentIntent(contentPi)
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
-            .setColorized(true)
-            .setColor(Color.parseColor("#0D1B2A"))
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(android.R.drawable.ic_media_previous, "Previous", prevPi)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setStyle(mediaStyle)
             .addAction(
-                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                if (isPlaying) "Pause" else "Play",
-                playPausePi
+                Notification.Action.Builder(
+                    android.R.drawable.ic_media_previous,
+                    "Previous",
+                    prevPi
+                ).build()
             )
-            .addAction(android.R.drawable.ic_media_next, "Next", nextPi)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Close", stopPi)
-            .build()
+            .addAction(
+                Notification.Action.Builder(
+                    if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                    if (isPlaying) "Pause" else "Play",
+                    playPausePi
+                ).build()
+            )
+            .addAction(
+                Notification.Action.Builder(
+                    android.R.drawable.ic_media_next,
+                    "Next",
+                    nextPi
+                ).build()
+            )
+            .addAction(
+                Notification.Action.Builder(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    "Close",
+                    stopPi
+                ).build()
+            )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setColorized(true)
+            builder.setColor(Color.parseColor("#0A0A10"))
+        }
+
+        return builder.build()
+    }
+
+    private fun resolveCoverArtBitmap(mediaPath: String, seedTitle: String): Bitmap {
+        if (mediaPath.isNotEmpty() && mediaPath == cachedPath && cachedCoverBitmap != null) {
+            return cachedCoverBitmap!!
+        }
+        if (mediaPath.isNotEmpty()) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                if (mediaPath.startsWith("content://")) {
+                    retriever.setDataSource(this, Uri.parse(mediaPath))
+                } else {
+                    retriever.setDataSource(mediaPath)
+                }
+                val embedded = retriever.embeddedPicture
+                if (embedded != null) {
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(embedded, 0, embedded.size)
+                    if (bmp != null) {
+                        cachedPath = mediaPath
+                        cachedCoverBitmap = bmp
+                        return bmp
+                    }
+                }
+                val frame = retriever.getFrameAtTime(1000000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (frame != null) {
+                    cachedPath = mediaPath
+                    cachedCoverBitmap = frame
+                    return frame
+                }
+            } catch (_: Exception) {
+            } finally {
+                try {
+                    retriever.release()
+                } catch (_: Exception) {
+                }
+            }
+        }
+        return generateStylizedBlurCoverBitmap(seedTitle)
     }
 
     private fun generateStylizedBlurCoverBitmap(seedTitle: String): Bitmap {
-        val size = 192
+        val size = 256
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val hash = seedTitle.hashCode()
-        val c1 = Color.HSVToColor(floatArrayOf(kotlin.math.abs(hash % 360).toFloat(), 0.65f, 0.45f))
-        val c2 = Color.parseColor("#0D1B2A")
+        val c1 = Color.HSVToColor(floatArrayOf(kotlin.math.abs(hash % 360).toFloat(), 0.70f, 0.55f))
+        val c2 = Color.parseColor("#0A0A10")
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(0f, 0f, size.toFloat(), size.toFloat(), c1, c2, Shader.TileMode.CLAMP)
@@ -192,11 +275,11 @@ class BackgroundAudioService : Service() {
         canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
 
         val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#5CE1E6")
+            color = Color.parseColor("#00FFFF")
             style = Paint.Style.STROKE
-            strokeWidth = 6f
+            strokeWidth = 7f
         }
-        canvas.drawCircle(size / 2f, size / 2f, size * 0.32f, ringPaint)
+        canvas.drawCircle(size / 2f, size / 2f, size * 0.30f, ringPaint)
         return bmp
     }
 }
