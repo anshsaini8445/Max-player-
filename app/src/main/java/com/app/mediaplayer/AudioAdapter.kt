@@ -14,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
@@ -37,24 +38,26 @@ class AudioAdapter(
     }
 
     override fun onBindViewHolder(holder: AudioVH, position: Int) {
+        // Apply InShot Music Player style bottom-to-top smooth expand animation
+        InShotScrollAnimator.animateRowOnBind(holder.itemView)
+
         val song = audioList[position]
         val audioPrefs = context.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
         val themePrefs = context.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
-        val accentColor = try { Color.parseColor(accentHex) } catch (e: Exception) { Color.parseColor("#00FFFF") }
+        val accentHex = themePrefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
+        val accentColor = try { Color.parseColor(accentHex) } catch (_: Exception) { Color.parseColor("#5CE1E6") }
 
         val isFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
-        val favTag = if (isFav) " ♥" else ""
+        val favTag = if (isFav) " *" else ""
 
         holder.tvAudioTitle.text = song.title
         holder.tvAudioTitle.setTextColor(Color.WHITE)
 
         holder.tvAudioArtistDuration.text =
-            "${song.artist} • ${formatDuration(song.duration)} • ${formatSize(song.size)}$favTag"
+            "${song.artist} | ${formatDuration(song.duration)} | ${formatSize(song.size)}$favTag"
         holder.tvAudioArtistDuration.setTextColor(accentColor)
         holder.btnAudioMore.setColorFilter(Color.WHITE)
 
-        // Load Custom Cover Photo OR Embedded Song Cover Photo at the front of the song row
         val customArtUri = audioPrefs.getString("custom_art_${song.path}", null)
         holder.imgAudioArt.setPadding(0, 0, 0, 0)
         holder.imgAudioArt.clearColorFilter()
@@ -70,42 +73,63 @@ class AudioAdapter(
 
         Glide.with(context)
             .load(artModel)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
             .placeholder(android.R.drawable.ic_lock_silent_mode_off)
             .error(android.R.drawable.ic_lock_silent_mode_off)
             .centerCrop()
             .into(holder.imgAudioArt)
 
         holder.itemView.setOnClickListener {
-            launchAudioPlayer(position)
+            launchAudioPlayer(holder.adapterPosition)
         }
 
         holder.btnAudioMore.setOnClickListener {
-            val curFav = audioPrefs.getBoolean("fav_audio_${song.path}", false)
+            val pos = holder.adapterPosition
+            if (pos !in audioList.indices) return@setOnClickListener
+            val item = audioList[pos]
+            val curFav = audioPrefs.getBoolean("fav_audio_${item.path}", false)
+
             val options = arrayOf(
-                "Play Song",
-                if (curFav) "Remove from Favorites ♥" else "Add to Favorites ♡",
-                "Open 5-Band Equalizer",
+                "Play Song Now",
+                "Play Next (After Current Song)",
+                "Add to Playing Queue",
+                if (curFav) "Remove from Favorites" else "Add to Favorites *",
+                "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+                "Open 5-Band Dolby Equalizer",
+                "Lock Song into Secret Privacy Vault",
                 "Share Audio File",
-                "Song Details & Path"
+                "Song Details & Path",
+                "Delete Song Permanently (From Phone)"
             )
-            VideoFragment.showBrightVideoMenuDialog(context, song.title, options) { which ->
+
+            VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
                 when (which) {
-                    0 -> launchAudioPlayer(position)
+                    0 -> launchAudioPlayer(pos)
                     1 -> {
-                        audioPrefs.edit().putBoolean("fav_audio_${song.path}", !curFav).apply()
-                        notifyItemChanged(holder.adapterPosition)
+                        enqueueSongBroadcast(item, playNextImmediate = true)
+                        Toast.makeText(context, "Playing Next: ${item.title}", Toast.LENGTH_SHORT).show()
+                    }
+                    2 -> {
+                        enqueueSongBroadcast(item, playNextImmediate = false)
+                        Toast.makeText(context, "Added to Queue: ${item.title}", Toast.LENGTH_SHORT).show()
+                    }
+                    3 -> {
+                        audioPrefs.edit().putBoolean("fav_audio_${item.path}", !curFav).apply()
+                        notifyItemChanged(pos)
                         Toast.makeText(
                             context,
                             if (!curFav) "Added to Favorites" else "Removed from Favorites",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-                    2 -> EqualizerHelper.showEqualizerDialog(context, AudioPlayerActivity.getSharedAudioSessionId())
-                    3 -> {
+                    4 -> AudioPitchHelper.showSoundAndPitchLabDialog(context, null)
+                    5 -> EqualizerHelper.showEqualizerDialog(context, AudioPlayerActivity.getSharedAudioSessionId())
+                    6 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
+                    7 -> {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "audio/*"
-                                putExtra(Intent.EXTRA_STREAM, Uri.parse(song.path))
+                                putExtra(Intent.EXTRA_STREAM, Uri.parse(item.path))
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Share Audio"))
@@ -113,23 +137,49 @@ class AudioAdapter(
                             Toast.makeText(context, "Unable to share song", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    4 -> {
+                    8 -> {
                         AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                             .setTitle("Audio Properties")
                             .setMessage(
-                                "Title: ${song.title}\n\n" +
-                                    "Artist: ${song.artist}\n\n" +
-                                    "Album: ${song.album}\n\n" +
-                                    "Duration: ${formatDuration(song.duration)}\n\n" +
-                                    "Size: ${formatSize(song.size)}\n\n" +
-                                    "Path: ${song.path}"
+                                "Title: ${item.title}\n\n" +
+                                    "Artist: ${item.artist}\n\n" +
+                                    "Album: ${item.album}\n\n" +
+                                    "Duration: ${formatDuration(item.duration)}\n\n" +
+                                    "Size: ${formatSize(item.size)}\n\n" +
+                                    "Path: ${item.path}"
                             )
                             .setPositiveButton("OK", null)
                             .show()
                     }
+                    9 -> {
+                        PermanentDeleteHelper.confirmAndDeletePermanently(
+                            context = context,
+                            title = item.title,
+                            path = item.path,
+                            mediaId = item.id,
+                            isVideo = false
+                        ) {
+                            if (pos in audioList.indices) {
+                                audioList.removeAt(pos)
+                                notifyItemRemoved(pos)
+                                notifyItemRangeChanged(pos, audioList.size)
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private fun enqueueSongBroadcast(song: AudioTrackModel, playNextImmediate: Boolean) {
+        val intent = Intent("com.app.mediaplayer.ACTION_QUEUE_ENQUEUE").apply {
+            setPackage(context.packageName)
+            putExtra("SONG_PATH", song.path)
+            putExtra("SONG_TITLE", song.title)
+            putExtra("SONG_ARTIST", song.artist)
+            putExtra("PLAY_NEXT", playNextImmediate)
+        }
+        context.sendBroadcast(intent)
     }
 
     private fun launchAudioPlayer(selectedIndex: Int) {
