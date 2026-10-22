@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Icon Ka Exact Blue-Teal Gradient Background -->
+    <gradient
+        android:angle="315"
+        android:endColor="#051015"
+        android:startColor="#0D2228"
+        android:type="linear" />
+    <corners android:radius="28dp" />
+</shape>
