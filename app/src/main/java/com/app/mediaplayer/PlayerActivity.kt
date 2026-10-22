@@ -28,9 +28,6 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
-import android.media.audiofx.AudioEffect
-import android.media.audiofx.BassBoost
-import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
@@ -50,6 +47,9 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.HorizontalScrollView
@@ -81,6 +81,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
@@ -102,8 +103,6 @@ class PlayerActivity : AppCompatActivity() {
 
     private var exoPlayer: ExoPlayer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
-    private var builtInEqualizer: Equalizer? = null
-    private var builtInBassBoost: BassBoost? = null
     private var mediaSessionManager: MediaSessionManager? = null
     private var smartIdlePauseHelper: SmartIdlePauseHelper? = null
 
@@ -197,9 +196,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private var currentVolumePercent = 100f
     private var currentBrightnessPercent = 75f
-    private var hasShownEarSafetyWarning = false
 
-    // Strict Direction Lock: 0 = Unlocked, 1 = Horizontal Seek Only, 2 = Vertical Volume/Brightness Only
     private var lockedSwipeDirection = 0
     private var touchStartX = 0f
     private var touchStartY = 0f
@@ -224,6 +221,10 @@ class PlayerActivity : AppCompatActivity() {
         cardGestureFeedback.visibility = View.GONE
     }
 
+    private val autoHideZoomPillRunnable = Runnable {
+        cardZoomResetPill.visibility = View.GONE
+    }
+
     private val pipAndNotifReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -243,6 +244,7 @@ class PlayerActivity : AppCompatActivity() {
                     exoPlayer?.let { p ->
                         if (p.isPlaying) p.pause() else p.play()
                     }
+                    mediaSessionManager?.updatePlaybackState()
                 }
                 BackgroundAudioService.ACTION_NOTIF_NEXT -> playNextVideo()
             }
@@ -282,14 +284,23 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Allow full edge-to-edge rendering into notch/cutout area
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
         setContentView(R.layout.activity_player)
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         registerPipAndNotifReceiver()
         bindViews()
+        disableClippingForFullScreenZoom()
         setupCrispPlayerIcons()
         restorePersistentBrightnessAndVisuals()
         buildModularOverlayPanels()
+        upgradeAdvancedSettingsVisuals()
         applyPlayerCustomizationPreferences()
         extractIntentData(intent)
         initializePlayer()
@@ -297,6 +308,7 @@ class PlayerActivity : AppCompatActivity() {
         setupBottomControls()
         setupAdvancedSettingsMenu()
         setupDirectionLockedTouchAndGestures()
+        enterFullImmersiveMode()
 
         smartIdlePauseHelper = SmartIdlePauseHelper(
             context = this,
@@ -309,6 +321,54 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            enterFullImmersiveMode()
+        }
+    }
+
+    // Hides top time/battery bar and side navigation dots completely
+    private fun enterFullImmersiveMode() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(false)
+                window.insetsController?.let { controller ->
+                    controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                    controller.systemBarsBehavior =
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Disables child clipping on PlayerView & AspectRatioFrameLayout so 600% Zoom fills the entire phone screen edge-to-edge
+    private fun disableClippingForFullScreenZoom() {
+        rootPlayerFrame.clipChildren = false
+        rootPlayerFrame.clipToPadding = false
+        playerView.clipChildren = false
+        playerView.clipToPadding = false
+        for (i in 0 until playerView.childCount) {
+            val child = playerView.getChildAt(i)
+            if (child is ViewGroup) {
+                child.clipChildren = false
+                child.clipToPadding = false
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         if (intent != null) {
@@ -317,9 +377,9 @@ class PlayerActivity : AppCompatActivity() {
                 extractIntentData(intent)
                 initializePlayer()
             } else {
-                // Returning from notification click: hide background audio screen and show video surface
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
+                enterFullImmersiveMode()
             }
         }
     }
@@ -403,16 +463,42 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setupCrispPlayerIcons() {
         val d = resources.displayMetrics.density
-        btnBgAudio.setImageDrawable(PlayerVectorIconInternal("HEADPHONES", d, Color.WHITE))
+        val cyanGlow = Color.parseColor("#00FFFF")
+
+        btnBgAudio.setImageDrawable(PlayerVectorIconInternal("HEADPHONES", d, cyanGlow))
         btnVideoQueue.setImageDrawable(PlayerVectorIconInternal("QUEUE_LIST", d, Color.WHITE))
-        btnMoreMenu.setImageDrawable(PlayerVectorIconInternal("THREE_DOTS", d, Color.WHITE))
+        btnMoreMenu.setImageDrawable(PlayerVectorIconInternal("THREE_DOTS", d, cyanGlow))
         btnMuteToggle.setImageDrawable(PlayerVectorIconInternal("SPEAKER_ON", d, Color.WHITE))
-        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_OPEN", d, Color.WHITE))
-        btnUnlockOverlay.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#5CE1E6")))
+        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_OPEN", d, cyanGlow))
+        btnUnlockOverlay.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, cyanGlow))
         btnSideCut.setImageDrawable(PlayerVectorIconInternal("SCREENSHOT_CAM", d, Color.WHITE))
-        btnRotateScreen.setImageDrawable(PlayerVectorIconInternal("ROTATE", d, Color.WHITE))
+        btnRotateScreen.setImageDrawable(PlayerVectorIconInternal("ROTATE", d, cyanGlow))
         btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_FIT", d, Color.WHITE))
-        btnPipMode.setImageDrawable(PlayerVectorIconInternal("PIP_WINDOW", d, Color.WHITE))
+        btnPipMode.setImageDrawable(PlayerVectorIconInternal("PIP_WINDOW", d, cyanGlow))
+    }
+
+    // Upgrades the 3-dots Player Settings panel with a glowing circular Close button and sharp cyan styling
+    private fun upgradeAdvancedSettingsVisuals() {
+        val d = resources.displayMetrics.density
+        layoutAdvancedSettings.background = GradientDrawable().apply {
+            setColor(Color.parseColor("#F50A0A10"))
+            cornerRadius = 22f * d
+            setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
+        }
+
+        findViewById<TextView>(R.id.btnCloseSettings)?.apply {
+            text = "✕"
+            setTextColor(Color.parseColor("#00FFFF"))
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#2200FFFF"))
+                setStroke((1.2f * d).toInt(), Color.parseColor("#00FFFF"))
+            }
+        }
     }
 
     private fun restorePersistentBrightnessAndVisuals() {
@@ -446,15 +532,15 @@ class PlayerActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor("#55000000"))
+            setBackgroundColor(Color.parseColor("#66000000"))
             visibility = View.GONE
             setOnClickListener { closeAllModularPanels() }
         }
         rootPlayerFrame.addView(panelOverlayScrim)
 
         panelVisualEnhancer = CardView(this).apply {
-            setCardBackgroundColor(Color.parseColor("#F212121A"))
-            radius = 20f * d
+            setCardBackgroundColor(Color.parseColor("#F50A0A10"))
+            radius = 22f * d
             cardElevation = 24f * d
             visibility = View.GONE
         }
@@ -464,8 +550,8 @@ class PlayerActivity : AppCompatActivity() {
             setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt())
         }
         val tvVeTitle = TextView(this).apply {
-            text = "<-  8K AI Upscaler & Visual Enhancer"
-            setTextColor(Color.WHITE)
+            text = "←   8K AI Upscaler & Visual Enhancer"
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setOnClickListener { closeAllModularPanels() }
@@ -506,14 +592,14 @@ class PlayerActivity : AppCompatActivity() {
                 setCardBackgroundColor(Color.parseColor(modePreviewColors[index]))
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
-                    height = (64 * d).toInt()
+                    height = (62 * d).toInt()
                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                     setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
                 }
             }
             val box = FrameLayout(this)
             val tvName = TextView(this).apply {
-                text = if (currentVisualMode == index) "* $name" else name
+                text = if (currentVisualMode == index) "✓  $name" else name
                 setTextColor(Color.WHITE)
                 textSize = 12.5f
                 typeface = Typeface.DEFAULT_BOLD
@@ -530,7 +616,7 @@ class PlayerActivity : AppCompatActivity() {
                 applyVisualEnhancerFilter(index)
                 modeCardViews.forEachIndexed { idx, cv ->
                     val label = (cv.getChildAt(0) as FrameLayout).getChildAt(0) as TextView
-                    label.text = if (idx == index) "* ${modeNames[idx]}" else modeNames[idx]
+                    label.text = if (idx == index) "✓  ${modeNames[idx]}" else modeNames[idx]
                 }
             }
             modeCardViews.add(card)
@@ -568,16 +654,16 @@ class PlayerActivity : AppCompatActivity() {
         rootPlayerFrame.addView(panelVisualEnhancer)
 
         panelSubtitles = CardView(this).apply {
-            setCardBackgroundColor(Color.parseColor("#F212121A"))
-            radius = 20f * d
+            setCardBackgroundColor(Color.parseColor("#F50A0A10"))
+            radius = 22f * d
             cardElevation = 24f * d
             visibility = View.GONE
         }
         rootPlayerFrame.addView(panelSubtitles)
 
         panelPlayingQueue = CardView(this).apply {
-            setCardBackgroundColor(Color.parseColor("#F212121A"))
-            radius = 20f * d
+            setCardBackgroundColor(Color.parseColor("#F50A0A10"))
+            radius = 22f * d
             cardElevation = 24f * d
             visibility = View.GONE
         }
@@ -591,8 +677,8 @@ class PlayerActivity : AppCompatActivity() {
             setPadding(0, 0, 0, (10 * d).toInt())
         }
         tvQueueHeaderCount = TextView(this).apply {
-            text = "<   Playing Queue (1/1)"
-            setTextColor(Color.WHITE)
+            text = "←   Playing Queue (1/1)"
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -600,12 +686,12 @@ class PlayerActivity : AppCompatActivity() {
         }
         btnQueueLoopModeToggle = TextView(this).apply {
             text = "Order"
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#24FFFFFF"))
+                setColor(Color.parseColor("#2400FFFF"))
                 cornerRadius = 16f * d
             }
             setOnClickListener {
@@ -624,6 +710,8 @@ class PlayerActivity : AppCompatActivity() {
                 1f
             )
             layoutManager = LinearLayoutManager(this@PlayerActivity)
+            setHasFixedSize(true)
+            setItemViewCacheSize(20)
         }
         setupQueueRecyclerViewAndDragHelper()
         queueRoot.addView(rvQueueList)
@@ -631,8 +719,8 @@ class PlayerActivity : AppCompatActivity() {
         rootPlayerFrame.addView(panelPlayingQueue)
 
         panelSpeedRuler = CardView(this).apply {
-            setCardBackgroundColor(Color.parseColor("#D9181822"))
-            radius = 20f * d
+            setCardBackgroundColor(Color.parseColor("#E60A0A10"))
+            radius = 22f * d
             cardElevation = 26f * d
             visibility = View.GONE
             layoutParams = FrameLayout.LayoutParams(
@@ -655,7 +743,7 @@ class PlayerActivity : AppCompatActivity() {
             )
         }
         val btnSpeedMinus = TextView(this).apply {
-            text = "-"
+            text = "−"
             setTextColor(Color.WHITE)
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
@@ -677,17 +765,17 @@ class PlayerActivity : AppCompatActivity() {
         }
         tvSpeedRulerValue = TextView(this).apply {
             text = "1.00 X"
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
         }
         val btnSpeedReset = TextView(this).apply {
-            text = "R"
+            text = "1x"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams((28 * d).toInt(), (28 * d).toInt()).apply {
+            layoutParams = LinearLayout.LayoutParams((30 * d).toInt(), (30 * d).toInt()).apply {
                 marginStart = (10 * d).toInt()
             }
             background = GradientDrawable().apply {
@@ -731,14 +819,14 @@ class PlayerActivity : AppCompatActivity() {
         panelSpeedRuler.addView(speedCol)
         rootPlayerFrame.addView(panelSpeedRuler)
 
+        // Upgraded Background Audio Screen with Safe Back / Minimize Handling
         panelBgAudioScreen = RelativeLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor("#F508080E"))
+            setBackgroundColor(Color.parseColor("#F50A0A10"))
             visibility = View.GONE
-            // Tapping anywhere on background audio screen restores video surface immediately
             setOnClickListener {
                 visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
@@ -754,25 +842,25 @@ class PlayerActivity : AppCompatActivity() {
             setPadding((24 * d).toInt(), (24 * d).toInt(), (24 * d).toInt(), (24 * d).toInt())
         }
         val discView = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams((160 * d).toInt(), (160 * d).toInt())
-            setImageDrawable(PlayerVectorIconInternal("BG_VINYL_DISC", d, Color.parseColor("#5CE1E6")))
+            layoutParams = LinearLayout.LayoutParams((164 * d).toInt(), (164 * d).toInt())
+            setImageDrawable(PlayerVectorIconInternal("BG_VINYL_DISC", d, Color.parseColor("#00FFFF")))
         }
         val tvBgHint = TextView(this).apply {
-            text = "Background Audio Active (Survives Recent Apps Swipe)\nTap anywhere or button below to return to video"
-            setTextColor(Color.parseColor("#CCCCCC"))
+            text = "Background Audio Active\nPress Back to return to video, or Minimize to keep listening while using other apps"
+            setTextColor(Color.parseColor("#B0C4DE"))
             textSize = 13.5f
             gravity = Gravity.CENTER
             setPadding(0, (16 * d).toInt(), 0, (18 * d).toInt())
         }
         val btnBackToVideo = TextView(this).apply {
-            text = "Back to Video"
-            setTextColor(Color.BLACK)
+            text = "▶   Return to Video Screen"
+            setTextColor(Color.parseColor("#0A0A10"))
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((26 * d).toInt(), (10 * d).toInt(), (26 * d).toInt(), (10 * d).toInt())
+            setPadding((28 * d).toInt(), (11 * d).toInt(), (28 * d).toInt(), (11 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#5CE1E6"))
+                setColor(Color.parseColor("#00FFFF"))
                 cornerRadius = 24f * d
             }
             setOnClickListener {
@@ -780,19 +868,40 @@ class PlayerActivity : AppCompatActivity() {
                 layoutAllControls.visibility = View.VISIBLE
             }
         }
-        val btnSaveToMp3 = TextView(this).apply {
-            text = "Convert Video to MP3"
+        val btnMinimizeToHome = TextView(this).apply {
+            text = "🎧   Minimize & Keep Playing in Background"
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((24 * d).toInt(), (10 * d).toInt(), (24 * d).toInt(), (10 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (10 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#182232"))
+                cornerRadius = 24f * d
+                setStroke((1.3f * d).toInt(), Color.parseColor("#00FFFF"))
+            }
+            setOnClickListener {
+                isBgAudioEnabled = true
+                moveTaskToBack(true)
+            }
+        }
+        val btnSaveToMp3 = TextView(this).apply {
+            text = "🎵   Convert Video to MP3"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setPadding((26 * d).toInt(), (10 * d).toInt(), (26 * d).toInt(), (10 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = (12 * d).toInt() }
+            ).apply { topMargin = (10 * d).toInt() }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1DB954"))
+                setColor(Color.parseColor("#00E676"))
                 cornerRadius = 24f * d
             }
             setOnClickListener { openMp3Converter() }
@@ -800,6 +909,7 @@ class PlayerActivity : AppCompatActivity() {
         bgCenterCol.addView(discView)
         bgCenterCol.addView(tvBgHint)
         bgCenterCol.addView(btnBackToVideo)
+        bgCenterCol.addView(btnMinimizeToHome)
         bgCenterCol.addView(btnSaveToMp3)
         panelBgAudioScreen.addView(bgCenterCol)
         rootPlayerFrame.addView(panelBgAudioScreen)
@@ -840,6 +950,7 @@ class PlayerActivity : AppCompatActivity() {
         panelPlayingQueue.visibility = View.GONE
         panelSpeedRuler.visibility = View.GONE
         layoutAdvancedSettings.visibility = View.GONE
+        enterFullImmersiveMode()
     }
 
     private fun applyVisualEnhancerFilter(modeIndex: Int) {
@@ -851,27 +962,27 @@ class PlayerActivity : AppCompatActivity() {
                 )
             }
             1 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#22FF9800"))
             }
             2 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#1800E5FF"))
             }
             3 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#24FF4081"))
             }
             4 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#2800B0FF"))
             }
             5 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#30FFAB00"))
             }
             6 -> {
-                btnHdrMode.setTextColor(Color.parseColor("#5CE1E6"))
+                btnHdrMode.setTextColor(Color.parseColor("#00FFFF"))
                 viewVisualOverlay.setBackgroundColor(Color.parseColor("#2CD4AF37"))
             }
         }
@@ -916,9 +1027,9 @@ class PlayerActivity : AppCompatActivity() {
             "Mute" to { toggleMuteNow() },
             "Screenshot" to { captureVideoScreenshotNow() },
             "Rotate" to { toggleRotationNow() },
+            "Equalizer" to { openEqualizerNow() },
             "Sound Lab" to { AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer) },
-            "MP3 Cut" to { openMp3Converter() },
-            "4x Speed" to { applySpeedDirect(4.0f) }
+            "MP3 Cut" to { openMp3Converter() }
         )
 
         for ((label, action) in tools) {
@@ -992,7 +1103,6 @@ class PlayerActivity : AppCompatActivity() {
 
             exoPlayer?.release()
 
-            // Real HW / SW Renderer configuration
             val renderersFactory = DefaultRenderersFactory(this).apply {
                 setExtensionRendererMode(
                     if (useSoftwareDecoderPrefer) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
@@ -1004,6 +1114,8 @@ class PlayerActivity : AppCompatActivity() {
             exoPlayer = ExoPlayer.Builder(this, renderersFactory).build().also { player ->
                 player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 playerView.player = player
+                disableClippingForFullScreenZoom()
+
                 playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, subtitleTextSizeSp)
                 playerView.subtitleView?.setStyle(
                     CaptionStyleCompat(
@@ -1050,6 +1162,7 @@ class PlayerActivity : AppCompatActivity() {
                             if (isPlaying) android.R.drawable.ic_media_pause
                             else android.R.drawable.ic_media_play
                         )
+                        syncVideoNotificationState(isPlaying)
                     }
                 ).also { it.requestAudioFocusAndRegister() }
 
@@ -1059,16 +1172,8 @@ class PlayerActivity : AppCompatActivity() {
                             if (isPlaying) android.R.drawable.ic_media_pause
                             else android.R.drawable.ic_media_play
                         )
-                        if (isBgAudioEnabled) {
-                            BackgroundAudioService.updateForegroundNotification(
-                                this@PlayerActivity,
-                                videoTitle,
-                                "OG 8K Background Video Audio",
-                                isPlaying,
-                                isVideoBackground = true,
-                                videoPath = videoPath
-                            )
-                        }
+                        mediaSessionManager?.updatePlaybackState()
+                        syncVideoNotificationState(isPlaying)
                     }
 
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -1091,6 +1196,12 @@ class PlayerActivity : AppCompatActivity() {
                                 .apply()
                             rvQueueList.adapter?.notifyDataSetChanged()
                             updateQueueHeaderTitle()
+                            mediaSessionManager?.updateMetadataAndState(
+                                title = videoTitle,
+                                artist = "OG 8K Video Player",
+                                durationMs = player.duration.coerceAtLeast(1000L)
+                            )
+                            syncVideoNotificationState(player.isPlaying)
                         }
                     }
 
@@ -1100,6 +1211,11 @@ class PlayerActivity : AppCompatActivity() {
                             seekBarPlayer.max = duration.toInt()
                             tvPlayerTotalTime.text = formatDuration(duration)
                             setupLoudnessEnhancer(player.audioSessionId)
+                            mediaSessionManager?.updateMetadataAndState(
+                                title = videoTitle,
+                                artist = "OG 8K Video Player",
+                                durationMs = duration
+                            )
                         }
                     }
                 })
@@ -1107,6 +1223,19 @@ class PlayerActivity : AppCompatActivity() {
             handler.post(updateProgressAction)
         } catch (e: Exception) {
             Toast.makeText(this, "Unable to play video", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun syncVideoNotificationState(isPlaying: Boolean) {
+        if (isBgAudioEnabled) {
+            BackgroundAudioService.updateForegroundNotification(
+                context = this,
+                title = videoTitle,
+                artist = "OG 8K Video Player",
+                isPlaying = isPlaying,
+                isVideoBackground = true,
+                videoPath = videoPath
+            )
         }
     }
 
@@ -1131,18 +1260,52 @@ class PlayerActivity : AppCompatActivity() {
         isBgAudioEnabled = true
         layoutAllControls.visibility = View.GONE
         panelBgAudioScreen.visibility = View.VISIBLE
+        mediaSessionManager?.updateMetadataAndState(
+            title = videoTitle,
+            artist = "OG 8K Background Audio",
+            durationMs = (exoPlayer?.duration ?: 1000L).coerceAtLeast(1000L)
+        )
         BackgroundAudioService.updateForegroundNotification(
             this,
             videoTitle,
-            "OG 8K Background Video Audio",
+            "OG 8K Background Audio",
             exoPlayer?.isPlaying == true,
             isVideoBackground = true,
             videoPath = videoPath
         )
     }
 
+    // Safe Back Navigation: Never cuts background audio or abruptly kills the player when inside panels or BG mode!
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        when {
+            isScreenLocked -> {
+                btnUnlockOverlay.visibility = View.VISIBLE
+                Toast.makeText(this, "Tap the Lock icon to unlock screen", Toast.LENGTH_SHORT).show()
+            }
+            panelOverlayScrim.visibility == View.VISIBLE -> {
+                closeAllModularPanels()
+                layoutAllControls.visibility = View.VISIBLE
+            }
+            panelBgAudioScreen.visibility == View.VISIBLE -> {
+                // Return smoothly to the video screen instead of closing the app!
+                panelBgAudioScreen.visibility = View.GONE
+                layoutAllControls.visibility = View.VISIBLE
+            }
+            isBgAudioEnabled && exoPlayer?.isPlaying == true -> {
+                // Keep audio playing in background and go to previous screen safely
+                moveTaskToBack(true)
+            }
+            else -> {
+                super.onBackPressed()
+            }
+        }
+    }
+
     private fun setupTopAndSideControls() {
-        findViewById<ImageView>(R.id.btnPlayerBack).setOnClickListener { finish() }
+        findViewById<ImageView>(R.id.btnPlayerBack).setOnClickListener {
+            onBackPressed()
+        }
 
         val hdrClick = View.OnClickListener {
             if (frameHdrContainer.childCount > 1) {
@@ -1185,6 +1348,7 @@ class PlayerActivity : AppCompatActivity() {
             isScreenLocked = false
             btnUnlockOverlay.visibility = View.GONE
             layoutAllControls.visibility = View.VISIBLE
+            enterFullImmersiveMode()
             Toast.makeText(this, "Screen Unlocked", Toast.LENGTH_SHORT).show()
         }
 
@@ -1203,8 +1367,8 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         val tvHeader = TextView(this).apply {
-            text = "<   Subtitles & Auto-Sync Timing"
-            setTextColor(Color.WHITE)
+            text = "←   Subtitles & Auto-Sync Timing"
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, 0, 0, (12 * d).toInt())
@@ -1215,7 +1379,7 @@ class PlayerActivity : AppCompatActivity() {
         val player = exoPlayer
         val textGroups = player?.currentTracks?.groups?.filter { it.type == C.TRACK_TYPE_TEXT } ?: emptyList()
 
-        col.addView(createSubtitleActionRow("None (Turn Off Subtitles)", d) {
+        col.addView(createSubtitleActionRow("🚫   None (Turn Off Subtitles)", d) {
             player?.let { p ->
                 p.trackSelectionParameters = p.trackSelectionParameters
                     .buildUpon()
@@ -1229,7 +1393,7 @@ class PlayerActivity : AppCompatActivity() {
         textGroups.forEachIndexed { index, group ->
             val fmt = group.getTrackFormat(0)
             val name = fmt.label ?: fmt.language ?: "Embedded Subtitle ${index + 1}"
-            val row = createSubtitleActionRow("* Track: $name", d) {
+            val row = createSubtitleActionRow("💬   Track: $name", d) {
                 player?.let { p ->
                     p.trackSelectionParameters = p.trackSelectionParameters
                         .buildUpon()
@@ -1243,7 +1407,7 @@ class PlayerActivity : AppCompatActivity() {
             col.addView(row)
         }
 
-        col.addView(createSubtitleActionRow("Select Local Subtitle File (.srt / .ass / .vtt)", d) {
+        col.addView(createSubtitleActionRow("📂   Select Local Subtitle File (.srt / .ass / .vtt)", d) {
             try {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -1255,7 +1419,6 @@ class PlayerActivity : AppCompatActivity() {
             }
         })
 
-        // Subtitle Timing Sync Offset (+/- 100ms)
         val syncRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1263,7 +1426,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         val tvSyncStatus = TextView(this).apply {
             text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -1282,7 +1445,6 @@ class PlayerActivity : AppCompatActivity() {
                 subtitleSyncOffsetMs -= 100L
                 tvSyncStatus.text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
                 playerView.subtitleView?.translationY = (subtitleSyncOffsetMs / 100f).coerceIn(-40f, 40f)
-                Toast.makeText(this@PlayerActivity, "Subtitle Sync: ${subtitleSyncOffsetMs}ms", Toast.LENGTH_SHORT).show()
             }
         }
         val btnSyncPlus = TextView(this).apply {
@@ -1303,7 +1465,6 @@ class PlayerActivity : AppCompatActivity() {
                 subtitleSyncOffsetMs += 100L
                 tvSyncStatus.text = "Subtitle Sync Delay: ${subtitleSyncOffsetMs}ms"
                 playerView.subtitleView?.translationY = (subtitleSyncOffsetMs / 100f).coerceIn(-40f, 40f)
-                Toast.makeText(this@PlayerActivity, "Subtitle Sync: ${subtitleSyncOffsetMs}ms", Toast.LENGTH_SHORT).show()
             }
         }
         syncRow.addView(tvSyncStatus)
@@ -1313,7 +1474,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val tvSizeLabel = TextView(this).apply {
             text = "Subtitle Text Size (${subtitleTextSizeSp.toInt()}sp)"
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, (12 * d).toInt(), 0, (4 * d).toInt())
@@ -1334,7 +1495,7 @@ class PlayerActivity : AppCompatActivity() {
         col.addView(tvSizeLabel)
         col.addView(sbSubSize)
 
-        col.addView(createSubtitleActionRow("Search Online Subtitles (Auto-Match Movie)", d) {
+        col.addView(createSubtitleActionRow("🌐   Search Online Subtitles (Auto-Match Movie)", d) {
             val cleanName = videoTitle.substringBeforeLast(".").replace("_", " ")
             try {
                 val q = URLEncoder.encode("$cleanName subtitles download srt", "UTF-8")
@@ -1362,6 +1523,7 @@ class PlayerActivity : AppCompatActivity() {
             text = label
             setTextColor(Color.WHITE)
             textSize = 14.5f
+            typeface = Typeface.DEFAULT_BOLD
             setPadding(0, (14 * d).toInt(), 0, (14 * d).toInt())
             setOnClickListener { onClick() }
         }
@@ -1406,7 +1568,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun updateQueueHeaderTitle() {
         val cur = (currentPositionIndex + 1).coerceAtMost(videoList.size.coerceAtLeast(1))
-        tvQueueHeaderCount.text = "<   Playing Queue ($cur/${videoList.size})"
+        tvQueueHeaderCount.text = "←   Playing Queue ($cur/${videoList.size})"
     }
 
     private fun setupQueueRecyclerViewAndDragHelper() {
@@ -1429,8 +1591,8 @@ class PlayerActivity : AppCompatActivity() {
                 }
 
                 val thumbCard = CardView(this@PlayerActivity).apply {
-                    radius = 6f * d
-                    setCardBackgroundColor(Color.parseColor("#222230"))
+                    radius = 8f * d
+                    setCardBackgroundColor(Color.parseColor("#182232"))
                     layoutParams = LinearLayout.LayoutParams((100 * d).toInt(), (56 * d).toInt())
                 }
                 val frame = FrameLayout(this@PlayerActivity)
@@ -1448,7 +1610,7 @@ class PlayerActivity : AppCompatActivity() {
                 ).apply {
                     max = 1000
                     progressDrawable.setColorFilter(
-                        Color.parseColor("#5CE1E6"),
+                        Color.parseColor("#00FFFF"),
                         PorterDuff.Mode.SRC_IN
                     )
                     layoutParams = FrameLayout.LayoutParams(
@@ -1482,16 +1644,16 @@ class PlayerActivity : AppCompatActivity() {
                 textCol.addView(tvMeta)
 
                 val btnDrag = TextView(this@PlayerActivity).apply {
-                    text = "="
-                    setTextColor(Color.parseColor("#BBBBCC"))
+                    text = "≡"
+                    setTextColor(Color.parseColor("#B0C4DE"))
                     textSize = 20f
                     gravity = Gravity.CENTER
                     layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (40 * d).toInt())
                 }
 
                 val btnRemove = TextView(this@PlayerActivity).apply {
-                    text = "X"
-                    setTextColor(Color.parseColor("#BBBBCC"))
+                    text = "✕"
+                    setTextColor(Color.parseColor("#B0C4DE"))
                     textSize = 14f
                     gravity = Gravity.CENTER
                     layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (40 * d).toInt())
@@ -1512,7 +1674,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 holder.tvTitle.text = name
                 holder.tvTitle.setTextColor(
-                    if (isPlayingNow) Color.parseColor("#5CE1E6") else Color.WHITE
+                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.WHITE
                 )
 
                 val sizeBytes = if (file.exists()) file.length() else 0L
@@ -1525,9 +1687,9 @@ class PlayerActivity : AppCompatActivity() {
                 val resBadge = resPrefs.getString("res_$path", null)
                     ?: computeResolutionBadgeLocal(name, sizeBytes)
 
-                holder.tvMeta.text = "$resBadge | $sizeLabel"
+                holder.tvMeta.text = "$resBadge  •  $sizeLabel"
                 holder.tvMeta.setTextColor(
-                    if (isPlayingNow) Color.parseColor("#5CE1E6") else Color.parseColor("#9999AA")
+                    if (isPlayingNow) Color.parseColor("#00FFFF") else Color.parseColor("#9999AA")
                 )
 
                 val watched = watchedPrefs.getLong("watched_pos_$path", 0L)
@@ -1536,6 +1698,9 @@ class PlayerActivity : AppCompatActivity() {
                 val target: Any = if (path.startsWith("content://")) Uri.parse(path) else file
                 Glide.with(this@PlayerActivity)
                     .load(target)
+                    .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+                    .override(160, 90)
+                    .dontAnimate()
                     .placeholder(android.R.color.darker_gray)
                     .centerCrop()
                     .into(holder.img)
@@ -1648,13 +1813,17 @@ class PlayerActivity : AppCompatActivity() {
         Toast.makeText(this, if (isMuted) "Audio Muted" else "Audio Unmuted", Toast.LENGTH_SHORT).show()
     }
 
+    // Locks screen AND hides Zoom Pill, Status Bar (5:24 time bar), and Navigation Dots completely
     private fun lockScreenNow() {
         val d = resources.displayMetrics.density
         isScreenLocked = true
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
-        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#5CE1E6")))
+        cardZoomResetPill.visibility = View.GONE
+        cardGestureFeedback.visibility = View.GONE
+        btnLockScreen.setImageDrawable(PlayerVectorIconInternal("LOCK_CLOSED", d, Color.parseColor("#00FFFF")))
         btnUnlockOverlay.visibility = View.VISIBLE
+        enterFullImmersiveMode()
         Toast.makeText(this, "Screen Locked", Toast.LENGTH_SHORT).show()
     }
 
@@ -1735,6 +1904,7 @@ class PlayerActivity : AppCompatActivity() {
         } else {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
+        enterFullImmersiveMode()
     }
 
     private fun setupBottomControls() {
@@ -1770,8 +1940,8 @@ class PlayerActivity : AppCompatActivity() {
         btnAspectRatio.setOnClickListener {
             val d = resources.displayMetrics.density
             resizeModeIndex = (resizeModeIndex + 1) % 4
-            val surface = playerView.videoSurfaceView ?: playerView
             val mirror = if (isMirrorMode) -1f else 1f
+            val surface = playerView.videoSurfaceView ?: playerView
 
             when (resizeModeIndex) {
                 0 -> {
@@ -1785,7 +1955,7 @@ class PlayerActivity : AppCompatActivity() {
                     playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
                     surface.scaleX = 1.0f * mirror
                     surface.scaleY = 1.0f
-                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_STRETCH", d, Color.parseColor("#5CE1E6")))
+                    btnAspectRatio.setImageDrawable(PlayerVectorIconInternal("ASPECT_STRETCH", d, Color.parseColor("#00FFFF")))
                     Toast.makeText(this, "Aspect Ratio: Full Stretch", Toast.LENGTH_SHORT).show()
                 }
                 2 -> {
@@ -1845,17 +2015,33 @@ class PlayerActivity : AppCompatActivity() {
         speedRulerView.setSpeedValue(currentSpeed)
     }
 
+    // True Full-Screen Edge-to-Edge Video Zoom (Expands across the entire phone display without being trapped in a small box)
     private fun applyVideoZoom(scale: Float) {
+        disableClippingForFullScreenZoom()
         currentZoomScale = scale.coerceIn(0.5f, 6.0f)
         val mirrorFactor = if (isMirrorMode) -1f else 1f
-        val videoSurface = playerView.videoSurfaceView ?: playerView
-        videoSurface.scaleX = currentZoomScale * mirrorFactor
-        videoSurface.scaleY = currentZoomScale
+
+        val videoSurface = playerView.videoSurfaceView
+        if (videoSurface != null) {
+            (videoSurface.parent as? ViewGroup)?.let { parentGroup ->
+                parentGroup.clipChildren = false
+                parentGroup.clipToPadding = false
+                parentGroup.scaleX = currentZoomScale * mirrorFactor
+                parentGroup.scaleY = currentZoomScale
+            }
+            videoSurface.scaleX = 1.0f
+            videoSurface.scaleY = 1.0f
+        } else {
+            playerView.scaleX = currentZoomScale * mirrorFactor
+            playerView.scaleY = currentZoomScale
+        }
 
         val zoomPercent = (currentZoomScale * 100).toInt()
-        if (zoomPercent != 100) {
-            tvZoomResetPill.text = "Zoom: $zoomPercent% | Reset"
+        handler.removeCallbacks(autoHideZoomPillRunnable)
+        if (zoomPercent != 100 && !isScreenLocked) {
+            tvZoomResetPill.text = "Zoom: $zoomPercent%  |  Reset"
             cardZoomResetPill.visibility = View.VISIBLE
+            handler.postDelayed(autoHideZoomPillRunnable, 2800L)
         } else {
             cardZoomResetPill.visibility = View.GONE
         }
@@ -1908,7 +2094,7 @@ class PlayerActivity : AppCompatActivity() {
             updateFavoriteUi()
             Toast.makeText(
                 this,
-                if (isFavorite) "Added to Favorites" else "Removed from Favorites",
+                if (isFavorite) "Added to Favorites ♥" else "Removed from Favorites",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -1919,18 +2105,18 @@ class PlayerActivity : AppCompatActivity() {
             val currentPos = exoPlayer?.currentPosition ?: 0L
             val options = if (savedBookmark != -1L) {
                 arrayOf(
-                    "Save Bookmark at ${formatDuration(currentPos)}",
-                    "Jump to Saved Bookmark (${formatDuration(savedBookmark)})",
-                    "Clear Bookmark",
-                    "Open Sound & Pitch Lab (Lofi / 200% Boost)",
-                    "Delete Video Permanently (From Phone)"
+                    "🔖   Save Bookmark at ${formatDuration(currentPos)}",
+                    "⏩   Jump to Saved Bookmark (${formatDuration(savedBookmark)})",
+                    "🧹   Clear Bookmark",
+                    "🎛️   Open Sound & Pitch Lab (Lofi / 200% Boost)",
+                    "🗑️   Delete Video Permanently (From Phone)"
                 )
             } else {
                 arrayOf(
-                    "Save Bookmark at ${formatDuration(currentPos)}",
-                    "Open Sound & Pitch Lab (Lofi / 200% Boost)",
-                    "Lock Video into Secret Privacy Vault",
-                    "Delete Video Permanently (From Phone)"
+                    "🔖   Save Bookmark at ${formatDuration(currentPos)}",
+                    "🎛️   Open Sound & Pitch Lab (Lofi / 200% Boost)",
+                    "🔒   Lock Video into Secret Privacy Vault",
+                    "🗑️   Delete Video Permanently (From Phone)"
                 )
             }
             showBrightMenuDialogInternal("Video Bookmarks & Pro Tools", options) { which ->
@@ -1982,11 +2168,11 @@ class PlayerActivity : AppCompatActivity() {
 
         findViewById<LinearLayout>(R.id.optSleepTimer).setOnClickListener {
             val timerOptions = arrayOf(
-                "Timer Off",
-                "15 Minutes (Smooth 15s Fade-Out)",
-                "25 Minutes (Auto-Sleep Idle Motion Detector)",
-                "30 Minutes (Auto-Sleep Idle Motion Detector)",
-                "60 Minutes (Smooth 15s Fade-Out)"
+                "⏱️   Timer Off",
+                "🌙   15 Minutes (Smooth 15s Fade-Out)",
+                "🛌   25 Minutes (Auto-Sleep Idle Motion Detector)",
+                "🛌   30 Minutes (Auto-Sleep Idle Motion Detector)",
+                "🌙   60 Minutes (Smooth 15s Fade-Out)"
             )
             showBrightMenuDialogInternal("Smart Sleep Timer & Idle Detector", timerOptions) { which ->
                 when (which) {
@@ -2036,14 +2222,13 @@ class PlayerActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Real Hardware vs Software Decoder Switching
         btnHwDecoder.setOnClickListener {
             if (useSoftwareDecoderPrefer) {
                 useSoftwareDecoderPrefer = false
                 val pos = exoPlayer?.currentPosition ?: 0L
                 initializePlayer(startPositionOverrideMs = pos)
             }
-            btnHwDecoder.setTextColor(Color.parseColor("#5CE1E6"))
+            btnHwDecoder.setTextColor(Color.parseColor("#00FFFF"))
             btnSwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Active: Hardware (HW) 8K Decoder Engine", Toast.LENGTH_SHORT).show()
         }
@@ -2054,7 +2239,7 @@ class PlayerActivity : AppCompatActivity() {
                 val pos = exoPlayer?.currentPosition ?: 0L
                 initializePlayer(startPositionOverrideMs = pos)
             }
-            btnSwDecoder.setTextColor(Color.parseColor("#5CE1E6"))
+            btnSwDecoder.setTextColor(Color.parseColor("#00FFFF"))
             btnHwDecoder.setTextColor(Color.WHITE)
             Toast.makeText(this, "Active: Software (SW) Fallback Decoder Engine", Toast.LENGTH_SHORT).show()
         }
@@ -2069,9 +2254,9 @@ class PlayerActivity : AppCompatActivity() {
                 .setMessage(
                     "1. Right Vertical Swipe: Direction-Locked Smooth 300% Volume Boost\n" +
                         "2. Left Vertical Swipe: Direction-Locked Smooth Brightness\n" +
-                        "3. Horizontal Slide: Slow Precision Frame Seek (Never triggers during volume swipe)\n" +
+                        "3. Horizontal Slide: Slow Precision Frame Seek\n" +
                         "4. Double Tap Left / Right: Instant -10s / +10s Seek\n" +
-                        "5. Two-Finger Pinch: 50% to 600% Smooth Video Zoom"
+                        "5. Two-Finger Pinch: Full-Screen 50% to 600% Video Zoom"
                 )
                 .setPositiveButton("Got It", null)
                 .show()
@@ -2105,62 +2290,16 @@ class PlayerActivity : AppCompatActivity() {
             path = videoPath,
             isVideo = true
         ) {
+            DeepMediaScanner.invalidateCache()
             finish()
         }
     }
 
+    // Directly opens OG Player's own Built-In 5-Band Dolby Equalizer + Bass Boost + 3D Virtualizer
     private fun openEqualizerNow() {
+        closeAllModularPanels()
         val sessionId = exoPlayer?.audioSessionId ?: 0
-        try {
-            val eqIntent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
-                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MOVIE)
-            }
-            if (eqIntent.resolveActivity(packageManager) != null) {
-                startActivityForResult(eqIntent, 101)
-                return
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        showBuiltInEqualizerDialogInternal(sessionId)
-    }
-
-    private fun showBuiltInEqualizerDialogInternal(sessionId: Int) {
-        try {
-            if (builtInEqualizer == null && sessionId != 0) {
-                builtInEqualizer = Equalizer(0, sessionId).apply { enabled = true }
-            }
-            if (builtInBassBoost == null && sessionId != 0) {
-                builtInBassBoost = BassBoost(0, sessionId).apply { enabled = true }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        val presets = arrayOf(
-            "Normal Studio",
-            "Heavy Bass Boost",
-            "8K Cinema Surround",
-            "Clear Vocal & Dialogue",
-            "Open Lofi & Pitch Sound Lab"
-        )
-        showBrightMenuDialogInternal("Built-in Video Equalizer", presets) { which ->
-            if (which == 4) {
-                AudioPitchHelper.showSoundAndPitchLabDialog(this, exoPlayer)
-                return@showBrightMenuDialogInternal
-            }
-            try {
-                val eq = builtInEqualizer
-                if (eq != null && eq.numberOfPresets > 0) {
-                    eq.usePreset((which % eq.numberOfPresets).toShort())
-                }
-                builtInBassBoost?.setStrength(((which + 1) * 200).coerceAtMost(1000).toShort())
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            Toast.makeText(this, "Equalizer Preset: ${presets[which]}", Toast.LENGTH_SHORT).show()
-        }
+        EqualizerHelper.showEqualizerDialog(this, sessionId)
     }
 
     private fun triggerAbRepeatStep() {
@@ -2208,13 +2347,13 @@ class PlayerActivity : AppCompatActivity() {
         val showHdrCc = prefs.getBoolean("player_show_hdr_cc", true)
 
         val options = arrayOf(
-            if (dockSide) "Move Side Icons Back to Left/Right" else "Move Side Icons to Bottom Bar",
-            if (showSide) "Hide Side Controls" else "Show Side Controls",
-            if (showHdrCc) "Hide Top HDR & CC Badges" else "Show Top HDR & CC Badges",
-            "Set Press & Hold Speed Boost to 4.0x",
-            "Set Press & Hold Speed Boost to 6.0x",
-            "Set Press & Hold Speed Boost to 8.0x",
-            "Reset Player Layout & Zoom (100%)"
+            if (dockSide) "↔️   Move Side Icons Back to Left/Right" else "⬇️   Move Side Icons to Bottom Bar",
+            if (showSide) "👁️   Hide Side Controls" else "👁️   Show Side Controls",
+            if (showHdrCc) "✨   Hide Top HDR & CC Badges" else "✨   Show Top HDR & CC Badges",
+            "⚡   Set Press & Hold Speed Boost to 4.0x",
+            "⚡   Set Press & Hold Speed Boost to 6.0x",
+            "⚡   Set Press & Hold Speed Boost to 8.0x",
+            "🔄   Reset Player Layout & Zoom (100%)"
         )
 
         showBrightMenuDialogInternal("Edit Player Layout", options) { which ->
@@ -2264,7 +2403,7 @@ class PlayerActivity : AppCompatActivity() {
             btn.setTextColor(Color.WHITE)
         }
         val activeBtn = allButtons[mode]
-        activeBtn.setBackgroundColor(Color.parseColor("#5CE1E6"))
+        activeBtn.setBackgroundColor(Color.parseColor("#00FFFF"))
         activeBtn.setTextColor(Color.BLACK)
 
         stopAfterCurrent = false
@@ -2310,7 +2449,7 @@ class PlayerActivity : AppCompatActivity() {
             val format = group.getTrackFormat(0)
             val lang = format.language ?: "Track ${index + 1}"
             val label = format.label ?: ""
-            trackNames.add("$lang $label".trim())
+            trackNames.add("🔊   $lang $label".trim())
         }
         showBrightMenuDialogInternal(title, trackNames.toTypedArray()) { which ->
             val selectedGroup = trackGroups[which].mediaTrackGroup
@@ -2334,7 +2473,6 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Strict Direction-Locked Gestures: Vertical Volume/Brightness NEVER triggers video seeking!
     private fun setupDirectionLockedTouchAndGestures() {
         scaleGestureDetector = ScaleGestureDetector(
             this,
@@ -2367,6 +2505,7 @@ class PlayerActivity : AppCompatActivity() {
 
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                enterFullImmersiveMode()
                 if (isScreenLocked) {
                     btnUnlockOverlay.visibility =
                         if (btnUnlockOverlay.visibility == View.VISIBLE) View.GONE else View.VISIBLE
@@ -2438,22 +2577,17 @@ class PlayerActivity : AppCompatActivity() {
                     lastMoveX = event.x
                     lastMoveY = event.y
 
-                    // Decide and LOCK direction once finger moves past threshold (24px)
                     if (lockedSwipeDirection == 0) {
                         if (abs(totalDy) > 24f && abs(totalDy) > abs(totalDx) * 1.2f) {
-                            // Locked strictly to Vertical (Volume or Brightness)
                             lockedSwipeDirection = 2
                         } else if (abs(totalDx) > 32f && abs(totalDx) > abs(totalDy) * 1.5f) {
-                            // Locked strictly to Horizontal (Slow Precision Seek)
                             lockedSwipeDirection = 1
                             scrubTargetPositionMs = exoPlayer?.currentPosition ?: 0L
                         }
                     }
 
                     if (lockedSwipeDirection == 2) {
-                        // Strictly Vertical: Volume / Brightness only. Video seeking is 100% disabled!
                         if (touchStartX < screenW / 2f) {
-                            // Left side: Smooth Controlled Brightness (1.5x damped)
                             val deltaBrightness = (-stepDy / screenH) * 90f
                             currentBrightnessPercent = (currentBrightnessPercent + deltaBrightness).coerceIn(2f, 100f)
                             val lp = window.attributes
@@ -2469,16 +2603,13 @@ class PlayerActivity : AppCompatActivity() {
 
                             showGestureFeedback(android.R.drawable.ic_menu_view, "$pctInt%", pctInt)
                         } else {
-                            // Right side: Smooth Controlled 300% Volume Boost (1.5x damped)
                             val deltaVolPct = (-stepDy / screenH) * 135f
                             currentVolumePercent = (currentVolumePercent + deltaVolPct).coerceIn(0f, 300f)
                             applySmooth300PercentVolume(currentVolumePercent)
                         }
                     } else if (lockedSwipeDirection == 1) {
-                        // Strictly Horizontal: Adaptive Slow Precision Scrubbing
                         val player = exoPlayer ?: return@setOnTouchListener true
                         val dur = player.duration.coerceAtLeast(1L)
-                        // Lower half of screen = micro-slow seek (20s full width), upper half = 45s full width
                         val fullWidthSeekWindowMs = if (touchStartY > screenH * 0.6f) 20000f else 42000f
                         val deltaSeekMs = ((stepDx / screenW) * fullWidthSeekWindowMs).toLong()
                         scrubTargetPositionMs = (scrubTargetPositionMs + deltaSeekMs).coerceIn(0L, dur)
@@ -2504,16 +2635,10 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    // Smooth 300% Volume Boost without annoying Toast popups blocking the screen
     private fun applySmooth300PercentVolume(targetPercent: Float) {
         val maxSysVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val pctInt = targetPercent.roundToInt().coerceIn(0, 300)
-
-        val earSafetyOn = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-            .getBoolean("ear_safety_80_alert", true)
-        if (earSafetyOn && pctInt > 85 && !hasShownEarSafetyWarning) {
-            hasShownEarSafetyWarning = true
-            Toast.makeText(this, "Ear Safety Alert: High Volume (>80%)", Toast.LENGTH_SHORT).show()
-        }
 
         if (pctInt <= 100) {
             val sysVol = ((pctInt / 100f) * maxSysVol).roundToInt().coerceIn(0, maxSysVol)
@@ -2576,29 +2701,57 @@ class PlayerActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#13263B"))
+                setColor(Color.parseColor("#0A0A10"))
                 cornerRadius = 22f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#5CE1E6"))
+                setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
             }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(rootCard)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((8 * d).toInt(), (2 * d).toInt(), (4 * d).toInt(), (12 * d).toInt())
         }
 
         val tvHeader = TextView(this).apply {
             text = headerTitle
-            setTextColor(Color.parseColor("#5CE1E6"))
+            setTextColor(Color.parseColor("#00FFFF"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-            setPadding((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
-        rootCard.addView(tvHeader)
+
+        val btnClose = TextView(this).apply {
+            text = "✕"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams((30 * d).toInt(), (30 * d).toInt())
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#26FFFFFF"))
+            }
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        headerRow.addView(tvHeader)
+        headerRow.addView(btnClose)
+        rootCard.addView(headerRow)
 
         val topDivider = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 (1 * d).toInt()
             )
-            setBackgroundColor(Color.parseColor("#33FFFFFF"))
+            setBackgroundColor(Color.parseColor("#3300FFFF"))
         }
         rootCard.addView(topDivider)
 
@@ -2606,11 +2759,6 @@ class PlayerActivity : AppCompatActivity() {
         val listLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(rootCard)
-            .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         items.forEachIndexed { idx, label ->
             val tvItem = TextView(this).apply {
@@ -2716,9 +2864,11 @@ class PlayerActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) {
             closeAllModularPanels()
             layoutAllControls.visibility = View.GONE
+            cardZoomResetPill.visibility = View.GONE
         } else if (!isScreenLocked) {
             layoutAllControls.visibility = View.VISIBLE
             exoPlayer?.play()
+            enterFullImmersiveMode()
         }
     }
 
@@ -2749,7 +2899,6 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // If Background Audio Mode is ON, keep playing even when screen locks or user switches apps
         if (!isBgAudioEnabled && !isInPictureInPictureMode) {
             exoPlayer?.pause()
         }
@@ -2761,6 +2910,7 @@ class PlayerActivity : AppCompatActivity() {
         mediaSessionManager?.release()
         handler.removeCallbacks(updateProgressAction)
         handler.removeCallbacks(hideGestureRunnable)
+        handler.removeCallbacks(autoHideZoomPillRunnable)
         try {
             if (isPipReceiverRegistered) {
                 unregisterReceiver(pipAndNotifReceiver)
@@ -2768,10 +2918,6 @@ class PlayerActivity : AppCompatActivity() {
             }
             loudnessEnhancer?.release()
             loudnessEnhancer = null
-            builtInEqualizer?.release()
-            builtInEqualizer = null
-            builtInBassBoost?.release()
-            builtInBassBoost = null
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -2794,7 +2940,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         private val activePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#5CE1E6")
+            color = Color.parseColor("#00FFFF")
             strokeWidth = 2.6f * density
             strokeCap = Paint.Cap.ROUND
         }
@@ -2883,7 +3029,7 @@ class PlayerActivity : AppCompatActivity() {
         private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = iconColor
             style = Paint.Style.STROKE
-            strokeWidth = 2.0f * density
+            strokeWidth = 2.4f * density
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
@@ -2918,9 +3064,9 @@ class PlayerActivity : AppCompatActivity() {
                     canvas.drawLine(cx - r * 0.75f, cy + r * 0.55f, cx + r * 0.35f, cy + r * 0.55f, strokePaint)
                 }
                 "THREE_DOTS" -> {
-                    canvas.drawCircle(cx, cy - r * 0.65f, 2.2f * density, fillPaint)
-                    canvas.drawCircle(cx, cy, 2.2f * density, fillPaint)
-                    canvas.drawCircle(cx, cy + r * 0.65f, 2.2f * density, fillPaint)
+                    canvas.drawCircle(cx, cy - r * 0.65f, 2.4f * density, fillPaint)
+                    canvas.drawCircle(cx, cy, 2.4f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.65f, 2.4f * density, fillPaint)
                 }
                 "SPEAKER_ON", "SPEAKER_MUTE" -> {
                     path.moveTo(cx - r * 0.75f, cy - r * 0.32f)
@@ -2944,7 +3090,7 @@ class PlayerActivity : AppCompatActivity() {
                     canvas.drawRoundRect(body, 3.5f * density, 3.5f * density, strokePaint)
                     val shackle = RectF(cx - r * 0.45f, cy - r * 0.78f, cx + r * 0.45f, cy - r * 0.05f)
                     canvas.drawArc(shackle, 180f, if (type == "LOCK_OPEN") 135f else 180f, false, strokePaint)
-                    canvas.drawCircle(cx, cy + r * 0.35f, 2f * density, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.35f, 2.2f * density, fillPaint)
                 }
                 "SCREENSHOT_CAM" -> {
                     val cam = RectF(cx - r * 0.82f, cy - r * 0.52f, cx + r * 0.82f, cy + r * 0.68f)
@@ -2971,11 +3117,11 @@ class PlayerActivity : AppCompatActivity() {
                     canvas.drawRoundRect(inner, 2f * density, 2f * density, fillPaint)
                 }
                 "BG_VINYL_DISC" -> {
-                    fillPaint.color = Color.parseColor("#1E1E2A")
+                    fillPaint.color = Color.parseColor("#141824")
                     canvas.drawCircle(cx, cy, w * 0.46f, fillPaint)
-                    strokePaint.color = Color.parseColor("#343446")
+                    strokePaint.color = Color.parseColor("#00FFFF")
                     canvas.drawCircle(cx, cy, w * 0.36f, strokePaint)
-                    canvas.drawCircle(cx, cy, w * 0.28f, strokePaint)
+                    canvas.drawCircle(cx, cy, w * 0.26f, strokePaint)
                     fillPaint.color = iconColor
                     canvas.drawCircle(cx, cy, w * 0.16f, fillPaint)
                     fillPaint.color = Color.BLACK
