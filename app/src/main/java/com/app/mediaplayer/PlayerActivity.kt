@@ -105,6 +105,7 @@ class PlayerActivity : AppCompatActivity() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var mediaSessionManager: MediaSessionManager? = null
     private var smartIdlePauseHelper: SmartIdlePauseHelper? = null
+    private var volumeHudHelper: VolumeHudOverlayHelper? = null
 
     private lateinit var rootPlayerFrame: FrameLayout
     private lateinit var playerView: PlayerView
@@ -194,7 +195,6 @@ class PlayerActivity : AppCompatActivity() {
     private var currentZoomScale = 1.0f
     private var isPinchZooming = false
 
-    private var currentVolumePercent = 100f
     private var currentBrightnessPercent = 75f
 
     private var lockedSwipeDirection = 0
@@ -285,7 +285,6 @@ class PlayerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Allow full edge-to-edge rendering into notch/cutout area
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -297,6 +296,15 @@ class PlayerActivity : AppCompatActivity() {
         registerPipAndNotifReceiver()
         bindViews()
         disableClippingForFullScreenZoom()
+
+        volumeHudHelper = VolumeHudOverlayHelper(
+            context = this,
+            rootContainer = rootPlayerFrame,
+            audioManager = audioManager,
+            loudnessEnhancerProvider = { loudnessEnhancer },
+            playerVolumeSetter = { vol -> exoPlayer?.volume = vol }
+        )
+
         setupCrispPlayerIcons()
         restorePersistentBrightnessAndVisuals()
         buildModularOverlayPanels()
@@ -328,7 +336,6 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Hides top time/battery bar and side navigation dots completely
     private fun enterFullImmersiveMode() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -354,7 +361,6 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Disables child clipping on PlayerView & AspectRatioFrameLayout so 600% Zoom fills the entire phone screen edge-to-edge
     private fun disableClippingForFullScreenZoom() {
         rootPlayerFrame.clipChildren = false
         rootPlayerFrame.clipToPadding = false
@@ -477,7 +483,6 @@ class PlayerActivity : AppCompatActivity() {
         btnPipMode.setImageDrawable(PlayerVectorIconInternal("PIP_WINDOW", d, cyanGlow))
     }
 
-    // Upgrades the 3-dots Player Settings panel with a glowing circular Close button and sharp cyan styling
     private fun upgradeAdvancedSettingsVisuals() {
         val d = resources.displayMetrics.density
         layoutAdvancedSettings.background = GradientDrawable().apply {
@@ -506,10 +511,6 @@ class PlayerActivity : AppCompatActivity() {
         if (prefs.getBoolean("hdr_new_badge_dismissed", false) && frameHdrContainer.childCount > 1) {
             frameHdrContainer.getChildAt(1).visibility = View.GONE
         }
-
-        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        val curVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        currentVolumePercent = ((curVol.toFloat() / maxVol.toFloat()) * 100f).coerceIn(0f, 100f)
 
         currentBrightnessPercent = prefs.getFloat("persistent_brightness_pct", 75f).coerceIn(5f, 100f)
         val lp = window.attributes
@@ -574,15 +575,7 @@ class PlayerActivity : AppCompatActivity() {
             "Warm Cinema",
             "AMOLED Contrast"
         )
-        val modePreviewColors = arrayOf(
-            "#2A2A34",
-            "#5E3524",
-            "#225529",
-            "#602825",
-            "#154C79",
-            "#7A4914",
-            "#4A3728"
-        )
+        val modePreviewColors = arrayOf("#2A2A34", "#5E3524", "#225529", "#602825", "#154C79", "#7A4914", "#4A3728")
         val modeCardViews = mutableListOf<CardView>()
 
         modeNames.forEachIndexed { index, name ->
@@ -819,7 +812,6 @@ class PlayerActivity : AppCompatActivity() {
         panelSpeedRuler.addView(speedCol)
         rootPlayerFrame.addView(panelSpeedRuler)
 
-        // Upgraded Background Audio Screen with Safe Back / Minimize Handling
         panelBgAudioScreen = RelativeLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1248,7 +1240,7 @@ class PlayerActivity : AppCompatActivity() {
             }
             val boost200 = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
                 .getBoolean("super_loud_200_boost", false)
-            if (boost200 && currentVolumePercent < 200f) {
+            if (boost200) {
                 loudnessEnhancer?.setTargetGain(1400)
             }
         } catch (e: Exception) {
@@ -1275,7 +1267,6 @@ class PlayerActivity : AppCompatActivity() {
         )
     }
 
-    // Safe Back Navigation: Never cuts background audio or abruptly kills the player when inside panels or BG mode!
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         when {
@@ -1288,12 +1279,10 @@ class PlayerActivity : AppCompatActivity() {
                 layoutAllControls.visibility = View.VISIBLE
             }
             panelBgAudioScreen.visibility == View.VISIBLE -> {
-                // Return smoothly to the video screen instead of closing the app!
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
             }
             isBgAudioEnabled && exoPlayer?.isPlaying == true -> {
-                // Keep audio playing in background and go to previous screen safely
                 moveTaskToBack(true)
             }
             else -> {
@@ -1494,21 +1483,6 @@ class PlayerActivity : AppCompatActivity() {
         }
         col.addView(tvSizeLabel)
         col.addView(sbSubSize)
-
-        col.addView(createSubtitleActionRow("🌐   Search Online Subtitles (Auto-Match Movie)", d) {
-            val cleanName = videoTitle.substringBeforeLast(".").replace("_", " ")
-            try {
-                val q = URLEncoder.encode("$cleanName subtitles download srt", "UTF-8")
-                startActivity(
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://www.opensubtitles.org/en/search2/sublanguageid-all/moviename-$q")
-                    )
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        })
 
         scroll.addView(col)
         panelSubtitles.addView(scroll)
@@ -1813,7 +1787,6 @@ class PlayerActivity : AppCompatActivity() {
         Toast.makeText(this, if (isMuted) "Audio Muted" else "Audio Unmuted", Toast.LENGTH_SHORT).show()
     }
 
-    // Locks screen AND hides Zoom Pill, Status Bar (5:24 time bar), and Navigation Dots completely
     private fun lockScreenNow() {
         val d = resources.displayMetrics.density
         isScreenLocked = true
@@ -2015,7 +1988,6 @@ class PlayerActivity : AppCompatActivity() {
         speedRulerView.setSpeedValue(currentSpeed)
     }
 
-    // True Full-Screen Edge-to-Edge Video Zoom (Expands across the entire phone display without being trapped in a small box)
     private fun applyVideoZoom(scale: Float) {
         disableClippingForFullScreenZoom()
         currentZoomScale = scale.coerceIn(0.5f, 6.0f)
@@ -2167,37 +2139,13 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         findViewById<LinearLayout>(R.id.optSleepTimer).setOnClickListener {
-            val timerOptions = arrayOf(
-                "⏱️   Timer Off",
-                "🌙   15 Minutes (Smooth 15s Fade-Out)",
-                "🛌   25 Minutes (Auto-Sleep Idle Motion Detector)",
-                "🛌   30 Minutes (Auto-Sleep Idle Motion Detector)",
-                "🌙   60 Minutes (Smooth 15s Fade-Out)"
-            )
-            showBrightMenuDialogInternal("Smart Sleep Timer & Idle Detector", timerOptions) { which ->
-                when (which) {
-                    0 -> {
-                        smartIdlePauseHelper?.cancelTimer()
-                        Toast.makeText(this, "Sleep Timer Off", Toast.LENGTH_SHORT).show()
-                    }
-                    1 -> {
-                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(15L, enableMotionAutoReset = false)
-                        Toast.makeText(this, "15m Timer set with 15s smooth audio fade-out", Toast.LENGTH_SHORT).show()
-                    }
-                    2 -> {
-                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(25L, enableMotionAutoReset = true)
-                        Toast.makeText(this, "25m Smart Auto-Sleep Motion Timer Active", Toast.LENGTH_SHORT).show()
-                    }
-                    3 -> {
-                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(30L, enableMotionAutoReset = true)
-                        Toast.makeText(this, "30m Smart Auto-Sleep Motion Timer Active", Toast.LENGTH_SHORT).show()
-                    }
-                    4 -> {
-                        smartIdlePauseHelper?.startSmoothFadeSleepTimer(60L, enableMotionAutoReset = false)
-                        Toast.makeText(this, "60m Timer set with 15s smooth audio fade-out", Toast.LENGTH_SHORT).show()
-                    }
+            SmartSleepTimerDialog.showSleepTimerPicker(
+                context = this,
+                onStopTimer = { smartIdlePauseHelper?.cancelTimer() },
+                onStartTimerMinutes = { mins, motion ->
+                    smartIdlePauseHelper?.startSmoothFadeSleepTimer(mins, motion)
                 }
-            }
+            )
         }
 
         btnLoopShuffle.setOnClickListener { updateLoopSelection(0) }
@@ -2252,7 +2200,7 @@ class PlayerActivity : AppCompatActivity() {
             AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Player Gestures Guide")
                 .setMessage(
-                    "1. Right Vertical Swipe: Direction-Locked Smooth 300% Volume Boost\n" +
+                    "1. Right Vertical Swipe: 0% to 200% Volume HUD Boost\n" +
                         "2. Left Vertical Swipe: Direction-Locked Smooth Brightness\n" +
                         "3. Horizontal Slide: Slow Precision Frame Seek\n" +
                         "4. Double Tap Left / Right: Instant -10s / +10s Seek\n" +
@@ -2295,7 +2243,6 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Directly opens OG Player's own Built-In 5-Band Dolby Equalizer + Bass Boost + 3D Virtualizer
     private fun openEqualizerNow() {
         closeAllModularPanels()
         val sessionId = exoPlayer?.audioSessionId ?: 0
@@ -2603,9 +2550,10 @@ class PlayerActivity : AppCompatActivity() {
 
                             showGestureFeedback(android.R.drawable.ic_menu_view, "$pctInt%", pctInt)
                         } else {
-                            val deltaVolPct = (-stepDy / screenH) * 135f
-                            currentVolumePercent = (currentVolumePercent + deltaVolPct).coerceIn(0f, 300f)
-                            applySmooth300PercentVolume(currentVolumePercent)
+                            val currentVol = volumeHudHelper?.getCurrentVolumePercent() ?: 80
+                            val deltaVolPct = ((-stepDy / screenH) * 140f).roundToInt()
+                            val newVol = (currentVol + deltaVolPct).coerceIn(0, 200)
+                            volumeHudHelper?.applyVolumePercent(newVol, showHud = true)
                         }
                     } else if (lockedSwipeDirection == 1) {
                         val player = exoPlayer ?: return@setOnTouchListener true
@@ -2635,42 +2583,12 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Smooth 300% Volume Boost without annoying Toast popups blocking the screen
-    private fun applySmooth300PercentVolume(targetPercent: Float) {
-        val maxSysVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        val pctInt = targetPercent.roundToInt().coerceIn(0, 300)
-
-        if (pctInt <= 100) {
-            val sysVol = ((pctInt / 100f) * maxSysVol).roundToInt().coerceIn(0, maxSysVol)
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, sysVol, 0)
-            try {
-                loudnessEnhancer?.setTargetGain(0)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        } else {
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxSysVol, 0)
-            val boostRatio = (pctInt - 100) / 200f
-            val gainMb = (boostRatio * 2600f).roundToInt()
-            try {
-                if (loudnessEnhancer == null) {
-                    setupLoudnessEnhancer(exoPlayer?.audioSessionId ?: 0)
-                }
-                loudnessEnhancer?.setTargetGain(gainMb)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
-        val barProgress = (pctInt / 3).coerceIn(0, 100)
-        showGestureFeedback(
-            android.R.drawable.ic_lock_silent_mode_off,
-            "$pctInt%",
-            barProgress
-        )
-    }
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            if (volumeHudHelper?.onHardwareVolumeKeyPressed(isVolumeUp = true) == true) return true
+        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (volumeHudHelper?.onHardwareVolumeKeyPressed(isVolumeUp = false) == true) return true
+        }
         if (mediaSessionManager?.handleMediaKeyEvent(keyCode) == true) {
             return true
         }
