@@ -1,58 +1,61 @@
 package com.app.mediaplayer
 
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextUtils
 import android.text.TextWatcher
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.math.abs
 
 class SearchFragment : Fragment() {
 
     private lateinit var rootSearchLayout: LinearLayout
+    private lateinit var rvSearchResults: RecyclerView
+    private lateinit var tvEmptySearch: TextView
     private lateinit var pillSearchVideos: TextView
     private lateinit var pillSearchAudio: TextView
     private lateinit var etSearchInput: EditText
-    private lateinit var rvSearchResults: RecyclerView
-    private lateinit var tvEmptySearch: TextView
 
     private val allVideos = mutableListOf<VideoModel>()
     private val filteredVideos = mutableListOf<VideoModel>()
 
-    private val allSongs = mutableListOf<AudioItem>()
-    private val filteredSongs = mutableListOf<AudioItem>()
+    private val allSongs = mutableListOf<AudioModel>()
+    private val filteredSongs = mutableListOf<AudioModel>()
 
     private lateinit var videoAdapter: VideoAdapter
+    private lateinit var audioAdapter: AudioAdapter
+
     private var isVideoTabActive = true
     private var currentQuery = ""
     private var accentColor = Color.parseColor("#00FFFF")
-
-    data class AudioItem(
-        val id: Long,
-        val title: String,
-        val artist: String,
-        val path: String,
-        val durationMs: Long
-    )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -71,107 +74,10 @@ class SearchFragment : Fragment() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
         }
 
-        // Top Search Input Bar with Cyan Border
-        val searchBoxRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((14 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (4 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (48 * d).toInt()
-            ).apply { bottomMargin = (12 * d).toInt() }
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor(theme.cardHex))
-                cornerRadius = 24f * d
-                setStroke((1.5f * d).toInt(), accentColor)
-            }
-        }
-
-        etSearchInput = EditText(ctx).apply {
-            hint = "Search videos, movies, songs, artists..."
-            setHintTextColor(Color.parseColor("#7F92A8"))
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setSingleLine(true)
-            background = null
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val btnClearSearch = TextView(ctx).apply {
-            text = "Clear"
-            setTextColor(accentColor)
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
-            visibility = View.GONE
-            setOnClickListener {
-                etSearchInput.setText("")
-            }
-        }
-
-        etSearchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                currentQuery = s?.toString()?.trim() ?: ""
-                btnClearSearch.visibility = if (currentQuery.isEmpty()) View.GONE else View.VISIBLE
-                applyFilterNow()
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        searchBoxRow.addView(etSearchInput)
-        searchBoxRow.addView(btnClearSearch)
-        rootSearchLayout.addView(searchBoxRow)
-
-        // Category Toggle Pills Row (Videos vs Music / Audio with Instant Counts)
-        val pillsRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = (10 * d).toInt() }
-        }
-
-        pillSearchVideos = TextView(ctx).apply {
-            text = "Videos (0)"
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = (6 * d).toInt()
-            }
-            setOnClickListener {
-                isVideoTabActive = true
-                updateTabPillVisuals(d)
-                applyFilterNow()
-            }
-        }
-
-        pillSearchAudio = TextView(ctx).apply {
-            text = "Music / Audio (0)"
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = (6 * d).toInt()
-            }
-            setOnClickListener {
-                isVideoTabActive = false
-                updateTabPillVisuals(d)
-                applyFilterNow()
-            }
-        }
-
-        pillsRow.addView(pillSearchVideos)
-        pillsRow.addView(pillSearchAudio)
-        rootSearchLayout.addView(pillsRow)
-
+        // 1. Main Results List at the Top/Center (Takes full available height above bottom controls)
         rvSearchResults = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -180,9 +86,12 @@ class SearchFragment : Fragment() {
             )
             layoutManager = LinearLayoutManager(ctx)
             setHasFixedSize(true)
+            setItemViewCacheSize(24)
         }
         videoAdapter = VideoAdapter(ctx, filteredVideos)
+        audioAdapter = AudioAdapter(ctx, filteredSongs)
         rvSearchResults.adapter = videoAdapter
+        attachHorizontalSwipeToSwitchSearchTabs(ctx)
         rootSearchLayout.addView(rvSearchResults)
 
         tvEmptySearch = TextView(ctx).apply {
@@ -200,14 +109,130 @@ class SearchFragment : Fragment() {
         }
         rootSearchLayout.addView(tvEmptySearch)
 
+        // 2. BOTTOM-DOCKED Category Toggle Pills (Videos vs Music/Audio) right above the Search Bar for easy thumb reach!
+        val bottomDockContainer = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((4 * d).toInt(), (8 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val pillsRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (10 * d).toInt() }
+        }
+
+        pillSearchVideos = TextView(ctx).apply {
+            text = "🎬  Videos (0)"
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            setOnClickListener {
+                isVideoTabActive = true
+                updateTabPillVisuals(d)
+                applyInstantFilterNow()
+            }
+        }
+
+        pillSearchAudio = TextView(ctx).apply {
+            text = "🎵  Music / Audio (0)"
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (6 * d).toInt()
+            }
+            setOnClickListener {
+                isVideoTabActive = false
+                updateTabPillVisuals(d)
+                applyInstantFilterNow()
+            }
+        }
+
+        pillsRow.addView(pillSearchVideos)
+        pillsRow.addView(pillSearchAudio)
+        bottomDockContainer.addView(pillsRow)
+
+        // 3. Bottom Live Search Input Bar (Filters instantaneously on every single keystroke!)
+        val searchBoxRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((16 * d).toInt(), (4 * d).toInt(), (12 * d).toInt(), (4 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (48 * d).toInt()
+            )
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#101826"))
+                cornerRadius = 24f * d
+                setStroke((1.6f * d).toInt(), accentColor)
+            }
+        }
+
+        val tvSearchLens = TextView(ctx).apply {
+            text = "🔍"
+            textSize = 15f
+            setPadding(0, 0, (10 * d).toInt(), 0)
+        }
+
+        etSearchInput = EditText(ctx).apply {
+            hint = "Search videos, movies, songs, artists..."
+            setHintTextColor(Color.parseColor("#7F92A8"))
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            setSingleLine(true)
+            background = null
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val btnClearSearch = TextView(ctx).apply {
+            text = "✕"
+            setTextColor(accentColor)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((10 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
+            visibility = View.GONE
+            setOnClickListener {
+                etSearchInput.setText("")
+            }
+        }
+
+        etSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentQuery = s?.toString()?.trim() ?: ""
+                btnClearSearch.visibility = if (currentQuery.isEmpty()) View.GONE else View.VISIBLE
+                applyInstantFilterNow()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        searchBoxRow.addView(tvSearchLens)
+        searchBoxRow.addView(etSearchInput)
+        searchBoxRow.addView(btnClearSearch)
+        bottomDockContainer.addView(searchBoxRow)
+
+        rootSearchLayout.addView(bottomDockContainer)
+
         updateTabPillVisuals(d)
 
-        // Instant Memory Cache Population so Videos (count) is never stuck at 0
+        // Instant Memory Cache Population so counts appear immediately without waiting
         val cachedVids = DeepMediaScanner.getCachedVideosInstant()
         if (cachedVids.isNotEmpty()) {
             allVideos.clear()
             allVideos.addAll(cachedVids)
-            applyFilterNow()
+            applyInstantFilterNow()
         }
         loadVideosAndAudioInBackground()
 
@@ -217,6 +242,43 @@ class SearchFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         loadVideosAndAudioInBackground()
+    }
+
+    private fun attachHorizontalSwipeToSwitchSearchTabs(context: Context) {
+        val d = context.resources.displayMetrics.density
+        val detector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                if (abs(dx) > abs(dy) * 1.6f && abs(dx) > 110f && abs(velocityX) > 220f) {
+                    if (dx < 0 && isVideoTabActive) {
+                        isVideoTabActive = false
+                        updateTabPillVisuals(d)
+                        applyInstantFilterNow()
+                        return true
+                    } else if (dx > 0 && !isVideoTabActive) {
+                        isVideoTabActive = true
+                        updateTabPillVisuals(d)
+                        applyInstantFilterNow()
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
+        rvSearchResults.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                detector.onTouchEvent(e)
+                return false
+            }
+        })
     }
 
     private fun updateTabPillVisuals(d: Float) {
@@ -241,7 +303,7 @@ class SearchFragment : Fragment() {
         val ctx = context ?: return
         thread {
             val scannedVideos = DeepMediaScanner.scanAllVideosEverywhere(ctx, forceRefresh = false)
-            val scannedAudio = queryAllAudioFilesFast(ctx)
+            val scannedAudio = scanAllAudioFast(ctx)
 
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
@@ -249,13 +311,14 @@ class SearchFragment : Fragment() {
                 allVideos.addAll(scannedVideos)
                 allSongs.clear()
                 allSongs.addAll(scannedAudio)
-                applyFilterNow()
+                applyInstantFilterNow()
             }
         }
     }
 
-    private fun applyFilterNow() {
-        val ctx = context ?: return
+    private fun applyInstantFilterNow() {
+        if (!isAdded) return
+        val d = resources.displayMetrics.density
         val q = currentQuery.lowercase(Locale.US)
 
         val matchedVids = if (q.isEmpty()) {
@@ -273,8 +336,19 @@ class SearchFragment : Fragment() {
             }
         }
 
-        pillSearchVideos.text = "Videos (${matchedVids.size})"
-        pillSearchAudio.text = "Music / Audio (${matchedAudio.size})"
+        // Auto-switch tab if user types a query that has 0 matches in current tab but matches in the other tab
+        if (q.isNotEmpty()) {
+            if (isVideoTabActive && matchedVids.isEmpty() && matchedAudio.isNotEmpty()) {
+                isVideoTabActive = false
+                updateTabPillVisuals(d)
+            } else if (!isVideoTabActive && matchedAudio.isEmpty() && matchedVids.isNotEmpty()) {
+                isVideoTabActive = true
+                updateTabPillVisuals(d)
+            }
+        }
+
+        pillSearchVideos.text = "🎬  Videos (${matchedVids.size})"
+        pillSearchAudio.text = "🎵  Music / Audio (${matchedAudio.size})"
 
         if (isVideoTabActive) {
             filteredVideos.clear()
@@ -294,7 +368,10 @@ class SearchFragment : Fragment() {
         } else {
             filteredSongs.clear()
             filteredSongs.addAll(matchedAudio)
-            bindAudioSearchResultsAdapter(ctx)
+            if (rvSearchResults.adapter !== audioAdapter) {
+                rvSearchResults.adapter = audioAdapter
+            }
+            audioAdapter.notifyDataSetChanged()
 
             if (filteredSongs.isEmpty()) {
                 rvSearchResults.visibility = View.GONE
@@ -306,113 +383,8 @@ class SearchFragment : Fragment() {
         }
     }
 
-    private fun bindAudioSearchResultsAdapter(ctx: Context) {
-        val d = ctx.resources.displayMetrics.density
-        val theme = ThemeStudioHelper.getCurrentTheme(ctx)
-
-        rvSearchResults.adapter = object : RecyclerView.Adapter<AudioSearchVH>() {
-            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AudioSearchVH {
-                val card = CardView(ctx).apply {
-                    radius = 14f * d
-                    cardElevation = 3f * d
-                    setCardBackgroundColor(Color.parseColor(theme.cardHex))
-                    layoutParams = RecyclerView.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        setMargins((4 * d).toInt(), (5 * d).toInt(), (4 * d).toInt(), (5 * d).toInt())
-                    }
-                }
-
-                val row = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding((14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt())
-                }
-
-                val badge = TextView(ctx).apply {
-                    text = "MP3"
-                    setTextColor(Color.parseColor("#0A0A10"))
-                    textSize = 11f
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
-                        marginEnd = (12 * d).toInt()
-                    }
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(accentColor)
-                    }
-                }
-
-                val textCol = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.VERTICAL
-                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                }
-
-                val tvTitle = TextView(ctx).apply {
-                    setTextColor(Color.WHITE)
-                    textSize = 14.5f
-                    typeface = Typeface.DEFAULT_BOLD
-                    maxLines = 1
-                    ellipsize = TextUtils.TruncateAt.END
-                }
-
-                val tvSub = TextView(ctx).apply {
-                    setTextColor(accentColor)
-                    textSize = 12f
-                    maxLines = 1
-                    setPadding(0, (3 * d).toInt(), 0, 0)
-                }
-
-                textCol.addView(tvTitle)
-                textCol.addView(tvSub)
-                row.addView(badge)
-                row.addView(textCol)
-                card.addView(row)
-                return AudioSearchVH(card, tvTitle, tvSub)
-            }
-
-            override fun onBindViewHolder(holder: AudioSearchVH, position: Int) {
-                val song = filteredSongs[position]
-                holder.tvTitle.text = song.title
-                holder.tvSub.text = song.artist
-
-                holder.itemView.setOnClickListener {
-                    try {
-                        val allPaths = ArrayList(filteredSongs.map { it.path })
-                        val allTitles = ArrayList(filteredSongs.map { it.title })
-                        val intent = Intent(ctx, AudioPlayerActivity::class.java).apply {
-                            putExtra("AUDIO_PATH", song.path)
-                            putExtra("AUDIO_TITLE", song.title)
-                            putExtra("AUDIO_ARTIST", song.artist)
-                            putStringArrayListExtra("AUDIO_LIST", allPaths)
-                            putStringArrayListExtra("AUDIO_TITLES", allTitles)
-                            putExtra("START_INDEX", position)
-                        }
-                        startActivity(intent)
-                    } catch (_: Exception) {
-                        val fallbackIntent = Intent(ctx, PlayerActivity::class.java).apply {
-                            putExtra("VIDEO_PATH", song.path)
-                            putExtra("VIDEO_TITLE", song.title)
-                        }
-                        startActivity(fallbackIntent)
-                    }
-                }
-            }
-
-            override fun getItemCount(): Int = filteredSongs.size
-        }
-    }
-
-    private class AudioSearchVH(
-        view: View,
-        val tvTitle: TextView,
-        val tvSub: TextView
-    ) : RecyclerView.ViewHolder(view)
-
-    private fun queryAllAudioFilesFast(context: Context): List<AudioItem> {
-        val list = mutableListOf<AudioItem>()
+    private fun scanAllAudioFast(context: Context): List<AudioModel> {
+        val list = mutableListOf<AudioModel>()
         try {
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
@@ -420,6 +392,7 @@ class SearchFragment : Fragment() {
                 MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.SIZE,
                 MediaStore.Audio.Media.DURATION
             )
             context.contentResolver.query(
@@ -434,6 +407,7 @@ class SearchFragment : Fragment() {
                 val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                 val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                 val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                 val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
 
                 while (cursor.moveToNext()) {
@@ -443,14 +417,15 @@ class SearchFragment : Fragment() {
 
                     val dur = if (durCol != -1) cursor.getLong(durCol) else 0L
                     if (dur < 1000L) continue
+                    val size = if (sizeCol != -1) cursor.getLong(sizeCol) else 0L
 
-                    val title = (if (titleCol != -1) cursor.getString(titleCol) else null)
-                        ?: (if (nameCol != -1) cursor.getString(nameCol) else null)
+                    val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
+                        ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                         ?: File(path).name
                     val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                        ?.takeIf { it != "<unknown>" } ?: "OG 8K Audio"
+                        ?.takeIf { it != "<unknown>" } ?: "OG 8K Music"
 
-                    list.add(AudioItem(id, title, artist, path, dur))
+                    list.add(AudioModel(id, title, artist, path, size, dur))
                 }
             }
         } catch (e: Exception) {
