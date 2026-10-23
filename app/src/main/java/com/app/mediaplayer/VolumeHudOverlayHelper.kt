@@ -29,18 +29,20 @@ class VolumeHudOverlayHelper(
 ) {
 
     private val density = context.resources.displayMetrics.density
-    private val hudCard: LinearLayout
-    private val speakerIconView: SpeakerVectorView
-    private val tvVolumePercent: TextView
-    private val boostBarWithDotsView: VolumeBarWithBoostDotsView
+    private lateinit var hudCard: LinearLayout
+    private lateinit var speakerIconView: SpeakerVectorView
+    private lateinit var tvVolumePercent: TextView
+    private lateinit var boostBarWithDotsView: VolumeBarWithBoostDotsView
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideHudRunnable = Runnable {
-        hudCard.animate()
-            .alpha(0f)
-            .setDuration(180L)
-            .withEndAction { hudCard.visibility = View.GONE }
-            .start()
+        if (::hudCard.isInitialized) {
+            hudCard.animate()
+                .alpha(0f)
+                .setDuration(180L)
+                .withEndAction { hudCard.visibility = View.GONE }
+                .start()
+        }
     }
 
     private var currentVolumePct: Int = 80
@@ -115,7 +117,6 @@ class VolumeHudOverlayHelper(
 
     fun getCurrentVolumePercent(): Int = currentVolumePct
 
-    // Handles Hardware Volume Up / Down Keys seamlessly from 0% -> 100% (System) -> 200% (Software Boost)
     fun onHardwareVolumeKeyPressed(isVolumeUp: Boolean): Boolean {
         val maxSys = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val curSys = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -131,7 +132,6 @@ class VolumeHudOverlayHelper(
             applyVolumePercent(nextPct, showHud = true)
             return true
         } else if (currentVolumePct >= 100 && isVolumeUp) {
-            // System is at 100% max; boost software gain in 10% steps up to 200%
             if (curSys < maxSys) {
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxSys, 0)
             }
@@ -139,7 +139,6 @@ class VolumeHudOverlayHelper(
             applyVolumePercent(nextBoostPct, showHud = true)
             return true
         } else {
-            // Decreasing from > 100% down towards 100%
             val nextBoostPct = (currentVolumePct - 10).coerceAtLeast(0)
             applyVolumePercent(nextBoostPct, showHud = true)
             return true
@@ -151,7 +150,6 @@ class VolumeHudOverlayHelper(
         val maxSys = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
 
         if (currentVolumePct == 0) {
-            // Complete Mute at 0%
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
             playerVolumeSetter(0f)
             try {
@@ -167,7 +165,6 @@ class VolumeHudOverlayHelper(
             } catch (_: Exception) {
             }
         } else {
-            // 101% to 200% Software Boost
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxSys, 0)
             playerVolumeSetter(1.0f)
             val boostFraction = (currentVolumePct - 100) / 100f
@@ -254,7 +251,6 @@ class VolumeHudOverlayHelper(
         }
     }
 
-    // Matches Screenshot: Solid White Rounded Bar (0-100%) on the left + 4 Circular Boost Dots (100-200%) on the right
     private class VolumeBarWithBoostDotsView(
         context: Context,
         private val d: Float
@@ -293,7 +289,6 @@ class VolumeHudOverlayHelper(
             val bottomY = topY + barHeight
             val radius = barHeight / 2f
 
-            // Reserve 74% width for the 0-100% bar, and 26% width on the right for the 4 boost dots
             val barMaxW = w * 0.72f
             val trackRect = RectF(0f, topY, barMaxW, bottomY)
             canvas.drawRoundRect(trackRect, radius, radius, trackPaint)
@@ -305,7 +300,6 @@ class VolumeHudOverlayHelper(
                 canvas.drawRoundRect(fillRect, radius, radius, activeWhitePaint)
             }
 
-            // Draw 4 Boost Dots on the right for 125%, 150%, 175%, 200%
             val dotsRegionStart = barMaxW + 10f * d
             val dotsRegionWidth = (w - dotsRegionStart).coerceAtLeast(1f)
             val dotSpacing = dotsRegionWidth / 4f
@@ -314,7 +308,7 @@ class VolumeHudOverlayHelper(
 
             for (i in 0 until 4) {
                 val dotCenterX = dotsRegionStart + (i + 0.5f) * dotSpacing
-                val threshold = 100 + ((i + 1) * 25) // 125, 150, 175, 200
+                val threshold = 100 + ((i + 1) * 25)
                 val isLit = volumePct >= threshold - 12
                 canvas.drawCircle(
                     dotCenterX,
