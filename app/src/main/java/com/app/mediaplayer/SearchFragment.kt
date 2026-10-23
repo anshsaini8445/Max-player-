@@ -1,16 +1,12 @@
 package com.app.mediaplayer
 
-import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.Editable
-import android.text.TextUtils
 import android.text.TextWatcher
 import android.view.GestureDetector
 import android.view.Gravity
@@ -19,19 +15,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.io.File
-import java.util.ArrayList
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.abs
 
@@ -77,7 +67,6 @@ class SearchFragment : Fragment() {
             setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
         }
 
-        // 1. Main Results List at the Top/Center (Takes full available height above bottom controls)
         rvSearchResults = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -109,7 +98,6 @@ class SearchFragment : Fragment() {
         }
         rootSearchLayout.addView(tvEmptySearch)
 
-        // 2. BOTTOM-DOCKED Category Toggle Pills (Videos vs Music/Audio) right above the Search Bar for easy thumb reach!
         val bottomDockContainer = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((4 * d).toInt(), (8 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
@@ -164,7 +152,6 @@ class SearchFragment : Fragment() {
         pillsRow.addView(pillSearchAudio)
         bottomDockContainer.addView(pillsRow)
 
-        // 3. Bottom Live Search Input Bar (Filters instantaneously on every single keystroke!)
         val searchBoxRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -227,7 +214,6 @@ class SearchFragment : Fragment() {
 
         updateTabPillVisuals(d)
 
-        // Instant Memory Cache Population so counts appear immediately without waiting
         val cachedVids = DeepMediaScanner.getCachedVideosInstant()
         if (cachedVids.isNotEmpty()) {
             allVideos.clear()
@@ -336,7 +322,6 @@ class SearchFragment : Fragment() {
             }
         }
 
-        // Auto-switch tab if user types a query that has 0 matches in current tab but matches in the other tab
         if (q.isNotEmpty()) {
             if (isVideoTabActive && matchedVids.isEmpty() && matchedAudio.isNotEmpty()) {
                 isVideoTabActive = false
@@ -423,9 +408,18 @@ class SearchFragment : Fragment() {
                         ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                         ?: File(path).name
                     val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                        ?.takeIf { it != "<unknown>" } ?: "OG 8K Music"
+                        ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Music"
 
-                    list.add(AudioModel(id, title, artist, path, size, dur))
+                    list.add(
+                        AudioModel(
+                            id = id,
+                            title = title,
+                            path = path,
+                            artist = artist,
+                            duration = dur,
+                            size = size
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {
