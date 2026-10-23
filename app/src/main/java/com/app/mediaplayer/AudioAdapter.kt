@@ -11,7 +11,6 @@ import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Shader
@@ -60,7 +59,6 @@ class AudioAdapter(
                 return
             }
 
-            // Show rich stylized Album Art Emblem immediately so it NEVER shows a blank cyan box
             targetView.scaleType = ImageView.ScaleType.FIT_XY
             targetView.setImageDrawable(StylizedSongArtFallbackDrawable(seedTitle, d))
 
@@ -104,24 +102,38 @@ class AudioAdapter(
     }
 
     class AudioViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvAudioTitle: TextView = view.findViewById(R.id.tvAudioTitle)
-        val tvAudioArtistAndDuration: TextView = view.findViewById(R.id.tvAudioArtistAndDuration)
-        val imgCover: ImageView? = findFirstImageView(view, isFirst = true)
-        val btnMore: ImageView? = findFirstImageView(view, isFirst = false)
+        val tvAudioTitle: TextView
+        val tvAudioSubtitle: TextView?
+        val imgCover: ImageView?
+        val btnMore: ImageView?
+
+        init {
+            val textViews = mutableListOf<TextView>()
+            val imageViews = mutableListOf<ImageView>()
+            collectChildViews(view, textViews, imageViews)
+
+            tvAudioTitle = view.findViewById<TextView?>(R.id.tvAudioTitle)
+                ?: textViews.firstOrNull()
+                ?: TextView(view.context)
+
+            tvAudioSubtitle = textViews.firstOrNull { it !== tvAudioTitle }
+            imgCover = imageViews.firstOrNull()
+            btnMore = if (imageViews.size > 1) imageViews.last() else null
+        }
 
         companion object {
-            private fun findFirstImageView(root: View, isFirst: Boolean): ImageView? {
-                val found = mutableListOf<ImageView>()
-                collectImageViews(root, found)
-                return if (isFirst) found.firstOrNull() else found.lastOrNull()
-            }
-
-            private fun collectImageViews(v: View, out: MutableList<ImageView>) {
-                if (v is ImageView) {
-                    out.add(v)
-                } else if (v is ViewGroup) {
-                    for (i in 0 until v.childCount) {
-                        collectImageViews(v.getChildAt(i), out)
+            private fun collectChildViews(
+                v: View,
+                textOut: MutableList<TextView>,
+                imgOut: MutableList<ImageView>
+            ) {
+                when (v) {
+                    is TextView -> textOut.add(v)
+                    is ImageView -> imgOut.add(v)
+                    is ViewGroup -> {
+                        for (i in 0 until v.childCount) {
+                            collectChildViews(v.getChildAt(i), textOut, imgOut)
+                        }
                     }
                 }
             }
@@ -149,12 +161,15 @@ class AudioAdapter(
         holder.tvAudioTitle.setTextColor(Color.WHITE)
 
         val durStr = formatDuration(audio.duration)
-        val sizeStr = formatSize(audio.size)
-        val artistStr = audio.artist.ifEmpty { "OG 8K Music" }
-        holder.tvAudioArtistAndDuration.text = "$artistStr  •  $durStr  •  $sizeStr$favSymbol"
-        holder.tvAudioArtistAndDuration.setTextColor(Color.parseColor("#B0C4DE"))
+        val sizeBytes = if (audio.size > 0L) audio.size else File(audio.path).length()
+        val sizeStr = formatSize(sizeBytes)
+        val artistStr = audio.artist.ifEmpty { "Hybrid Player Audio" }
 
-        // 1. Load real embedded Album Art or Stylized Music Cover into the left thumbnail box
+        holder.tvAudioSubtitle?.let { subTv ->
+            subTv.text = "$artistStr  •  $durStr  •  $sizeStr$favSymbol"
+            subTv.setTextColor(Color.parseColor("#B0C4DE"))
+        }
+
         holder.imgCover?.let { img ->
             img.background = GradientDrawable().apply {
                 setColor(Color.parseColor("#141E30"))
@@ -165,17 +180,14 @@ class AudioAdapter(
             loadAlbumArtOrFallbackInto(context, audio.path, audio.title, img)
         }
 
-        // 2. Replace the old bold down-arrow with a sleek 3-Vertical-Dots Vector Icon on the right
         holder.btnMore?.let { moreBtn ->
-            if (moreBtn !== holder.imgCover) {
-                moreBtn.clearColorFilter()
-                moreBtn.setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt())
-                moreBtn.setImageDrawable(ThreeDotsCircleDrawable(d, accentColor))
-                moreBtn.setOnClickListener {
-                    val pos = holder.adapterPosition
-                    if (pos in audioList.indices) {
-                        showRichAudioOptionsMenu(pos)
-                    }
+            moreBtn.clearColorFilter()
+            moreBtn.setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt())
+            moreBtn.setImageDrawable(ThreeDotsCircleDrawable(d, accentColor))
+            moreBtn.setOnClickListener {
+                val pos = holder.adapterPosition
+                if (pos in audioList.indices) {
+                    showRichAudioOptionsMenu(pos)
                 }
             }
         }
@@ -269,13 +281,14 @@ class AudioAdapter(
                     }
                 }
                 8 -> {
+                    val fileBytes = if (item.size > 0L) item.size else File(item.path).length()
                     AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                         .setTitle("Song Details & Path")
                         .setMessage(
                             "Title: ${item.title}\n\n" +
                                 "Artist: ${item.artist}\n\n" +
                                 "Duration: ${formatDuration(item.duration)}\n\n" +
-                                "Size: ${formatSize(item.size)}\n\n" +
+                                "Size: ${formatSize(fileBytes)}\n\n" +
                                 "Location: ${item.path}"
                         )
                         .setPositiveButton("OK", null)
@@ -310,7 +323,7 @@ class AudioAdapter(
     }
 
     private fun formatSize(bytes: Long): String {
-        val mb = bytes / (1024.0 * 1024.0)
+        val mb = bytes.coerceAtLeast(0L) / (1024.0 * 1024.0)
         return String.format(Locale.US, "%.1f MB", mb)
     }
 
