@@ -38,7 +38,7 @@ import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.abs
 
-class MusicFragment : Fragment() {
+open class MusicFragment : Fragment() {
 
     private lateinit var rootMusicLayout: LinearLayout
     private lateinit var topTabsScroll: HorizontalScrollView
@@ -65,7 +65,7 @@ class MusicFragment : Fragment() {
     private val displayedSongsList = mutableListOf<AudioModel>()
     private lateinit var audioAdapter: AudioAdapter
 
-    private var activeTab = 0 // 0=Songs, 1=Folders, 2=Albums, 3=Artists, 4=Favorites
+    private var activeTab = 0
     private var selectedGroupKey: String? = null
     private var sortOrder = 0
     private var currentMiniIndex = 0
@@ -110,7 +110,6 @@ class MusicFragment : Fragment() {
             )
         }
 
-        // 1. Top Category Tabs Bar (Songs, Folders, Albums, Artists, Favorites)
         val topHeaderRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -154,7 +153,6 @@ class MusicFragment : Fragment() {
         topHeaderRow.addView(btnSortSongs)
         rootMusicLayout.addView(topHeaderRow)
 
-        // 2. Play / Shuffle All Bar + Song Count
         val shuffleRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -192,7 +190,6 @@ class MusicFragment : Fragment() {
         shuffleRow.addView(tvSongsTotalCount)
         rootMusicLayout.addView(shuffleRow)
 
-        // 3. Sub-Header for returning from opened Folder / Album / Artist
         groupBackBar = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -227,7 +224,6 @@ class MusicFragment : Fragment() {
         groupBackBar.addView(tvGroupHeaderTitle)
         rootMusicLayout.addView(groupBackBar)
 
-        // 4. Main RecyclerView with Left/Right Swipe Gesture to switch tabs
         rvMusicList = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -264,7 +260,6 @@ class MusicFragment : Fragment() {
         }
         rootMusicLayout.addView(tvEmptyMusic)
 
-        // 5. Upgraded Bottom Mini-Player Bar (Album Art + Vector Play/Pause & Next Icons, NO plain "Play" text!)
         miniPlayerCard = CardView(ctx).apply {
             radius = 18f * d
             cardElevation = 10f * d
@@ -312,7 +307,7 @@ class MusicFragment : Fragment() {
         }
 
         tvMiniArtist = TextView(ctx).apply {
-            text = "OG 8K Hi-Res Audio Engine"
+            text = "Hybrid Player Hi-Res Audio"
             setTextColor(accentColor)
             textSize = 11.5f
             maxLines = 1
@@ -425,7 +420,7 @@ class MusicFragment : Fragment() {
     private fun syncMiniBarWithSong(song: AudioModel) {
         if (!isAdded) return
         tvMiniTitle.text = song.title.substringBeforeLast('.')
-        tvMiniArtist.text = song.artist.ifEmpty { "OG 8K Music" }
+        tvMiniArtist.text = song.artist.ifEmpty { "Hybrid Player Music" }
         AudioAdapter.loadAlbumArtOrFallbackInto(requireContext(), song.path, song.title, imgMiniCover)
         updateMiniPlayerPlayIcon()
     }
@@ -472,7 +467,6 @@ class MusicFragment : Fragment() {
         }
     }
 
-    // Horizontal Left/Right Swipe Gesture to smoothly switch between Songs -> Folders -> Albums -> Artists -> Favorites
     private fun attachLeftRightSwipeGestureToTabs(context: Context) {
         val swipeDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
@@ -563,9 +557,18 @@ class MusicFragment : Fragment() {
                             ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                             ?: File(path).name
                         val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                            ?.takeIf { it != "<unknown>" } ?: "OG 8K Music"
+                            ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Music"
 
-                        list.add(AudioModel(id, title, artist, path, size, dur))
+                        list.add(
+                            AudioModel(
+                                id = id,
+                                title = title,
+                                path = path,
+                                artist = artist,
+                                duration = dur,
+                                size = size
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -588,7 +591,6 @@ class MusicFragment : Fragment() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
 
-        // Show Group Cards when on Folders (1), Albums (2), or Artists (3) and no group is opened yet
         if (activeTab in 1..3 && selectedGroupKey == null) {
             groupBackBar.visibility = View.GONE
             showGroupedCardsInRecyclerView(ctx, activeTab)
