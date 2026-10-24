@@ -67,6 +67,7 @@ class SearchFragment : Fragment() {
             setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
         }
 
+        // 1. Top/Center Results List (Takes full available height above bottom-docked controls)
         rvSearchResults = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -98,6 +99,7 @@ class SearchFragment : Fragment() {
         }
         rootSearchLayout.addView(tvEmptySearch)
 
+        // 2. Bottom-Docked Category Toggle Pills (Videos vs Music/Audio) right above the Search Bar
         val bottomDockContainer = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((4 * d).toInt(), (8 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
@@ -117,7 +119,7 @@ class SearchFragment : Fragment() {
         }
 
         pillSearchVideos = TextView(ctx).apply {
-            text = "🎬  Videos (0)"
+            text = "Videos (0)"
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -133,7 +135,7 @@ class SearchFragment : Fragment() {
         }
 
         pillSearchAudio = TextView(ctx).apply {
-            text = "🎵  Music / Audio (0)"
+            text = "Music / Audio (0)"
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -152,6 +154,7 @@ class SearchFragment : Fragment() {
         pillsRow.addView(pillSearchAudio)
         bottomDockContainer.addView(pillsRow)
 
+        // 3. Bottom Live Search Input Bar (Filters instantaneously on every keystroke)
         val searchBoxRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -167,12 +170,6 @@ class SearchFragment : Fragment() {
             }
         }
 
-        val tvSearchLens = TextView(ctx).apply {
-            text = "🔍"
-            textSize = 15f
-            setPadding(0, 0, (10 * d).toInt(), 0)
-        }
-
         etSearchInput = EditText(ctx).apply {
             hint = "Search videos, movies, songs, artists..."
             setHintTextColor(Color.parseColor("#7F92A8"))
@@ -184,7 +181,7 @@ class SearchFragment : Fragment() {
         }
 
         val btnClearSearch = TextView(ctx).apply {
-            text = "✕"
+            text = "X"
             setTextColor(accentColor)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -205,7 +202,6 @@ class SearchFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        searchBoxRow.addView(tvSearchLens)
         searchBoxRow.addView(etSearchInput)
         searchBoxRow.addView(btnClearSearch)
         bottomDockContainer.addView(searchBoxRow)
@@ -332,8 +328,8 @@ class SearchFragment : Fragment() {
             }
         }
 
-        pillSearchVideos.text = "🎬  Videos (${matchedVids.size})"
-        pillSearchAudio.text = "🎵  Music / Audio (${matchedAudio.size})"
+        pillSearchVideos.text = "Videos (${matchedVids.size})"
+        pillSearchAudio.text = "Music / Audio (${matchedAudio.size})"
 
         if (isVideoTabActive) {
             filteredVideos.clear()
@@ -377,7 +373,6 @@ class SearchFragment : Fragment() {
                 MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.DATA,
-                MediaStore.Audio.Media.SIZE,
                 MediaStore.Audio.Media.DURATION
             )
             context.contentResolver.query(
@@ -392,7 +387,6 @@ class SearchFragment : Fragment() {
                 val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                 val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                 val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
-                val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                 val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
 
                 while (cursor.moveToNext()) {
@@ -402,22 +396,21 @@ class SearchFragment : Fragment() {
 
                     val dur = if (durCol != -1) cursor.getLong(durCol) else 0L
                     if (dur < 1000L) continue
-                    val size = if (sizeCol != -1) cursor.getLong(sizeCol) else 0L
 
                     val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
                         ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                         ?: File(path).name
                     val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                        ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Music"
+                        ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Audio"
 
+                    // Uses exact 5-parameter constructor from Models.kt
                     list.add(
                         AudioModel(
                             id = id,
                             title = title,
                             path = path,
                             artist = artist,
-                            duration = dur,
-                            size = size
+                            duration = dur
                         )
                     )
                 }
