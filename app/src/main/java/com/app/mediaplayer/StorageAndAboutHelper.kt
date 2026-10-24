@@ -9,7 +9,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
@@ -24,7 +23,6 @@ import kotlin.concurrent.thread
 
 object StorageAndAboutHelper {
 
-    // Full-Screen Visual Storage & Duplicate Cleaner (Replaces raw toast / plain popup)
     fun showFullScreenStorageCleaner(
         context: Context,
         onCleaned: (Long) -> Unit
@@ -54,7 +52,7 @@ object StorageAndAboutHelper {
         }
 
         val btnBack = TextView(context).apply {
-            text = "←  Smart Storage & Duplicate Cleaner"
+            text = "<-  Smart Storage & Duplicate Cleaner"
             setTextColor(accentColor)
             textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
@@ -190,7 +188,7 @@ object StorageAndAboutHelper {
                     tvBigSize.text = "0.00 MB • All Clean!"
                     tvScanSubtitle.text = "Freed $mbFreed of storage cache smoothly"
                     tvRowCache.second.text = "0.00 MB (Cleaned)"
-                    btnCleanNow.text = "✓  STORAGE OPTIMIZED"
+                    btnCleanNow.text = "STORAGE OPTIMIZED"
                     onCleaned(effectiveFreed)
                     Toast.makeText(context, "Cleaned $mbFreed Cache!", Toast.LENGTH_SHORT).show()
                 }
@@ -236,7 +234,6 @@ object StorageAndAboutHelper {
         return Pair(row, tvVal)
     }
 
-    // 100% Full-Screen Dedicated "About OG 8K Player" Page (Replaces the small white alert dialog)
     fun showFullScreenAboutPage(context: Context) {
         val d = context.resources.displayMetrics.density
         val theme = ThemeStudioHelper.getCurrentTheme(context)
@@ -263,7 +260,7 @@ object StorageAndAboutHelper {
         }
 
         val tvBack = TextView(context).apply {
-            text = "←  About OG 8K Player"
+            text = "<-  About Hybrid Player"
             setTextColor(accentColor)
             textSize = 18.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -286,7 +283,6 @@ object StorageAndAboutHelper {
             gravity = Gravity.CENTER_HORIZONTAL
         }
 
-        // Hero Emblem Box
         val emblemBox = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -303,7 +299,7 @@ object StorageAndAboutHelper {
         }
 
         val tvBadgeLogo = TextView(context).apply {
-            text = "OG 8K"
+            text = "HP 8K"
             setTextColor(Color.parseColor("#0A0A10"))
             textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
@@ -318,7 +314,7 @@ object StorageAndAboutHelper {
         }
 
         val tvAppName = TextView(context).apply {
-            text = "OG 8K Ultra Media Player"
+            text = "Hybrid Player Ultra Media Player"
             setTextColor(Color.WHITE)
             textSize = 21f
             typeface = Typeface.DEFAULT_BOLD
@@ -327,7 +323,7 @@ object StorageAndAboutHelper {
         }
 
         val tvVer = TextView(context).apply {
-            text = "Version 3.5.0 (Crystal 8K Pro Engine • 64-Bit)"
+            text = "Version 3.5.0 (Hybrid 8K Pro Engine • 64-Bit)"
             setTextColor(accentColor)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -342,7 +338,7 @@ object StorageAndAboutHelper {
         val specs = listOf(
             "4K / 8K Hardware & Software Hybrid Decoder" to "Supports MKV, MP4, WEBM, AVI, TS, FLAC, MP3 & M3U8 Streams",
             "True 600% Full-Display Pinch Zoom & Immersive Lock" to "Edge-to-edge full screen video scaling & zero-distraction lock",
-            "Built-In 5-Band Dolby Equalizer & 300% Volume Boost" to "Sub-woofer bass booster, 3D surround virtualizer & Lofi pitch lab",
+            "Built-In 5-Band Dolby Equalizer & 200% Volume Boost" to "Sub-woofer bass booster, 3D surround virtualizer & Lofi pitch lab",
             "Smart MediaSession & Bluetooth Remote Control" to "1-click Play/Pause, 2-click Next & system seekbar notification",
             "Privacy Vault, MP3 Extractor & Wi-Fi Direct Share" to "Complete all-in-one media toolkit with zero background lag"
         )
