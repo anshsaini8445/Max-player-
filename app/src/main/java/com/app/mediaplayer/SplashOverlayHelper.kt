@@ -26,7 +26,6 @@ object SplashOverlayHelper {
 
     private var hasShownInProcess = false
 
-    // Call SplashOverlayHelper.attachAnimatedSplashIfFirstLaunch(this) inside MainActivity.onCreate()
     fun attachAnimatedSplashIfFirstLaunch(activity: Activity) {
         if (hasShownInProcess) return
         hasShownInProcess = true
@@ -35,7 +34,6 @@ object SplashOverlayHelper {
             val d = activity.resources.displayMetrics.density
             val decorGroup = activity.window.decorView as? ViewGroup ?: return
 
-            // Pre-warm video cache in background while splash animates so main list appears in 0.01s
             thread {
                 try {
                     DeepMediaScanner.scanAllVideosEverywhere(activity.applicationContext, forceRefresh = false)
@@ -66,15 +64,15 @@ object SplashOverlayHelper {
             }
 
             val logoEmblem = ImageView(activity).apply {
-                layoutParams = LinearLayout.LayoutParams((112 * d).toInt(), (112 * d).toInt())
-                setImageDrawable(OgBrandLogoDrawable(d))
+                layoutParams = LinearLayout.LayoutParams((116 * d).toInt(), (116 * d).toInt())
+                setImageDrawable(HybridBrandLogoDrawable(d))
                 scaleX = 0.75f
                 scaleY = 0.75f
                 alpha = 0f
             }
 
             val tvBrandName = TextView(activity).apply {
-                text = "OG 8K PLAYER"
+                text = "HYBRID PLAYER"
                 setTextColor(Color.WHITE)
                 textSize = 26f
                 typeface = Typeface.DEFAULT_BOLD
@@ -105,7 +103,7 @@ object SplashOverlayHelper {
             splashOverlay.addView(centerCol)
 
             val tvBottomContext = TextView(activity).apply {
-                text = "Powered by OG 8K Hardware Hybrid Engine"
+                text = "Powered by Hybrid Player 8K Hardware Engine"
                 setTextColor(Color.parseColor("#88B0C4DE"))
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
@@ -120,12 +118,10 @@ object SplashOverlayHelper {
 
             decorGroup.addView(splashOverlay)
 
-            // Smooth Entrance Animation
             logoEmblem.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(380L).start()
             tvBrandName.animate().alpha(1f).setStartDelay(120L).setDuration(350L).start()
             tvTagline.animate().alpha(1f).setStartDelay(200L).setDuration(350L).start()
 
-            // Smooth Fade-Out Removal
             Handler(Looper.getMainLooper()).postDelayed({
                 splashOverlay.animate()
                     .alpha(0f)
@@ -143,7 +139,7 @@ object SplashOverlayHelper {
         }
     }
 
-    private class OgBrandLogoDrawable(private val d: Float) : Drawable() {
+    private class HybridBrandLogoDrawable(private val d: Float) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
             val w = b.width().toFloat()
