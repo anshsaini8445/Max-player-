@@ -1,67 +1,115 @@
 package com.app.mediaplayer
 
-import android.content.ContentUris
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.Canvas
 import android.graphics.Color
-import android.net.Uri
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.MediaStore
+import android.text.TextUtils
+import android.view.GestureDetector
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.RelativeLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
 import kotlin.concurrent.thread
+import kotlin.math.abs
 
 class AudioFragment : Fragment() {
 
-    private lateinit var rootAudioFragment: RelativeLayout
-    private lateinit var tvAudioTabSongs: TextView
-    private lateinit var tvAudioTabFolders: TextView
-    private lateinit var tvAudioTabAlbums: TextView
-    private lateinit var tvAudioTabArtists: TextView
-    private lateinit var tvAudioTabPlaylists: TextView
+    companion object {
+        private var sharedAudioSessionIdVal: Int = 0
+        private var currentPlayingPathVal: String = ""
+        private var currentPlayingTitleVal: String = ""
+        private var currentPlayingArtistVal: String = ""
+        private var isSharedPlayingVal: Boolean = false
 
-    private lateinit var btnShuffleAllAudio: TextView
-    private lateinit var tvAudioTotalCount: TextView
-    private lateinit var btnAudioSortMenu: ImageView
+        fun getSharedAudioSessionId(): Int = sharedAudioSessionIdVal
+        fun getCurrentPlayingPath(): String = currentPlayingPathVal
+        fun getCurrentPlayingTitle(): String = currentPlayingTitleVal
+        fun getCurrentPlayingArtist(): String = currentPlayingArtistVal
+        fun isSharedPlayerPlaying(): Boolean = isSharedPlayingVal
+
+        fun toggleSharedPlaybackFromMiniPlayer(context: Context) {
+            isSharedPlayingVal = !isSharedPlayingVal
+            context.sendBroadcast(
+                Intent(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE)
+                    .setPackage(context.packageName)
+            )
+        }
+    }
+
+    private lateinit var rootAudioLayout: LinearLayout
+    private lateinit var topTabsScroll: HorizontalScrollView
+    private lateinit var tabSongs: TextView
+    private lateinit var tabFolders: TextView
+    private lateinit var tabAlbums: TextView
+    private lateinit var tabArtists: TextView
+    private lateinit var tabFavorites: TextView
+    private lateinit var tvSongsTotalCount: TextView
+
+    private lateinit var groupBackBar: LinearLayout
+    private lateinit var tvGroupHeaderTitle: TextView
     private lateinit var rvAudioList: RecyclerView
-    private lateinit var llAudioEmptyState: LinearLayout
+    private lateinit var tvEmptyAudio: TextView
 
-    private lateinit var cardBottomMiniPlayer: CardView
-    private lateinit var imgMiniPlayerArt: ImageView
-    private lateinit var tvMiniPlayerTitle: TextView
-    private lateinit var tvMiniPlayerArtist: TextView
-    private lateinit var btnMiniPlayerPlayPause: TextView
+    private lateinit var miniPlayerCard: CardView
+    private lateinit var imgMiniCover: ImageView
+    private lateinit var tvMiniTitle: TextView
+    private lateinit var tvMiniArtist: TextView
+    private lateinit var btnMiniPlayPause: ImageView
+    private lateinit var btnMiniNext: ImageView
 
-    private val allSongsList = mutableListOf<AudioTrackModel>()
-    private val displayedSongsList = mutableListOf<AudioTrackModel>()
+    private val allSongsList = mutableListOf<AudioModel>()
+    private val displayedSongsList = mutableListOf<AudioModel>()
     private lateinit var audioAdapter: AudioAdapter
 
-    private var activeSubTab = 0
-    private var sortOrderMode = 0
-    private var isScanningAudio = false
-    private var accentColor = Color.parseColor("#5CE1E6")
+    private var activeTab = 0
+    private var selectedGroupKey: String? = null
+    private var sortOrder = 0
+    private var currentMiniIndex = 0
+    private var accentColor = Color.parseColor("#00FFFF")
+    private var isReceiverRegistered = false
 
-    private val miniPlayerHandler = Handler(Looper.getMainLooper())
-    private val miniPlayerSyncRunnable = object : Runnable {
-        override fun run() {
-            syncBottomMiniPlayerBar()
-            miniPlayerHandler.postDelayed(this, 500)
+    private val miniPlayerSyncReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (!isAdded) return
+            when (intent?.action) {
+                BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE -> {
+                    isSharedPlayingVal = !isSharedPlayingVal
+                    updateMiniPlayerPlayIcon()
+                }
+                BackgroundAudioService.ACTION_NOTIF_NEXT -> {
+                    if (allSongsList.isNotEmpty()) {
+                        currentMiniIndex = (currentMiniIndex + 1) % allSongsList.size
+                        val song = allSongsList[currentMiniIndex]
+                        syncMiniBarWithSong(song)
+                    }
+                }
+            }
         }
     }
 
@@ -69,258 +117,468 @@ class AudioFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_audio, container, false)
-        bindViews(view)
-        applySavedTheme()
-        setupClicks()
-        loadAllAudioFast()
-        return view
+    ): View {
+        val ctx = requireContext()
+        val d = ctx.resources.displayMetrics.density
+        val theme = ThemeStudioHelper.getCurrentTheme(ctx)
+        accentColor = Color.parseColor(theme.accentHex)
+
+        rootAudioLayout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor(theme.bgHex))
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val topHeaderRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+        }
+
+        topTabsScroll = HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val tabsRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        tabSongs = createTopTabItem("Songs", 0, d)
+        tabFolders = createTopTabItem("Folders", 1, d)
+        tabAlbums = createTopTabItem("Albums", 2, d)
+        tabArtists = createTopTabItem("Artists", 3, d)
+        tabFavorites = createTopTabItem("Favorites", 4, d)
+
+        tabsRow.addView(tabSongs)
+        tabsRow.addView(tabFolders)
+        tabsRow.addView(tabAlbums)
+        tabsRow.addView(tabArtists)
+        tabsRow.addView(tabFavorites)
+        topTabsScroll.addView(tabsRow)
+
+        val btnSortSongs = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt()).apply {
+                marginStart = (8 * d).toInt()
+            }
+            setPadding((7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt())
+            setImageResource(android.R.drawable.ic_menu_sort_by_size)
+            setColorFilter(Color.WHITE)
+            setOnClickListener { showAudioSortAndToolsMenu() }
+        }
+
+        topHeaderRow.addView(topTabsScroll)
+        topHeaderRow.addView(btnSortSongs)
+        rootAudioLayout.addView(topHeaderRow)
+
+        val shuffleRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((14 * d).toInt(), (4 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
+        }
+
+        val btnPlayShuffleAll = TextView(ctx).apply {
+            text = "Play / Shuffle All"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((16 * d).toInt(), (7 * d).toInt(), (16 * d).toInt(), (7 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(accentColor)
+                cornerRadius = 18f * d
+            }
+            setOnClickListener {
+                if (displayedSongsList.isNotEmpty()) {
+                    launchFullAudioPlayer(0, displayedSongsList)
+                } else if (allSongsList.isNotEmpty()) {
+                    launchFullAudioPlayer(0, allSongsList)
+                }
+            }
+        }
+
+        tvSongsTotalCount = TextView(ctx).apply {
+            text = "0 Songs"
+            setTextColor(Color.parseColor("#B0C4DE"))
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((12 * d).toInt(), 0, 0, 0)
+        }
+
+        shuffleRow.addView(btnPlayShuffleAll)
+        shuffleRow.addView(tvSongsTotalCount)
+        rootAudioLayout.addView(shuffleRow)
+
+        groupBackBar = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
+            setBackgroundColor(Color.parseColor("#141E30"))
+        }
+
+        val btnBackGroup = TextView(ctx).apply {
+            text = "<- Back"
+            setTextColor(accentColor)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((6 * d).toInt(), (4 * d).toInt(), (16 * d).toInt(), (4 * d).toInt())
+            setOnClickListener {
+                selectedGroupKey = null
+                refreshAudioDisplay()
+            }
+        }
+
+        tvGroupHeaderTitle = TextView(ctx).apply {
+            text = ""
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        groupBackBar.addView(btnBackGroup)
+        groupBackBar.addView(tvGroupHeaderTitle)
+        rootAudioLayout.addView(groupBackBar)
+
+        rvAudioList = RecyclerView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+            setPadding((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (8 * d).toInt())
+            clipToPadding = false
+            setHasFixedSize(true)
+            setItemViewCacheSize(24)
+        }
+        rvAudioList.layoutManager = LinearLayoutManager(ctx)
+        audioAdapter = AudioAdapter(ctx, displayedSongsList) { clickedPos ->
+            currentMiniIndex = clickedPos
+            isSharedPlayingVal = true
+            syncMiniBarWithSong(displayedSongsList[clickedPos])
+            launchFullAudioPlayer(clickedPos, displayedSongsList)
+        }
+        rvAudioList.adapter = audioAdapter
+        attachLeftRightSwipeGestureToTabs(ctx)
+        rootAudioLayout.addView(rvAudioList)
+
+        tvEmptyAudio = TextView(ctx).apply {
+            text = "No songs found in this category"
+            setTextColor(Color.parseColor("#B0C4DE"))
+            textSize = 14.5f
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        }
+        rootAudioLayout.addView(tvEmptyAudio)
+
+        miniPlayerCard = CardView(ctx).apply {
+            radius = 18f * d
+            cardElevation = 10f * d
+            setCardBackgroundColor(Color.parseColor("#121C2C"))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (8 * d).toInt())
+            }
+        }
+
+        val miniRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#121C2C"))
+                cornerRadius = 18f * d
+                setStroke((1.3f * d).toInt(), accentColor)
+            }
+        }
+
+        imgMiniCover = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
+                marginEnd = (12 * d).toInt()
+            }
+            scaleType = ImageView.ScaleType.CENTER_CROP
+        }
+
+        val miniTextCol = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (8 * d).toInt()
+            }
+        }
+
+        tvMiniTitle = TextView(ctx).apply {
+            text = "Select a song to play"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+
+        tvMiniArtist = TextView(ctx).apply {
+            text = "Hybrid Player Hi-Res Audio"
+            setTextColor(accentColor)
+            textSize = 11.5f
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(0, (2 * d).toInt(), 0, 0)
+        }
+
+        miniTextCol.addView(tvMiniTitle)
+        miniTextCol.addView(tvMiniArtist)
+
+        btnMiniPlayPause = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            setImageDrawable(AudioControlVectorIcon("PLAY", d, accentColor))
+            setOnClickListener {
+                if (allSongsList.isEmpty()) return@setOnClickListener
+                toggleSharedPlaybackFromMiniPlayer(ctx)
+                updateMiniPlayerPlayIcon()
+            }
+        }
+
+        btnMiniNext = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
+            setImageDrawable(AudioControlVectorIcon("NEXT", d, Color.WHITE))
+            setOnClickListener {
+                if (allSongsList.isEmpty()) return@setOnClickListener
+                currentMiniIndex = (currentMiniIndex + 1) % allSongsList.size
+                isSharedPlayingVal = true
+                val nextSong = allSongsList[currentMiniIndex]
+                syncMiniBarWithSong(nextSong)
+                launchFullAudioPlayer(currentMiniIndex, allSongsList)
+            }
+        }
+
+        miniRow.addView(imgMiniCover)
+        miniRow.addView(miniTextCol)
+        miniRow.addView(btnMiniPlayPause)
+        miniRow.addView(btnMiniNext)
+        miniRow.setOnClickListener {
+            if (allSongsList.isNotEmpty()) {
+                launchFullAudioPlayer(currentMiniIndex.coerceIn(0, allSongsList.size - 1), allSongsList)
+            }
+        }
+        miniPlayerCard.addView(miniRow)
+        rootAudioLayout.addView(miniPlayerCard)
+
+        updateTabVisuals(d)
+        registerMiniReceiver(ctx)
+        scanAllSongsInBackground()
+
+        return rootAudioLayout
     }
 
     override fun onResume() {
         super.onResume()
-        applySavedTheme()
-        loadAllAudioFast()
-        miniPlayerHandler.post(miniPlayerSyncRunnable)
+        scanAllSongsInBackground()
     }
 
-    override fun onPause() {
-        super.onPause()
-        miniPlayerHandler.removeCallbacks(miniPlayerSyncRunnable)
+    override fun onDestroyView() {
+        super.onDestroyView()
+        if (isReceiverRegistered) {
+            try {
+                requireContext().unregisterReceiver(miniPlayerSyncReceiver)
+            } catch (_: Exception) {
+            }
+            isReceiverRegistered = false
+        }
     }
 
-    private fun bindViews(view: View) {
-        rootAudioFragment = view.findViewById(R.id.rootAudioFragment)
-        tvAudioTabSongs = view.findViewById(R.id.tvAudioTabSongs)
-        tvAudioTabFolders = view.findViewById(R.id.tvAudioTabFolders)
-        tvAudioTabAlbums = view.findViewById(R.id.tvAudioTabAlbums)
-        tvAudioTabArtists = view.findViewById(R.id.tvAudioTabArtists)
-        tvAudioTabPlaylists = view.findViewById(R.id.tvAudioTabPlaylists)
-
-        btnShuffleAllAudio = view.findViewById(R.id.btnShuffleAllAudio)
-        tvAudioTotalCount = view.findViewById(R.id.tvAudioTotalCount)
-        btnAudioSortMenu = view.findViewById(R.id.btnAudioSortMenu)
-        rvAudioList = view.findViewById(R.id.rvAudioList)
-        llAudioEmptyState = view.findViewById(R.id.llAudioEmptyState)
-
-        cardBottomMiniPlayer = view.findViewById(R.id.cardBottomMiniPlayer)
-        imgMiniPlayerArt = view.findViewById(R.id.imgMiniPlayerArt)
-        tvMiniPlayerTitle = view.findViewById(R.id.tvMiniPlayerTitle)
-        tvMiniPlayerArtist = view.findViewById(R.id.tvMiniPlayerArtist)
-        btnMiniPlayerPlayPause = view.findViewById(R.id.btnMiniPlayerPlayPause)
-        tvMiniPlayerTitle.isSelected = true
-
-        rvAudioList.layoutManager = LinearLayoutManager(requireContext())
-        audioAdapter = AudioAdapter(requireContext(), displayedSongsList)
-        rvAudioList.adapter = audioAdapter
-        InShotScrollAnimator.attachToRecyclerView(rvAudioList)
-    }
-
-    private fun applySavedTheme() {
-        val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val bgHex = prefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
-        val cardHex = prefs.getString("app_card_color", "#142538") ?: "#142538"
-        val accentHex = prefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
+    private fun registerMiniReceiver(ctx: Context) {
+        if (isReceiverRegistered) return
         try {
-            rootAudioFragment.setBackgroundColor(Color.parseColor(bgHex))
-            cardBottomMiniPlayer.setCardBackgroundColor(Color.parseColor(cardHex))
-            accentColor = Color.parseColor(accentHex)
+            val filter = IntentFilter().apply {
+                addAction(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE)
+                addAction(BackgroundAudioService.ACTION_NOTIF_NEXT)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ctx.registerReceiver(miniPlayerSyncReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                ctx.registerReceiver(miniPlayerSyncReceiver, filter)
+            }
+            isReceiverRegistered = true
         } catch (_: Exception) {
-            accentColor = Color.parseColor("#5CE1E6")
-        }
-        btnShuffleAllAudio.setTextColor(accentColor)
-        tvMiniPlayerArtist.setTextColor(accentColor)
-        btnMiniPlayerPlayPause.setTextColor(accentColor)
-        updateSubTabColors()
-    }
-
-    private fun updateSubTabColors() {
-        val tabs = listOf(
-            tvAudioTabSongs,
-            tvAudioTabFolders,
-            tvAudioTabAlbums,
-            tvAudioTabArtists,
-            tvAudioTabPlaylists
-        )
-        tabs.forEachIndexed { idx, tv ->
-            tv.setTextColor(if (idx == activeSubTab) accentColor else Color.WHITE)
         }
     }
 
-    private fun setupClicks() {
-        val tabs = listOf(
-            tvAudioTabSongs,
-            tvAudioTabFolders,
-            tvAudioTabAlbums,
-            tvAudioTabArtists,
-            tvAudioTabPlaylists
-        )
-
-        tabs.forEachIndexed { index, tabView ->
-            tabView.setOnClickListener {
-                activeSubTab = index
-                updateSubTabColors()
-                refreshDisplayedSongs()
-            }
-        }
-
-        btnShuffleAllAudio.setOnClickListener {
-            if (displayedSongsList.isEmpty()) {
-                Toast.makeText(requireContext(), "No songs available to play", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val shuffled = displayedSongsList.shuffled()
-            val paths = ArrayList<String>(shuffled.size)
-            val titles = ArrayList<String>(shuffled.size)
-            val artists = ArrayList<String>(shuffled.size)
-            shuffled.forEach {
-                paths.add(it.path)
-                titles.add(it.title)
-                artists.add(it.artist)
-            }
-            val intent = Intent(requireContext(), AudioPlayerActivity::class.java).apply {
-                putExtra("AUDIO_PATH", paths[0])
-                putExtra("AUDIO_TITLE", titles[0])
-                putExtra("AUDIO_ARTIST", artists[0])
-                putExtra("AUDIO_INDEX", 0)
-                putStringArrayListExtra("AUDIO_LIST", paths)
-                putStringArrayListExtra("AUDIO_TITLES", titles)
-                putStringArrayListExtra("AUDIO_ARTISTS", artists)
-            }
-            startActivity(intent)
-        }
-
-        btnAudioSortMenu.setOnClickListener {
-            val ctx = context ?: return@setOnClickListener
-            val items = arrayOf(
-                if (sortOrderMode == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
-                if (sortOrderMode == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
-                if (sortOrderMode == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
-                if (sortOrderMode == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
-                if (sortOrderMode == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
-                "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
-                "Open Built-in 5-Band Equalizer"
+    private fun updateMiniPlayerPlayIcon() {
+        if (!isAdded) return
+        val d = resources.displayMetrics.density
+        btnMiniPlayPause.setImageDrawable(
+            AudioControlVectorIcon(
+                if (isSharedPlayingVal) "PAUSE" else "PLAY",
+                d,
+                accentColor
             )
-            VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
-                when (which) {
-                    5 -> AudioPitchHelper.showSoundAndPitchLabDialog(ctx, null)
-                    6 -> EqualizerHelper.showEqualizerDialog(ctx, AudioPlayerActivity.getSharedAudioSessionId())
-                    else -> {
-                        sortOrderMode = which
-                        refreshDisplayedSongs()
+        )
+    }
+
+    private fun syncMiniBarWithSong(song: AudioModel) {
+        if (!isAdded) return
+        currentPlayingPathVal = song.path
+        currentPlayingTitleVal = song.title
+        currentPlayingArtistVal = song.artist
+
+        tvMiniTitle.text = song.title.substringBeforeLast('.')
+        tvMiniArtist.text = song.artist.ifEmpty { "Hybrid Player Audio" }
+        AudioAdapter.loadAlbumArtOrFallbackInto(requireContext(), song.path, song.title, imgMiniCover)
+        updateMiniPlayerPlayIcon()
+    }
+
+    private fun createTopTabItem(title: String, index: Int, d: Float): TextView {
+        return TextView(requireContext()).apply {
+            text = title
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (6 * d).toInt() }
+            setOnClickListener { switchAudioTab(index) }
+        }
+    }
+
+    private fun switchAudioTab(targetTab: Int) {
+        if (!isAdded) return
+        val d = resources.displayMetrics.density
+        activeTab = targetTab.coerceIn(0, 4)
+        selectedGroupKey = null
+        updateTabVisuals(d)
+        refreshAudioDisplay()
+    }
+
+    private fun updateTabVisuals(d: Float) {
+        val tabs = listOf(tabSongs, tabFolders, tabAlbums, tabArtists, tabFavorites)
+        tabs.forEachIndexed { idx, tv ->
+            val isSel = idx == activeTab
+            tv.setTextColor(if (isSel) Color.parseColor("#0A0A10") else Color.WHITE)
+            tv.background = GradientDrawable().apply {
+                setColor(if (isSel) accentColor else Color.parseColor("#182232"))
+                cornerRadius = 18f * d
+            }
+            if (isSel) {
+                topTabsScroll.post {
+                    topTabsScroll.smoothScrollTo(tv.left - (40 * d).toInt(), 0)
+                }
+            }
+        }
+    }
+
+    private fun attachLeftRightSwipeGestureToTabs(context: Context) {
+        val swipeDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                if (abs(dx) > abs(dy) * 1.6f && abs(dx) > 110f && abs(velocityX) > 220f) {
+                    if (dx < 0) {
+                        val nextTab = (activeTab + 1).coerceAtMost(4)
+                        if (nextTab != activeTab) {
+                            switchAudioTab(nextTab)
+                            return true
+                        }
+                    } else {
+                        if (selectedGroupKey != null) {
+                            selectedGroupKey = null
+                            refreshAudioDisplay()
+                            return true
+                        }
+                        val prevTab = (activeTab - 1).coerceAtLeast(0)
+                        if (prevTab != activeTab) {
+                            switchAudioTab(prevTab)
+                            return true
+                        }
                     }
                 }
+                return false
             }
-        }
+        })
 
-        cardBottomMiniPlayer.setOnClickListener {
-            val ctx = context ?: return@setOnClickListener
-            val curPath = AudioPlayerActivity.getCurrentPlayingPath()
-            if (curPath.isNotEmpty()) {
-                val intent = Intent(ctx, AudioPlayerActivity::class.java).apply {
-                    putExtra("RESUME_EXISTING", true)
-                }
-                startActivity(intent)
+        rvAudioList.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                swipeDetector.onTouchEvent(e)
+                return false
             }
-        }
+        })
 
-        btnMiniPlayerPlayPause.setOnClickListener {
-            AudioPlayerActivity.toggleSharedPlaybackFromMiniPlayer()
-            syncBottomMiniPlayerBar()
+        rootAudioLayout.setOnTouchListener { _, event ->
+            swipeDetector.onTouchEvent(event)
+            true
         }
     }
 
-    private fun syncBottomMiniPlayerBar() {
+    private fun scanAllSongsInBackground() {
         val ctx = context ?: return
-        val curPath = AudioPlayerActivity.getCurrentPlayingPath()
-        if (curPath.isEmpty()) {
-            cardBottomMiniPlayer.visibility = View.GONE
-            return
-        }
-        cardBottomMiniPlayer.visibility = View.VISIBLE
-        tvMiniPlayerTitle.text = AudioPlayerActivity.getCurrentPlayingTitle()
-        tvMiniPlayerArtist.text = AudioPlayerActivity.getCurrentPlayingArtist()
-        tvMiniPlayerTitle.isSelected = true
-
-        val playing = AudioPlayerActivity.isSharedPlayerPlaying()
-        btnMiniPlayerPlayPause.text = if (playing) "||" else "Play"
-
-        val audioPrefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-        val customArt = audioPrefs.getString("custom_art_$curPath", null)
-        if (!customArt.isNullOrEmpty()) {
-            Glide.with(ctx)
-                .load(Uri.parse(customArt))
-                .placeholder(android.R.drawable.ic_lock_silent_mode_off)
-                .centerCrop()
-                .into(imgMiniPlayerArt)
-        } else {
-            imgMiniPlayerArt.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
-        }
-    }
-
-    private fun loadAllAudioFast() {
-        if (isScanningAudio) return
-        isScanningAudio = true
-
         thread {
-            val tempSongs = mutableListOf<AudioTrackModel>()
+            val list = mutableListOf<AudioModel>()
             try {
-                val ctx = context ?: return@thread
                 val projection = arrayOf(
                     MediaStore.Audio.Media._ID,
-                    MediaStore.Audio.Media.ALBUM_ID,
                     MediaStore.Audio.Media.DISPLAY_NAME,
                     MediaStore.Audio.Media.TITLE,
                     MediaStore.Audio.Media.ARTIST,
-                    MediaStore.Audio.Media.ALBUM,
                     MediaStore.Audio.Media.DATA,
-                    MediaStore.Audio.Media.SIZE,
                     MediaStore.Audio.Media.DURATION
                 )
-                val sort = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
                 ctx.contentResolver.query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     projection,
                     null,
                     null,
-                    sort
+                    "${MediaStore.Audio.Media.DATE_ADDED} DESC"
                 )?.use { cursor ->
-                    val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
-                    val dispCol = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
+                    val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+                    val nameCol = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
                     val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                     val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
-                    val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
                     val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
-                    val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                     val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
-                    val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
 
                     while (cursor.moveToNext()) {
                         val id = if (idCol != -1) cursor.getLong(idCol) else 0L
-                        val albumId = if (albumIdCol != -1) cursor.getLong(albumIdCol) else id
-                        val rawPath = if (dataCol != -1) cursor.getString(dataCol) else null
-                        val path = if (!rawPath.isNullOrEmpty()) {
-                            rawPath
-                        } else {
-                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
-                        }
-                        if (PermanentDeleteHelper.isMarkedDeleted(ctx, path)) continue
+                        val path = if (dataCol != -1) cursor.getString(dataCol) ?: "" else ""
+                        if (path.isEmpty() || PermanentDeleteHelper.isMarkedDeleted(ctx, path)) continue
 
-                        val name = if (dispCol != -1) cursor.getString(dispCol) else null
-                        val title = name ?: (if (titleCol != -1) cursor.getString(titleCol) else null) ?: File(path).name
-                        val artistRaw = if (artistCol != -1) cursor.getString(artistCol) else null
-                        val artist = if (artistRaw.isNullOrEmpty() || artistRaw == "<unknown>") "Unknown Artist" else artistRaw
-                        val albumRaw = if (albumCol != -1) cursor.getString(albumCol) else null
-                        val album = if (albumRaw.isNullOrEmpty() || albumRaw == "<unknown>") "Music" else albumRaw
-                        val size = if (sizeCol != -1) cursor.getLong(sizeCol).coerceAtLeast(0L) else 0L
-                        val duration = if (durCol != -1) cursor.getLong(durCol).coerceAtLeast(0L) else 0L
-                        val folder = File(path).parentFile?.name ?: "Music"
+                        val dur = if (durCol != -1) cursor.getLong(durCol) else 0L
+                        if (dur < 1000L) continue
 
-                        if (duration >= 1000L) {
-                            tempSongs.add(AudioTrackModel(albumId, title, artist, album, path, size, duration, folder))
-                        }
+                        val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
+                            ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
+                            ?: File(path).name
+                        val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
+                            ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Audio"
+
+                        list.add(
+                            AudioModel(
+                                id = id,
+                                title = title,
+                                path = path,
+                                artist = artist,
+                                duration = dur
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -328,47 +586,317 @@ class AudioFragment : Fragment() {
             }
 
             activity?.runOnUiThread {
-                isScanningAudio = false
-                if (!isAdded || context == null) return@runOnUiThread
+                if (!isAdded) return@runOnUiThread
                 allSongsList.clear()
-                allSongsList.addAll(tempSongs)
-                refreshDisplayedSongs()
-                syncBottomMiniPlayerBar()
+                allSongsList.addAll(list)
+                if (allSongsList.isNotEmpty() && tvMiniTitle.text == "Select a song to play") {
+                    syncMiniBarWithSong(allSongsList[0])
+                }
+                refreshAudioDisplay()
             }
         }
     }
 
-    private fun refreshDisplayedSongs() {
+    private fun refreshAudioDisplay() {
         val ctx = context ?: return
-        val audioPrefs = ctx.getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
 
-        val baseList = when (activeSubTab) {
-            1 -> allSongsList.sortedBy { it.folderName.lowercase(Locale.getDefault()) }
-            2 -> allSongsList.sortedBy { it.album.lowercase(Locale.getDefault()) }
-            3 -> allSongsList.sortedBy { it.artist.lowercase(Locale.getDefault()) }
-            4 -> allSongsList.filter { audioPrefs.getBoolean("fav_audio_${it.path}", false) }
-            else -> allSongsList
+        if (activeTab in 1..3 && selectedGroupKey == null) {
+            groupBackBar.visibility = View.GONE
+            showGroupedCardsInRecyclerView(ctx, activeTab)
+            return
         }
 
-        val sortedList = when (sortOrderMode) {
-            1 -> baseList.sortedBy { it.title.lowercase(Locale.getDefault()) }
-            2 -> baseList.sortedBy { it.artist.lowercase(Locale.getDefault()) }
+        val baseList = when (activeTab) {
+            1 -> {
+                val parentKey = selectedGroupKey ?: ""
+                groupBackBar.visibility = View.VISIBLE
+                tvGroupHeaderTitle.text = File(parentKey).name.ifEmpty { "Folder Songs" }
+                allSongsList.filter { (File(it.path).parent ?: "") == parentKey }
+            }
+            2 -> {
+                val albumKey = selectedGroupKey ?: ""
+                groupBackBar.visibility = View.VISIBLE
+                tvGroupHeaderTitle.text = albumKey
+                allSongsList.filter { File(it.path).parentFile?.name.orEmpty().ifEmpty { "Unknown Album" } == albumKey }
+            }
+            3 -> {
+                val artistKey = selectedGroupKey ?: ""
+                groupBackBar.visibility = View.VISIBLE
+                tvGroupHeaderTitle.text = artistKey
+                allSongsList.filter { it.artist == artistKey }
+            }
+            4 -> {
+                groupBackBar.visibility = View.GONE
+                allSongsList.filter { prefs.getBoolean("fav_audio_${it.path}", false) }
+            }
+            else -> {
+                groupBackBar.visibility = View.GONE
+                allSongsList
+            }
+        }
+
+        val sorted = when (sortOrder) {
+            1 -> baseList.sortedBy { it.title.lowercase(Locale.US) }
+            2 -> baseList.sortedBy { it.artist.lowercase(Locale.US) }
             3 -> baseList.sortedByDescending { it.duration }
             4 -> baseList.sortedByDescending { it.size }
             else -> baseList
         }
 
-        displayedSongsList.clear()
-        displayedSongsList.addAll(sortedList)
-        audioAdapter.notifyDataSetChanged()
+        if (rvAudioList.adapter !== audioAdapter) {
+            rvAudioList.adapter = audioAdapter
+        }
 
-        tvAudioTotalCount.text = "${displayedSongsList.size} Songs"
+        displayedSongsList.clear()
+        displayedSongsList.addAll(sorted)
+        audioAdapter.notifyDataSetChanged()
+        tvSongsTotalCount.text = "${displayedSongsList.size} Songs"
+
         if (displayedSongsList.isEmpty()) {
             rvAudioList.visibility = View.GONE
-            llAudioEmptyState.visibility = View.VISIBLE
+            tvEmptyAudio.visibility = View.VISIBLE
         } else {
-            llAudioEmptyState.visibility = View.GONE
+            tvEmptyAudio.visibility = View.GONE
             rvAudioList.visibility = View.VISIBLE
         }
+    }
+
+    private fun showGroupedCardsInRecyclerView(ctx: Context, tabType: Int) {
+        val d = ctx.resources.displayMetrics.density
+        val groups = when (tabType) {
+            1 -> allSongsList.groupBy { File(it.path).parent ?: "Internal Storage" }
+            2 -> allSongsList.groupBy { File(it.path).parentFile?.name.orEmpty().ifEmpty { "Singles & Albums" } }
+            else -> allSongsList.groupBy { it.artist.ifEmpty { "Unknown Artist" } }
+        }.entries.sortedByDescending { it.value.size }
+
+        tvSongsTotalCount.text = "${groups.size} ${if (tabType == 1) "Folders" else if (tabType == 2) "Albums" else "Artists"}"
+
+        if (groups.isEmpty()) {
+            rvAudioList.visibility = View.GONE
+            tvEmptyAudio.visibility = View.VISIBLE
+            return
+        }
+
+        tvEmptyAudio.visibility = View.GONE
+        rvAudioList.visibility = View.VISIBLE
+
+        rvAudioList.adapter = object : RecyclerView.Adapter<AudioGroupVH>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AudioGroupVH {
+                val card = CardView(ctx).apply {
+                    radius = 16f * d
+                    cardElevation = 4f * d
+                    setCardBackgroundColor(Color.parseColor("#142234"))
+                    layoutParams = RecyclerView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
+                    }
+                }
+
+                val row = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding((14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt())
+                }
+
+                val imgThumb = ImageView(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()).apply {
+                        marginEnd = (14 * d).toInt()
+                    }
+                }
+
+                val col = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                val tvName = TextView(ctx).apply {
+                    setTextColor(Color.WHITE)
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                }
+
+                val tvCount = TextView(ctx).apply {
+                    setTextColor(accentColor)
+                    textSize = 12f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, (3 * d).toInt(), 0, 0)
+                }
+
+                val tvArrow = TextView(ctx).apply {
+                    text = ">"
+                    setTextColor(accentColor)
+                    textSize = 17f
+                    typeface = Typeface.DEFAULT_BOLD
+                }
+
+                col.addView(tvName)
+                col.addView(tvCount)
+                row.addView(imgThumb)
+                row.addView(col)
+                row.addView(tvArrow)
+                card.addView(row)
+                return AudioGroupVH(card, imgThumb, tvName, tvCount)
+            }
+
+            override fun onBindViewHolder(holder: AudioGroupVH, position: Int) {
+                InShotScrollAnimator.animateRowOnBind(holder.itemView)
+                val entry = groups[position]
+                val rawKey = entry.key
+                val songs = entry.value
+                val displayName = if (tabType == 1) File(rawKey).name.ifEmpty { "Storage" } else rawKey
+
+                holder.tvName.text = displayName
+                holder.tvCount.text = "${songs.size} Songs"
+                val firstSong = songs.first()
+                AudioAdapter.loadAlbumArtOrFallbackInto(ctx, firstSong.path, displayName, holder.imgThumb)
+
+                holder.itemView.setOnClickListener {
+                    selectedGroupKey = rawKey
+                    refreshAudioDisplay()
+                }
+            }
+
+            override fun getItemCount(): Int = groups.size
+        }
+    }
+
+    private class AudioGroupVH(
+        view: View,
+        val imgThumb: ImageView,
+        val tvName: TextView,
+        val tvCount: TextView
+    ) : RecyclerView.ViewHolder(view)
+
+    private fun launchFullAudioPlayer(index: Int, sourceList: List<AudioModel>) {
+        val ctx = context ?: return
+        if (index !in sourceList.indices) return
+        val selected = sourceList[index]
+
+        val paths = ArrayList<String>(sourceList.size)
+        val titles = ArrayList<String>(sourceList.size)
+        val artists = ArrayList<String>(sourceList.size)
+        for (s in sourceList) {
+            paths.add(s.path)
+            titles.add(s.title)
+            artists.add(s.artist)
+        }
+
+        val intent = Intent(ctx, AudioPlayerActivity::class.java).apply {
+            putExtra("AUDIO_PATH", selected.path)
+            putExtra("AUDIO_TITLE", selected.title)
+            putExtra("AUDIO_ARTIST", selected.artist)
+            putExtra("START_INDEX", index)
+            putStringArrayListExtra("AUDIO_LIST", paths)
+            putStringArrayListExtra("AUDIO_TITLES", titles)
+            putStringArrayListExtra("AUDIO_ARTISTS", artists)
+        }
+        startActivity(intent)
+    }
+
+    private fun showAudioSortAndToolsMenu() {
+        val ctx = context ?: return
+        val items = arrayOf(
+            if (sortOrder == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
+            if (sortOrder == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
+            if (sortOrder == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
+            if (sortOrder == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
+            if (sortOrder == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
+            "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+            "Open Built-In 5-Band Dolby Equalizer"
+        )
+        VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
+            when (which) {
+                0, 1, 2, 3, 4 -> {
+                    sortOrder = which
+                    refreshAudioDisplay()
+                }
+                5 -> AudioPitchHelper.showSoundAndPitchLabDialog(ctx, null)
+                6 -> EqualizerHelper.showEqualizerDialog(ctx, 0)
+            }
+        }
+    }
+
+    private class AudioControlVectorIcon(
+        private val type: String,
+        private val d: Float,
+        private val accentColor: Int
+    ) : Drawable() {
+
+        private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = accentColor
+        }
+
+        private val iconDarkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#0A0A10")
+        }
+
+        private val nextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.WHITE
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val cx = b.exactCenterX()
+            val cy = b.exactCenterY()
+            val r = b.width().coerceAtMost(b.height()) * 0.45f
+
+            when (type) {
+                "PLAY" -> {
+                    canvas.drawCircle(cx, cy, r, circlePaint)
+                    val path = Path().apply {
+                        moveTo(cx - r * 0.25f, cy - r * 0.38f)
+                        lineTo(cx + r * 0.42f, cy)
+                        lineTo(cx - r * 0.25f, cy + r * 0.38f)
+                        close()
+                    }
+                    canvas.drawPath(path, iconDarkPaint)
+                }
+                "PAUSE" -> {
+                    canvas.drawCircle(cx, cy, r, circlePaint)
+                    val barW = r * 0.22f
+                    val barH = r * 0.68f
+                    canvas.drawRoundRect(
+                        RectF(cx - r * 0.34f, cy - barH / 2f, cx - r * 0.34f + barW, cy + barH / 2f),
+                        2f * d,
+                        2f * d,
+                        iconDarkPaint
+                    )
+                    canvas.drawRoundRect(
+                        RectF(cx + r * 0.12f, cy - barH / 2f, cx + r * 0.12f + barW, cy + barH / 2f),
+                        2f * d,
+                        2f * d,
+                        iconDarkPaint
+                    )
+                }
+                "NEXT" -> {
+                    val path = Path().apply {
+                        moveTo(cx - r * 0.45f, cy - r * 0.40f)
+                        lineTo(cx + r * 0.18f, cy)
+                        lineTo(cx - r * 0.45f, cy + r * 0.40f)
+                        close()
+                    }
+                    canvas.drawPath(path, nextPaint)
+                    canvas.drawRoundRect(
+                        RectF(cx + r * 0.22f, cy - r * 0.40f, cx + r * 0.38f, cy + r * 0.40f),
+                        2f * d,
+                        2f * d,
+                        nextPaint
+                    )
+                }
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 }
