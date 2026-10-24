@@ -2,43 +2,18 @@ package com.app.mediaplayer
 
 import java.io.File
 
-data class AudioModel(
-    val id: Long,
-    val title: String,
-    val path: String,
-    val artist: String,
-    val duration: Long,
-    val size: Long = resolveFileSizeSafely(path)
-) {
-    // Secondary constructor to support (id, title, artist, path, size, duration) order
-    constructor(
-        id: Long,
-        title: String,
-        artist: String,
-        path: String,
-        size: Long,
-        duration: Long
-    ) : this(
-        id = id,
-        title = title,
-        path = path,
-        artist = artist,
-        duration = duration,
-        size = if (size > 0L) size else resolveFileSizeSafely(path)
-    )
+// Alias for legacy references so AudioTrackModel and AudioModel work interchangeably
+typealias AudioTrackModel = AudioModel
 
-    companion object {
-        private fun resolveFileSizeSafely(filePath: String): Long {
-            return try {
-                if (filePath.isNotEmpty() && !filePath.startsWith("content://")) {
-                    val f = File(filePath)
-                    if (f.exists()) f.length() else 0L
-                } else {
-                    0L
-                }
-            } catch (_: Exception) {
-                0L
-            }
+// Extension property on the existing AudioModel (defined in Models.kt) to avoid Redeclaration errors
+val AudioModel.size: Long
+    get() = try {
+        if (path.isNotEmpty() && !path.startsWith("content://")) {
+            val f = File(path)
+            if (f.exists()) f.length() else 0L
+        } else {
+            0L
         }
+    } catch (_: Exception) {
+        0L
     }
-}
