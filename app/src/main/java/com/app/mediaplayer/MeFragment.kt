@@ -6,12 +6,10 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -33,7 +31,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
-import java.io.File
 import java.util.Locale
 
 class MeFragment : Fragment() {
@@ -107,7 +104,7 @@ class MeFragment : Fragment() {
         }
 
         val tvHeaderTitle = TextView(ctx).apply {
-            text = "OG 8K Control Center"
+            text = "Hybrid Player Control Center"
             setTextColor(Color.WHITE)
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
@@ -139,7 +136,7 @@ class MeFragment : Fragment() {
         headerRow.addView(tvVipBadgeStatus)
         mainContainer.addView(headerRow)
 
-        // 2. Clean International VIP Membership Card (Zero UPI ID, Single Global Checkout)
+        // 2. Clean International VIP Membership Card
         val vipCard = CardView(ctx).apply {
             radius = 20f * d
             cardElevation = 8f * d
@@ -178,7 +175,7 @@ class MeFragment : Fragment() {
         }
 
         tvVipMemberTitle = TextView(ctx).apply {
-            text = "OG Player Member ($activePlanName)"
+            text = "Hybrid Player Member ($activePlanName)"
             setTextColor(Color.WHITE)
             textSize = 16.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -243,7 +240,6 @@ class MeFragment : Fragment() {
             ).apply { bottomMargin = (14 * d).toInt() }
         }
 
-        // Box 1: Video to MP3
         toolsGrid.addView(
             createSymmetricalToolBox(
                 ctx = ctx,
@@ -262,7 +258,6 @@ class MeFragment : Fragment() {
             }.first
         )
 
-        // Box 2: Offline Share (5GHz Wi-Fi Direct)
         toolsGrid.addView(
             createSymmetricalToolBox(
                 ctx = ctx,
@@ -281,7 +276,6 @@ class MeFragment : Fragment() {
             }.first
         )
 
-        // Box 3: Privacy Vault
         toolsGrid.addView(
             createSymmetricalToolBox(
                 ctx = ctx,
@@ -296,7 +290,6 @@ class MeFragment : Fragment() {
             }.first
         )
 
-        // Box 4: Sound & Pitch Lab
         toolsGrid.addView(
             createSymmetricalToolBox(
                 ctx = ctx,
@@ -315,7 +308,6 @@ class MeFragment : Fragment() {
             }.first
         )
 
-        // Box 5: Storage Cleaner & Activity
         val cleanerBoxPair = createSymmetricalToolBox(
             ctx = ctx,
             iconType = "CLEANER_BROOM",
@@ -333,11 +325,10 @@ class MeFragment : Fragment() {
         tvCleanerSubtitle = cleanerBoxPair.second
         toolsGrid.addView(cleanerBoxPair.first)
 
-        // Box 6: OG Theme & Wallpaper Studio
         val themeBoxPair = createSymmetricalToolBox(
             ctx = ctx,
             iconType = "THEME_PALETTE",
-            title = "OG Theme Studio",
+            title = "Hybrid Theme Studio",
             subtitle = theme.name,
             cardColor = cardColor,
             accentColor = Color.parseColor("#FFD700"),
@@ -352,7 +343,7 @@ class MeFragment : Fragment() {
 
         mainContainer.addView(toolsGrid)
 
-        // 4. Quick Action Pills Row (Status Saver & Network Stream URL)
+        // 4. Quick Action Pills Row
         val quickRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
@@ -404,7 +395,7 @@ class MeFragment : Fragment() {
         quickRow.addView(btnQuickStreamUrl)
         mainContainer.addView(quickRow)
 
-        // 5. Clean Interactive Player Settings Card (Direct Toggle Switches)
+        // 5. Clean Interactive Player Settings Card
         val settingsCard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt())
@@ -473,7 +464,7 @@ class MeFragment : Fragment() {
 
         mainContainer.addView(settingsCard)
 
-        // 6. Bottom Support, Rating (PLAYit Style), Share & Full-Screen About Card
+        // 6. Bottom Support, Rating, Share & Full-Screen About Card
         val supportCard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * d).toInt(), (10 * d).toInt(), (16 * d).toInt(), (10 * d).toInt())
@@ -488,7 +479,6 @@ class MeFragment : Fragment() {
             }
         }
 
-        // Row A: PLAYit Style Interactive 5-Star Rate Us
         supportCard.addView(
             createActionRowItem(
                 ctx = ctx,
@@ -502,7 +492,6 @@ class MeFragment : Fragment() {
         )
         supportCard.addView(createThinDivider(ctx, d))
 
-        // Row B: Report a Bug / Feedback
         supportCard.addView(
             createActionRowItem(
                 ctx = ctx,
@@ -516,11 +505,10 @@ class MeFragment : Fragment() {
         )
         supportCard.addView(createThinDivider(ctx, d))
 
-        // Row C: Share OG 8K Player with Friends
         supportCard.addView(
             createActionRowItem(
                 ctx = ctx,
-                title = "Share OG 8K Player with Friends",
+                title = "Share Hybrid Player with Friends",
                 rightLabel = "Share",
                 rightColor = accentColor,
                 d = d
@@ -530,11 +518,10 @@ class MeFragment : Fragment() {
         )
         supportCard.addView(createThinDivider(ctx, d))
 
-        // Row D: Full-Screen About OG 8K Player Page
         supportCard.addView(
             createActionRowItem(
                 ctx = ctx,
-                title = "About OG 8K Player v3.5",
+                title = "About Hybrid Player v3.5",
                 rightLabel = "Full Info >",
                 rightColor = accentColor,
                 d = d
@@ -779,7 +766,7 @@ class MeFragment : Fragment() {
                 if (savedPin == null) {
                     prefs.edit().putString("vault_real_pin", entered).apply()
                     dialog.dismiss()
-                    Toast.makeText(ctx, "Vault PIN Saved! Long-press or use video menu to lock files.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(ctx, "Vault PIN Saved! Use video menu to lock files.", Toast.LENGTH_LONG).show()
                 } else if (entered == savedPin) {
                     dialog.dismiss()
                     Toast.makeText(ctx, "Privacy Vault Unlocked!", Toast.LENGTH_SHORT).show()
@@ -805,10 +792,10 @@ class MeFragment : Fragment() {
             "Suggest a New Feature"
         )
         VideoFragment.showBrightVideoMenuDialog(ctx, "Help & Feedback", options) { which ->
-            val subject = "OG 8K Player Feedback: ${options[which]}"
+            val subject = "Hybrid Player Feedback: ${options[which]}"
             try {
                 val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("mailto:support.ogplayer@gmail.com")
+                    data = Uri.parse("mailto:support.hybridplayer@gmail.com")
                     putExtra(Intent.EXTRA_SUBJECT, subject)
                 }
                 startActivity(Intent.createChooser(emailIntent, "Send Feedback"))
@@ -821,13 +808,13 @@ class MeFragment : Fragment() {
     private fun shareAppWithFriends(ctx: Context) {
         try {
             val pkg = ctx.packageName
-            val shareText = "Download OG 8K Player - Ultra HD 8K Video Player, Shorts Reels, Built-in Dolby Equalizer & MP3 Converter:\nhttps://play.google.com/store/apps/details?id=$pkg"
+            val shareText = "Download Hybrid Player - Ultra HD 8K Video Player, Shorts Reels, Built-in Dolby Equalizer & MP3 Converter:\nhttps://play.google.com/store/apps/details?id=$pkg"
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "OG 8K Ultra Media Player")
+                putExtra(Intent.EXTRA_SUBJECT, "Hybrid Player Ultra Media Player")
                 putExtra(Intent.EXTRA_TEXT, shareText)
             }
-            startActivity(Intent.createChooser(intent, "Share OG 8K Player"))
+            startActivity(Intent.createChooser(intent, "Share Hybrid Player"))
         } catch (_: Exception) {
             Toast.makeText(ctx, "Unable to open share menu", Toast.LENGTH_SHORT).show()
         }
