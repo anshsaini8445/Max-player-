@@ -17,7 +17,6 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.FrameLayout
@@ -30,11 +29,10 @@ import kotlin.math.sin
 
 object RateUsDialogHelper {
 
-    private const val PREF_NAME = "OG_RATE_US_PREFS"
+    private const val PREF_NAME = "HYBRID_RATE_US_PREFS"
     private const val KEY_PLAY_COUNT = "videos_played_counter"
     private const val KEY_HAS_RATED = "user_has_rated_app"
 
-    // Call this when a video finishes or starts; automatically pops up every 5 videos if not yet rated
     fun recordVideoPlayedAndCheckPrompt(context: Context) {
         try {
             val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -49,7 +47,6 @@ object RateUsDialogHelper {
         }
     }
 
-    // Exact PLAYit-style Rate Us popup with overlapping Pleading Emoji, 5 Interactive Stars, Submit & Exit
     fun showPlayItStyleRateUsPopup(context: Context, playedCount: Int = 5) {
         val d = context.resources.displayMetrics.density
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -68,7 +65,6 @@ object RateUsDialogHelper {
             clipToPadding = false
         }
 
-        // Cream / Warm Card matching the screenshot
         val cardBody = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -86,7 +82,6 @@ object RateUsDialogHelper {
             }
         }
 
-        // Top-Right Close 'X' inside Card
         val closeRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
@@ -97,7 +92,7 @@ object RateUsDialogHelper {
         }
 
         val btnCloseX = TextView(context).apply {
-            text = "✕"
+            text = "X"
             setTextColor(Color.parseColor("#7A7A7A"))
             textSize = 18f
             setPadding((8 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
@@ -117,7 +112,7 @@ object RateUsDialogHelper {
         cardBody.addView(tvTitle)
 
         val tvDesc = TextView(context).apply {
-            text = "You have played $playedCount videos with OG 8K Player!\nWe hope that you have been having a good time! If you like us, please give us 5 stars on Google Play."
+            text = "You have played $playedCount videos with Hybrid Player!\nWe hope that you have been having a good time! If you like us, please give us 5 stars on Google Play."
             setTextColor(Color.parseColor("#8D6E63"))
             textSize = 13.5f
             gravity = Gravity.CENTER
@@ -126,7 +121,6 @@ object RateUsDialogHelper {
         }
         cardBody.addView(tvDesc)
 
-        // 5 Interactive Clickable Stars Row
         val starsRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -168,7 +162,6 @@ object RateUsDialogHelper {
         }
         cardBody.addView(starsRow)
 
-        // Pill Submit Button
         btnSubmit = TextView(context).apply {
             text = "Submit"
             setTextColor(Color.WHITE)
@@ -196,7 +189,7 @@ object RateUsDialogHelper {
                 } else {
                     Toast.makeText(
                         context,
-                        "Thank you for your feedback! We will improve OG 8K Player.",
+                        "Thank you for your feedback! We will improve Hybrid Player.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -204,7 +197,6 @@ object RateUsDialogHelper {
         }
         cardBody.addView(btnSubmit)
 
-        // Exit Button below Submit
         val btnExit = TextView(context).apply {
             text = "Exit"
             setTextColor(Color.parseColor("#795548"))
@@ -216,7 +208,6 @@ object RateUsDialogHelper {
         }
         cardBody.addView(btnExit)
 
-        // Overlapping Pleading Emoji Graphic at Top Center (Matches Screenshot)
         val emojiIcon = ImageView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 (76 * d).toInt(),
@@ -250,7 +241,7 @@ object RateUsDialogHelper {
                 }
                 context.startActivity(webIntent)
             } catch (_: Exception) {
-                Toast.makeText(context, "Thank you for rating OG 8K Player 5 Stars!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Thank you for rating Hybrid Player 5 Stars!", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -300,14 +291,12 @@ object RateUsDialogHelper {
             val cy = b.exactCenterY()
             val r = b.width().coerceAtMost(b.height()) * 0.46f
 
-            // Yellow Emoji Face
             val facePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = Color.parseColor("#FFCA28")
             }
             canvas.drawCircle(cx, cy, r, facePaint)
 
-            // Warm Blush Cheeks
             val blushPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = Color.parseColor("#44FF5252")
@@ -315,7 +304,6 @@ object RateUsDialogHelper {
             canvas.drawCircle(cx - r * 0.52f, cy + r * 0.18f, r * 0.22f, blushPaint)
             canvas.drawCircle(cx + r * 0.52f, cy + r * 0.18f, r * 0.22f, blushPaint)
 
-            // Big Glossy Pleading Eyes
             val eyePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = Color.parseColor("#3E2723")
@@ -327,7 +315,6 @@ object RateUsDialogHelper {
             canvas.drawCircle(leftEyeX, eyeY, eyeR, eyePaint)
             canvas.drawCircle(rightEyeX, eyeY, eyeR, eyePaint)
 
-            // White Shine Reflections in Eyes
             val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = Color.WHITE
@@ -337,7 +324,6 @@ object RateUsDialogHelper {
             canvas.drawCircle(leftEyeX + eyeR * 0.32f, eyeY + eyeR * 0.32f, eyeR * 0.16f, shinePaint)
             canvas.drawCircle(rightEyeX + eyeR * 0.32f, eyeY + eyeR * 0.32f, eyeR * 0.16f, shinePaint)
 
-            // Raised Pleading Eyebrows & Small Mouth
             val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
                 strokeWidth = 2.6f * d
