@@ -1,5 +1,6 @@
 package com.app.mediaplayer
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -34,6 +35,10 @@ import androidx.fragment.app.Fragment
 import java.util.Locale
 
 class MeFragment : Fragment() {
+
+    companion object {
+        private const val REQ_PICK_THEME_WALLPAPER = 9401
+    }
 
     private lateinit var rootScroll: ScrollView
     private lateinit var mainContainer: LinearLayout
@@ -77,15 +82,33 @@ class MeFragment : Fragment() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_PICK_THEME_WALLPAPER && resultCode == Activity.RESULT_OK) {
+            val uri = data?.data ?: return
+            val ctx = context ?: return
+            try {
+                ctx.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) {
+            }
+            ThemeStudioHelper.saveCustomGalleryPhotoUri(ctx, uri.toString())
+            rebuildControlCenterUi()
+            Toast.makeText(ctx, "Custom Gallery Theme Photo Applied!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun rebuildControlCenterUi() {
         val ctx = context ?: return
         val d = ctx.resources.displayMetrics.density
         val theme = ThemeStudioHelper.getCurrentTheme(ctx)
-        val bgColor = Color.parseColor(theme.bgHex)
         val cardColor = Color.parseColor(theme.cardHex)
         val accentColor = Color.parseColor(theme.accentHex)
 
-        rootScroll.setBackgroundColor(bgColor)
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, rootScroll)
         mainContainer.removeAllViews()
         mainContainer.setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (28 * d).toInt())
 
@@ -182,7 +205,7 @@ class MeFragment : Fragment() {
         }
 
         val tvVipDesc = TextView(ctx).apply {
-            text = "Unlock 8K HDR AI Upscaler, 300% Dolby Audio Boost, Private Vault & Global Ad-Free Pass"
+            text = "Unlock 8K HDR AI Upscaler, 200% Dolby Audio Boost, Private Vault & Global Ad-Free Pass"
             setTextColor(Color.parseColor("#B0C4DE"))
             textSize = 12f
             setPadding(0, (4 * d).toInt(), 0, 0)
@@ -223,7 +246,7 @@ class MeFragment : Fragment() {
 
         // 3. Symmetrical 6-Box Quick Tools Grid (2 Columns x 3 Rows)
         val tvGridSectionTitle = TextView(ctx).apply {
-            text = "PRO MEDIA TOOLKIT"
+            text = "PRO MEDIA TOOLKIT (6-CORE MODULES)"
             setTextColor(accentColor)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -263,7 +286,7 @@ class MeFragment : Fragment() {
                 ctx = ctx,
                 iconType = "WIFI_SHARE",
                 title = "Offline Share",
-                subtitle = "5GHz Wi-Fi Direct",
+                subtitle = "2.4G / 5G / 6GHz Fast",
                 cardColor = cardColor,
                 accentColor = accentColor,
                 d = d
@@ -271,7 +294,7 @@ class MeFragment : Fragment() {
                 try {
                     startActivity(Intent(ctx, FileTransferActivity::class.java))
                 } catch (_: Exception) {
-                    Toast.makeText(ctx, "Opening Wi-Fi Direct Share...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, "Opening High-Speed Share...", Toast.LENGTH_SHORT).show()
                 }
             }.first
         )
@@ -325,25 +348,183 @@ class MeFragment : Fragment() {
         tvCleanerSubtitle = cleanerBoxPair.second
         toolsGrid.addView(cleanerBoxPair.first)
 
+        val customWallUri = ThemeStudioHelper.getCustomGalleryPhotoUri(ctx)
+        val themeSubLabel = if (!customWallUri.isNullOrEmpty()) "Custom Gallery Photo" else theme.name
         val themeBoxPair = createSymmetricalToolBox(
             ctx = ctx,
             iconType = "THEME_PALETTE",
-            title = "Hybrid Theme Studio",
-            subtitle = theme.name,
+            title = "18+ Theme Studio",
+            subtitle = themeSubLabel,
             cardColor = cardColor,
             accentColor = Color.parseColor("#FFD700"),
             d = d
         ) {
-            ThemeStudioHelper.showVisualThemeStudioSheet(ctx) {
-                rebuildControlCenterUi()
-            }
+            ThemeStudioHelper.showVisualThemeStudioSheet(
+                context = ctx,
+                onPickGalleryPhotoRequested = {
+                    try {
+                        val pickIntent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "image/*"
+                        }
+                        startActivityForResult(pickIntent, REQ_PICK_THEME_WALLPAPER)
+                    } catch (_: Exception) {
+                        Toast.makeText(ctx, "Unable to open gallery", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onThemeChanged = {
+                    rebuildControlCenterUi()
+                }
+            )
         }
         tvThemeActiveSubtitle = themeBoxPair.second
         toolsGrid.addView(themeBoxPair.first)
 
         mainContainer.addView(toolsGrid)
 
-        // 4. Quick Action Pills Row
+        // 4. Dedicated Folders Below the 6-Box Grid: Dancing Mascot Studio + 35+ Languages + One-Hand Mode
+        val tvCompanionHeader = TextView(ctx).apply {
+            text = "MASCOT COMPANION, 35+ LANGUAGES & ONE-HAND MODE"
+            setTextColor(accentColor)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((4 * d).toInt(), (2 * d).toInt(), 0, (8 * d).toInt())
+        }
+        mainContainer.addView(tvCompanionHeader)
+
+        val extraFoldersGrid = GridLayout(ctx).apply {
+            columnCount = 2
+            rowCount = 1
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (10 * d).toInt() }
+        }
+
+        val mascotStatus = if (MascotCompanionHelper.isMascotEnabled(ctx)) {
+            "${MascotCompanionHelper.getSelectedCharacter(ctx).name} (${MascotCompanionHelper.getSelectedColor(ctx).name})"
+        } else {
+            "Disabled (Tap to Enable)"
+        }
+
+        // Folder 7: Dancing Mascot & Puppy Studio
+        extraFoldersGrid.addView(
+            createSymmetricalToolBox(
+                ctx = ctx,
+                iconType = "MASCOT_PAW",
+                title = "Dancing Mascot",
+                subtitle = mascotStatus,
+                cardColor = cardColor,
+                accentColor = Color.parseColor("#FF4081"),
+                d = d
+            ) {
+                MascotCompanionHelper.showMascotCustomizationDialog(ctx) {
+                    rebuildControlCenterUi()
+                }
+            }.first
+        )
+
+        // Folder 8: 35+ Multi-Language Engine
+        val currentLangDisplay = MultiLanguageHelper.getCurrentLanguageDisplayName(ctx)
+        extraFoldersGrid.addView(
+            createSymmetricalToolBox(
+                ctx = ctx,
+                iconType = "GLOBE_LANG",
+                title = "35+ Languages",
+                subtitle = currentLangDisplay,
+                cardColor = cardColor,
+                accentColor = Color.parseColor("#00E5FF"),
+                d = d
+            ) {
+                MultiLanguageHelper.showLanguageSelectorDialog(ctx) {
+                    rebuildControlCenterUi()
+                }
+            }.first
+        )
+
+        mainContainer.addView(extraFoldersGrid)
+
+        // Prominent One-Hand Mode (Single-Hand Reachability) Card
+        val oneHandEnabled = ThemeStudioHelper.isOneHandModeEnabled(ctx)
+        val oneHandCard = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((16 * d).toInt(), (13 * d).toInt(), (16 * d).toInt(), (13 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (14 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(if (oneHandEnabled) Color.parseColor("#1A2E44") else cardColor)
+                cornerRadius = 18f * d
+                setStroke(
+                    ((if (oneHandEnabled) 2.0f else 1.2f) * d).toInt(),
+                    if (oneHandEnabled) Color.parseColor("#00E676") else accentColor
+                )
+            }
+            setOnClickListener {
+                val next = !ThemeStudioHelper.isOneHandModeEnabled(ctx)
+                ThemeStudioHelper.setOneHandModeEnabled(ctx, next)
+                rebuildControlCenterUi()
+                Toast.makeText(
+                    ctx,
+                    if (next) "One-Hand Reachability Mode ON" else "One-Hand Mode OFF (Full Screen)",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        val oneHandIcon = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt()).apply {
+                marginEnd = (12 * d).toInt()
+            }
+            setImageDrawable(MeVectorIconDrawable("ONE_HAND", d, accentColor))
+        }
+
+        val oneHandTextCol = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val tvOneHandTitle = TextView(ctx).apply {
+            text = "ONE-HAND MODE (SINGLE-HAND REACHABILITY)"
+            setTextColor(Color.WHITE)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        val tvOneHandSub = TextView(ctx).apply {
+            text = if (oneHandEnabled) {
+                "Active: Screen shifted down for easy thumb control"
+            } else {
+                "Tap to shift controls down for easy single-hand thumb use"
+            }
+            setTextColor(if (oneHandEnabled) Color.parseColor("#00E676") else accentColor)
+            textSize = 11.5f
+            setPadding(0, (2 * d).toInt(), 0, 0)
+        }
+
+        val btnOneHandPill = TextView(ctx).apply {
+            text = if (oneHandEnabled) "ON" else "OFF"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((14 * d).toInt(), (6 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(if (oneHandEnabled) Color.parseColor("#00E676") else Color.parseColor("#99B0C4DE"))
+                cornerRadius = 14f * d
+            }
+        }
+
+        oneHandTextCol.addView(tvOneHandTitle)
+        oneHandTextCol.addView(tvOneHandSub)
+        oneHandCard.addView(oneHandIcon)
+        oneHandCard.addView(oneHandTextCol)
+        oneHandCard.addView(btnOneHandPill)
+        mainContainer.addView(oneHandCard)
+
+        // 5. Quick Action Pills Row (WhatsApp Status Saver & 8K Network Stream)
         val quickRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
@@ -395,7 +576,7 @@ class MeFragment : Fragment() {
         quickRow.addView(btnQuickStreamUrl)
         mainContainer.addView(quickRow)
 
-        // 5. Clean Interactive Player Settings Card
+        // 6. Clean Interactive Video & Audio Engine Settings Card
         val settingsCard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt())
@@ -411,7 +592,7 @@ class MeFragment : Fragment() {
         }
 
         val tvSettingsHeader = TextView(ctx).apply {
-            text = "PLAYER ENGINE & SMART CONTROLS"
+            text = "VIDEO & AUDIO ENGINE SETTINGS"
             setTextColor(accentColor)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -425,12 +606,12 @@ class MeFragment : Fragment() {
         settingsCard.addView(
             createSettingSwitchRow(
                 ctx = ctx,
-                title = "8K Hardware HDR & CC Badges",
-                subtitle = "Show quick HDR enhancer & Subtitle buttons on video player",
-                initialChecked = layoutPrefs.getBoolean("player_show_hdr_cc", true),
+                title = "8K Hardware + Software Hybrid Fallback",
+                subtitle = "Smoothly play 2K, 4K & 8K videos on all phones without freezing",
+                initialChecked = layoutPrefs.getBoolean("player_8k_hybrid_fallback", true),
                 d = d
             ) { checked ->
-                layoutPrefs.edit().putBoolean("player_show_hdr_cc", checked).apply()
+                layoutPrefs.edit().putBoolean("player_8k_hybrid_fallback", checked).apply()
             }
         )
 
@@ -440,8 +621,8 @@ class MeFragment : Fragment() {
             createSettingSwitchRow(
                 ctx = ctx,
                 title = "Super Loud 200% Audio Booster",
-                subtitle = "Automatically enhance dialogue & bass clarity in videos",
-                initialChecked = audioPrefs.getBoolean("super_loud_200_boost", false),
+                subtitle = "Enable 200% volume HUD boost with 4-dot gain enhancer",
+                initialChecked = audioPrefs.getBoolean("super_loud_200_boost", true),
                 d = d
             ) { checked ->
                 audioPrefs.edit().putBoolean("super_loud_200_boost", checked).apply()
@@ -453,18 +634,32 @@ class MeFragment : Fragment() {
         settingsCard.addView(
             createSettingSwitchRow(
                 ctx = ctx,
-                title = "Floating Side Control Icons",
-                subtitle = "Display quick Lock, Mute, Rotate & Screenshot buttons",
-                initialChecked = layoutPrefs.getBoolean("player_show_side_controls", true),
+                title = "Smart In-Hand Double-Shake Sensor",
+                subtitle = "Change songs on 2 hand shakes (Auto-sleeps in pocket, walking or bike)",
+                initialChecked = audioPrefs.getBoolean("pocket_shake_enabled", false),
                 d = d
             ) { checked ->
-                layoutPrefs.edit().putBoolean("player_show_side_controls", checked).apply()
+                audioPrefs.edit().putBoolean("pocket_shake_enabled", checked).apply()
+            }
+        )
+
+        settingsCard.addView(createThinDivider(ctx, d))
+
+        settingsCard.addView(
+            createSettingSwitchRow(
+                ctx = ctx,
+                title = "8K Hardware HDR & CC Badges",
+                subtitle = "Show quick HDR enhancer & Subtitle buttons on video player",
+                initialChecked = layoutPrefs.getBoolean("player_show_hdr_cc", true),
+                d = d
+            ) { checked ->
+                layoutPrefs.edit().putBoolean("player_show_hdr_cc", checked).apply()
             }
         )
 
         mainContainer.addView(settingsCard)
 
-        // 6. Bottom Support, Rating, Share & Full-Screen About Card
+        // 7. Bottom Support, Rating, Share & Full-Screen About Card
         val supportCard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * d).toInt(), (10 * d).toInt(), (16 * d).toInt(), (10 * d).toInt())
@@ -906,6 +1101,24 @@ class MeFragment : Fragment() {
                     canvas.drawCircle(cx - r * 0.18f, cy - r * 0.15f, 2.5f * d, fillPaint)
                     canvas.drawCircle(cx + r * 0.18f, cy - r * 0.15f, 2.5f * d, fillPaint)
                     canvas.drawCircle(cx, cy + r * 0.18f, 2.5f * d, fillPaint)
+                }
+                "MASCOT_PAW" -> {
+                    canvas.drawCircle(cx, cy + r * 0.14f, r * 0.28f, fillPaint)
+                    canvas.drawCircle(cx - r * 0.34f, cy - r * 0.22f, r * 0.13f, fillPaint)
+                    canvas.drawCircle(cx, cy - r * 0.36f, r * 0.13f, fillPaint)
+                    canvas.drawCircle(cx + r * 0.34f, cy - r * 0.22f, r * 0.13f, fillPaint)
+                }
+                "GLOBE_LANG" -> {
+                    canvas.drawCircle(cx, cy, r * 0.48f, strokePaint)
+                    canvas.drawLine(cx - r * 0.48f, cy, cx + r * 0.48f, cy, strokePaint)
+                    val oval = RectF(cx - r * 0.24f, cy - r * 0.48f, cx + r * 0.24f, cy + r * 0.48f)
+                    canvas.drawOval(oval, strokePaint)
+                }
+                "ONE_HAND" -> {
+                    val outerPhone = RectF(cx - r * 0.36f, cy - r * 0.52f, cx + r * 0.36f, cy + r * 0.52f)
+                    canvas.drawRoundRect(outerPhone, 4f * d, 4f * d, strokePaint)
+                    val innerReach = RectF(cx - r * 0.24f, cy - r * 0.05f, cx + r * 0.24f, cy + r * 0.42f)
+                    canvas.drawRoundRect(innerReach, 2f * d, 2f * d, fillPaint)
                 }
             }
         }
