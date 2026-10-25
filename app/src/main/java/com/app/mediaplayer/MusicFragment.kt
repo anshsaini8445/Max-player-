@@ -24,11 +24,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -121,7 +123,6 @@ open class MusicFragment : Fragment() {
             )
         }
 
-        // Pull-to-Refresh rotating circular indicator on top
         pullRefreshIndicator = ProgressBar(ctx, null, android.R.attr.progressBarStyleSmall).apply {
             indeterminateTintList = android.content.res.ColorStateList.valueOf(accentColor)
             visibility = View.GONE
@@ -155,7 +156,7 @@ open class MusicFragment : Fragment() {
         tabFolders = createTopTabItem("Folders", 1, d)
         tabAlbums = createTopTabItem("Albums", 2, d)
         tabArtists = createTopTabItem("Artists", 3, d)
-        tabFavorites = createTopTabItem("Favorites ♥", 4, d)
+        tabFavorites = createTopTabItem("Favorites", 4, d)
 
         tabsRow.addView(tabSongs)
         tabsRow.addView(tabFolders)
@@ -185,7 +186,7 @@ open class MusicFragment : Fragment() {
         }
 
         val btnPlayShuffleAll = TextView(ctx).apply {
-            text = "▶  Play / Shuffle All"
+            text = "Play / Shuffle All"
             setTextColor(Color.parseColor("#0A0A10"))
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -224,7 +225,7 @@ open class MusicFragment : Fragment() {
         }
 
         val btnBackGroup = TextView(ctx).apply {
-            text = "←  Back"
+            text = "<-  Back"
             setTextColor(accentColor)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -343,9 +344,7 @@ open class MusicFragment : Fragment() {
         miniTextCol.addView(tvMiniTitle)
         miniTextCol.addView(tvMiniArtist)
 
-        btnMiniPlayProxyView() // setup
-
-        val btnMiniPlayPause = ImageView(ctx).apply {
+        btnMiniPlayPause = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
                 marginEnd = (6 * d).toInt()
             }
@@ -367,7 +366,6 @@ open class MusicFragment : Fragment() {
                 ctx.sendBroadcast(Intent(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE).setPackage(ctx.packageName))
             }
         }
-        this.btnMiniPlayPause = btnMiniPlayPause
 
         btnMiniNext = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
@@ -401,8 +399,6 @@ open class MusicFragment : Fragment() {
 
         return masterFrame
     }
-
-    private fun btnMiniPlayProxyView() {}
 
     override fun onResume() {
         super.onResume()
@@ -602,7 +598,6 @@ open class MusicFragment : Fragment() {
                     MediaStore.Audio.Media.TITLE,
                     MediaStore.Audio.Media.ARTIST,
                     MediaStore.Audio.Media.DATA,
-                    MediaStore.Audio.Media.SIZE,
                     MediaStore.Audio.Media.DURATION
                 )
                 ctx.contentResolver.query(
@@ -617,7 +612,6 @@ open class MusicFragment : Fragment() {
                     val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                     val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                     val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
-                    val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                     val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
 
                     while (cursor.moveToNext()) {
@@ -627,7 +621,6 @@ open class MusicFragment : Fragment() {
 
                         val dur = if (durCol != -1) cursor.getLong(durCol) else 0L
                         if (dur < 1000L) continue
-                        val size = if (sizeCol != -1) cursor.getLong(sizeCol) else 0L
 
                         val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
                             ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
@@ -641,8 +634,7 @@ open class MusicFragment : Fragment() {
                                 title = title,
                                 path = path,
                                 artist = artist,
-                                duration = dur,
-                                size = size
+                                duration = dur
                             )
                         )
                     }
@@ -794,7 +786,7 @@ open class MusicFragment : Fragment() {
                 }
 
                 val tvArrow = TextView(ctx).apply {
-                    text = "❯"
+                    text = ">"
                     setTextColor(accentColor)
                     textSize = 17f
                     typeface = Typeface.DEFAULT_BOLD
@@ -867,13 +859,13 @@ open class MusicFragment : Fragment() {
     private fun showMusicSortAndToolsMenu() {
         val ctx = context ?: return
         val items = arrayOf(
-            if (sortOrder == 0) "🕒   [Active] Sort: Newest Downloaded Songs" else "🕒   Sort: Newest Downloaded Songs",
-            if (sortOrder == 1) "🔤   [Active] Sort: Song Name (A to Z)" else "🔤   Sort: Song Name (A to Z)",
-            if (sortOrder == 2) "🎤   [Active] Sort: Artist / Singer Name" else "🎤   Sort: Artist / Singer Name",
-            if (sortOrder == 3) "⏱️   [Active] Sort: Longest Duration Songs" else "⏱️   Sort: Longest Duration Songs",
-            if (sortOrder == 4) "📦   [Active] Sort: Largest File Size" else "📦   Sort: Largest File Size",
-            "🎛️   Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
-            "🎚️   Open Built-In 5-Band Dolby Equalizer"
+            if (sortOrder == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
+            if (sortOrder == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
+            if (sortOrder == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
+            if (sortOrder == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
+            if (sortOrder == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
+            "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+            "Open Built-In 5-Band Dolby Equalizer"
         )
         VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
             when (which) {
