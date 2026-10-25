@@ -34,6 +34,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.text.TextUtils
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -59,6 +60,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import java.util.ArrayList
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -120,11 +122,10 @@ class AudioPlayerActivity : AppCompatActivity() {
     private val songArtists = mutableListOf<String>()
     private var currentIndex = 0
 
-    // Default is FALSE so the Square Album Art Photo Box is shown by default!
     private var useVinylDiscMode = false
     private var useWaveformSeek = true
     private var isShuffleEnabled = false
-    private var repeatModeState = Player.REPEAT_MODE_ALL // ALL, ONE, OFF
+    private var repeatModeState = Player.REPEAT_MODE_ALL
     private var currentPlaybackSpeed = 1.0f
     private var pointAMs = -1L
     private var pointBMs = -1L
@@ -177,10 +178,10 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val prefs = getSharedPreferences("MAX_AUDIO_PREFS", Context.MODE_PRIVATE)
-        // Default center style is Square Photo Box (false)
         useVinylDiscMode = prefs.getBoolean("audio_use_vinyl_disc", false)
         useWaveformSeek = prefs.getBoolean("audio_use_waveform_seek", true)
 
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(this, rootFrame)
         buildCompleteAudioPlayerUi()
         registerNotifReceiver()
         extractIntentPlaylist(intent)
@@ -240,7 +241,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             setPadding((18 * d).toInt(), (16 * d).toInt(), (18 * d).toInt(), (18 * d).toInt())
         }
 
-        // 1. Top Bar: Minimize Down Button, Scrolling Song Title & Artist, Share Icon
+        // Top Bar
         val topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -283,7 +284,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
 
         tvTopArtistName = TextView(this).apply {
-            text = "OG 8K Studio"
+            text = "Hybrid Player Studio"
             setTextColor(accentColor)
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -312,7 +313,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         topBar.addView(btnShareSong)
         mainCol.addView(topBar)
 
-        // 2. Center Area: Default Square Album Art Photo Box + Optional Rotating Vinyl Disc (NO side '<' tab!)
+        // Center Artwork with Left/Right Swipe Gesture to change songs
         centerArtworkWrapper = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -321,7 +322,6 @@ class AudioPlayerActivity : AppCompatActivity() {
             )
         }
 
-        // Default Square Album Art Photo Box with Glowing Cyan Frame
         val boxSize = (268 * d).toInt()
         cardSquarePhotoBox = CardView(this).apply {
             radius = 26f * d
@@ -353,7 +353,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         cardSquarePhotoBox.addView(squareBorderFrame)
         centerArtworkWrapper.addView(cardSquarePhotoBox)
 
-        // Optional Vinyl Disc Container (Hidden by default unless user switches in 3-dot menu)
         vinylDiscContainer = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(boxSize, boxSize, Gravity.CENTER)
             visibility = View.GONE
@@ -396,6 +395,23 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         centerArtworkWrapper.addView(vinylDiscContainer)
         centerArtworkWrapper.addView(toneArmView)
+
+        val swipeDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                if (abs(dx) > 120f && abs(velocityX) > 250f) {
+                    if (dx < 0) playNextSong() else playPreviousSong()
+                    return true
+                }
+                return false
+            }
+        })
+        centerArtworkWrapper.setOnTouchListener { _, event ->
+            swipeDetector.onTouchEvent(event)
+            true
+        }
+
         mainCol.addView(centerArtworkWrapper)
 
         vinylAnimator = ObjectAnimator.ofFloat(vinylDiscContainer, View.ROTATION, 0f, 360f).apply {
@@ -406,7 +422,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         updateCenterArtworkStyleVisibility()
 
-        // 3. Upgraded Tools Strip: Equalizer Icon (No 'ttt'), A-B Repeat, Speed Window Trigger, Timer Icon, Crisp 3-Dots
+        // Tools Strip
         val toolsStrip = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -455,7 +471,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         toolsStrip.addView(btnToolThreeDots)
         mainCol.addView(toolsStrip)
 
-        // 4. Timestamps & Waveform / Straight Seekbar
+        // Timestamps & Waveform Seek
         val timeRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -519,7 +535,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         mainCol.addView(simpleSeekBar)
         updateSeekbarStyleVisibility()
 
-        // 5. Main Playback Transport Row (Shuffle Vector, Prev, Glowing Play/Pause Circle, Next, Repeat Vector)
+        // Transport Row
         val transportRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -537,11 +553,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 isShuffleEnabled = !isShuffleEnabled
                 sharedAudioPlayer?.shuffleModeEnabled = isShuffleEnabled
                 updateShuffleAndRepeatIcons()
-                Toast.makeText(
-                    this@AudioPlayerActivity,
-                    if (isShuffleEnabled) "Shuffle ON" else "Shuffle OFF",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@AudioPlayerActivity, if (isShuffleEnabled) "Shuffle ON" else "Shuffle OFF", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -606,7 +618,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         updateShuffleAndRepeatIcons()
 
-        // 6. Bottom Status Row: Smart 2-Shake Toggle & Playing Queue Trigger
+        // Bottom Status Row
         val bottomFooterRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -631,7 +643,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 updatePocketShakeUi(next)
                 Toast.makeText(
                     this@AudioPlayerActivity,
-                    if (next) "Smart Hand Double-Shake ON (Auto-sleeps while walking)" else "Pocket Shake OFF",
+                    if (next) "Smart In-Hand Shake ON (Auto-sleeps in pocket/walking/bike)" else "Pocket Shake OFF",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -659,6 +671,18 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         rootFrame.addView(mainCol)
         setContentView(rootFrame)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MascotCompanionHelper.attachInteractiveMascot(
+            context = this,
+            hostContainer = rootFrame,
+            recyclerView = null,
+            isVideoScreen = false,
+            isDancingProvider = { sharedAudioPlayer?.isPlaying == true },
+            onHoldItemTriggered = {}
+        )
     }
 
     private fun createToolStripButton(
@@ -755,7 +779,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         if (incoming == null) return
         val path = incoming.getStringExtra("AUDIO_PATH") ?: ""
         val title = incoming.getStringExtra("AUDIO_TITLE") ?: File(path).name.ifEmpty { "Audio Track" }
-        val artist = incoming.getStringExtra("AUDIO_ARTIST") ?: "OG 8K Music"
+        val artist = incoming.getStringExtra("AUDIO_ARTIST") ?: "Hybrid Player Music"
 
         val passedPaths = incoming.getStringArrayListExtra("AUDIO_LIST")
         val passedTitles = incoming.getStringArrayListExtra("AUDIO_TITLES")
@@ -892,7 +916,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         val idx = currentIndex.coerceIn(0, songPaths.size - 1)
         val path = songPaths[idx]
         val title = songTitles.getOrElse(idx) { File(path).name }.substringBeforeLast('.')
-        val artist = songArtists.getOrElse(idx) { "OG 8K Music" }
+        val artist = songArtists.getOrElse(idx) { "Hybrid Player Audio" }
 
         tvTopSongTitle.text = title
         tvTopArtistName.text = artist
@@ -993,7 +1017,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         val idx = currentIndex.coerceIn(0, songPaths.size - 1)
         val path = songPaths[idx]
         val title = songTitles.getOrElse(idx) { File(path).name }.substringBeforeLast('.')
-        val artist = songArtists.getOrElse(idx) { "OG 8K Music" }
+        val artist = songArtists.getOrElse(idx) { "Hybrid Player Audio" }
         val player = sharedAudioPlayer ?: return
         val dur = player.duration.coerceAtLeast(1000L)
         val pos = player.currentPosition.coerceAtLeast(0L)
@@ -1025,7 +1049,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
     }
 
-    // Clean Playing Queue Dialog showing 7 to 8 songs comfortably at once with Album Art Icons on every row
     private fun showClean7ItemPlayingQueueSheet() {
         val d = resources.displayMetrics.density
         val theme = ThemeStudioHelper.getCurrentTheme(this)
@@ -1064,7 +1087,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
 
         val btnClose = TextView(this).apply {
-            text = "✕"
+            text = "X"
             setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -1081,7 +1104,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         headerRow.addView(btnClose)
         card.addView(headerRow)
 
-        // Exact height for 7.5 items (7.5 * 58dp = 435dp) so strictly 7 to 8 songs appear at once!
         val rvQueue = RecyclerView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1130,7 +1152,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 }
 
                 val btnRemove = TextView(this@AudioPlayerActivity).apply {
-                    text = "✕"
+                    text = "X"
                     setTextColor(Color.parseColor("#99B0C4DE"))
                     textSize = 13f
                     gravity = Gravity.CENTER
@@ -1148,7 +1170,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             override fun onBindViewHolder(holder: QueueSongVH, position: Int) {
                 val path = songPaths[position]
                 val rawTitle = songTitles.getOrElse(position) { File(path).name }.substringBeforeLast('.')
-                val artist = songArtists.getOrElse(position) { "OG 8K Music" }
+                val artist = songArtists.getOrElse(position) { "Hybrid Player Audio" }
                 val isCurrent = position == currentIndex
 
                 holder.tvTitle.text = "${position + 1}. $rawTitle"
@@ -1208,7 +1230,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         val btnRemove: TextView
     ) : RecyclerView.ViewHolder(view)
 
-    // Swipeable Speed Ruler Window (Allows smooth horizontal swipe between 0.25x and 4.0x)
     private fun showSwipeableSpeedRulerDialog() {
         val d = resources.displayMetrics.density
         val dialog = Dialog(this)
@@ -1295,7 +1316,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                 tvToolTimerLabel.setTextColor(Color.WHITE)
             },
             onStartTimerMinutes = { mins, motionMode ->
-                smartIdlePauseHelper?.startSmoothFadeSleepTimer(mins, enableMotionAutoReset = motionMode)
+                smartIdlePauseHelper?.startSmoothFadeSleepTimer(mins, motionMode)
             }
         )
     }
