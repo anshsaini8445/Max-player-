@@ -212,7 +212,6 @@ class VideoFragment : Fragment() {
     private lateinit var rvVideos: RecyclerView
     private lateinit var tvEmptyVideos: TextView
 
-    // XPlayer-style Bottom Background Audio Controller Bar (Seekable + Prev/Play/Next/Close)
     private lateinit var bgAudioDockCard: CardView
     private lateinit var tvBgDockTitle: TextView
     private lateinit var tvBgDockTime: TextView
@@ -226,13 +225,12 @@ class VideoFragment : Fragment() {
     private val displayedVideosList = mutableListOf<VideoModel>()
     private lateinit var videoAdapter: VideoAdapter
 
-    private var activeTab = 0 // 0=All, 1=Shorts/Reels, 2=Folders, 3=Favorites, 4=History
+    private var activeTab = 0
     private var selectedFolderPath: String? = null
-    private var sortOrder = 0 // 0=Newest First, 1=Oldest First (New Last), 2=Name A-Z, 3=Name Z-A, 4=Largest Size, 5=Longest Duration
+    private var sortOrder = 0
     private var isGridView = false
     private var accentColor = Color.parseColor("#00FFFF")
     private var isReceiverRegistered = false
-    private val uiHandler = Handler(Looper.getMainLooper())
 
     private val bgSyncReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -280,7 +278,6 @@ class VideoFragment : Fragment() {
             )
         }
 
-        // 1. Top Circular Pull-to-Refresh Spinner ("Gol-Gol Anda")
         pullRefreshCard = CardView(ctx).apply {
             radius = 22f * d
             cardElevation = 10f * d
@@ -306,7 +303,6 @@ class VideoFragment : Fragment() {
         pullRefreshCard.addView(spinner)
         rootVideoCol.addView(pullRefreshCard)
 
-        // 2. Top Category Pills Bar + Sort/Grid Icon Button
         val topBarRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -357,7 +353,6 @@ class VideoFragment : Fragment() {
         topBarRow.addView(btnSortAndLayout)
         rootVideoCol.addView(topBarRow)
 
-        // 3. Folder Back Navigation Header
         folderBackHeader = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -392,7 +387,6 @@ class VideoFragment : Fragment() {
         folderBackHeader.addView(tvFolderTitle)
         rootVideoCol.addView(folderBackHeader)
 
-        // 4. Main Fast RecyclerView (Zero Hang, Supports 360p to 8K Thumbnails)
         rvVideos = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -425,7 +419,6 @@ class VideoFragment : Fragment() {
         }
         rootVideoCol.addView(tvEmptyVideos)
 
-        // 5. XPlayer-Style Bottom Background Audio Controller Bar with Live SeekBar
         buildXPlayerStyleBackgroundAudioBar(ctx, d)
         rootVideoCol.addView(bgAudioDockCard)
 
@@ -433,7 +426,6 @@ class VideoFragment : Fragment() {
         updateCategoryChipVisuals(d)
         registerBgReceiver(ctx)
 
-        // Instant zero-lag load from memory cache first, then background scan
         val instantCache = DeepMediaScanner.getCachedVideosInstant()
         if (instantCache.isNotEmpty()) {
             allVideosList.clear()
@@ -472,7 +464,6 @@ class VideoFragment : Fragment() {
             hostContainer = masterFrame,
             recyclerView = rvVideos,
             isVideoScreen = true,
-            // Dances on video screen ONLY when background audio is actively playing
             isDancingProvider = { bgBarVisible && bgBarPlaying || AudioFragment.isSharedPlayerPlaying() },
             onHoldItemTriggered = { heldPosition ->
                 if (heldPosition in displayedVideosList.indices) {
@@ -514,7 +505,6 @@ class VideoFragment : Fragment() {
             }
         }
 
-        // Top SeekBar inside the mini-bar so user can scrub forward/backward in background play
         sbBgDockSeek = SeekBar(ctx).apply {
             max = 1000
             progressDrawable.setColorFilter(accentColor, PorterDuff.Mode.SRC_IN)
@@ -709,7 +699,6 @@ class VideoFragment : Fragment() {
             ).apply { marginEnd = (6 * d).toInt() }
             setOnClickListener {
                 if (tabIndex == 1) {
-                    // 2nd Tab ("Shorts & Status") opens the Instagram Reels-style vertical player!
                     openInstagramStyleReelsViewer()
                 } else {
                     switchVideoTab(tabIndex)
@@ -821,12 +810,12 @@ class VideoFragment : Fragment() {
             baseList
         } else {
             when (sortOrder) {
-                0 -> baseList // Newest First (Default from scanner)
-                1 -> baseList.reversed() // Oldest First (New Last)
-                2 -> baseList.sortedBy { it.title.lowercase(Locale.US) } // Name (A to Z)
-                3 -> baseList.sortedByDescending { it.title.lowercase(Locale.US) } // Name (Z to A)
-                4 -> baseList.sortedByDescending { it.size } // Largest File Size
-                5 -> baseList.sortedByDescending { parseDurationToSeconds(it.duration) } // Longest Duration
+                0 -> baseList
+                1 -> baseList.reversed()
+                2 -> baseList.sortedBy { it.title.lowercase(Locale.US) }
+                3 -> baseList.sortedByDescending { it.title.lowercase(Locale.US) }
+                4 -> baseList.sortedByDescending { it.size }
+                5 -> baseList.sortedByDescending { parseDurationToSeconds(it.duration) }
                 else -> baseList
             }
         }
@@ -958,19 +947,18 @@ class VideoFragment : Fragment() {
         val tvCount: TextView
     ) : RecyclerView.ViewHolder(view)
 
-    // Sort & Layout Menu with Clear Visual Icons for Every Option
     private fun showSortAndViewModeDialog() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences("HYBRID_VIDEO_UI_PREFS", Context.MODE_PRIVATE)
         val options = arrayOf(
-            if (!isGridView) "⊞   Switch View: 2-Column Grid View" else "☰   Switch View: Vertical List View",
-            if (sortOrder == 0) "🕒   [Active] Sort: Newest First (Latest Videos)" else "🕒   Sort: Newest First (Latest Videos)",
-            if (sortOrder == 1) "⏳   [Active] Sort: New Last (Oldest Videos First)" else "⏳   Sort: New Last (Oldest Videos First)",
-            if (sortOrder == 2) "🔤   [Active] Sort: Name (A to Z)" else "🔤   Sort: Name (A to Z)",
-            if (sortOrder == 3) "🔠   [Active] Sort: Name (Z to A)" else "🔠   Sort: Name (Z to A)",
-            if (sortOrder == 4) "📦   [Active] Sort: Largest File Size First" else "📦   Sort: Largest File Size First",
-            if (sortOrder == 5) "⏱️   [Active] Sort: Longest Duration First" else "⏱️   Sort: Longest Duration First",
-            "📲   Open WhatsApp Status Saver"
+            if (!isGridView) "Switch View: 2-Column Grid View" else "Switch View: Vertical List View",
+            if (sortOrder == 0) "[Active] Sort: Newest First (Latest Videos)" else "Sort: Newest First (Latest Videos)",
+            if (sortOrder == 1) "[Active] Sort: New Last (Oldest Videos First)" else "Sort: New Last (Oldest Videos First)",
+            if (sortOrder == 2) "[Active] Sort: Name (A to Z)" else "Sort: Name (A to Z)",
+            if (sortOrder == 3) "[Active] Sort: Name (Z to A)" else "Sort: Name (Z to A)",
+            if (sortOrder == 4) "[Active] Sort: Largest File Size First" else "Sort: Largest File Size First",
+            if (sortOrder == 5) "[Active] Sort: Longest Duration First" else "Sort: Longest Duration First",
+            "Open WhatsApp Status Saver"
         )
 
         showBrightVideoMenuDialog(ctx, "View Mode & Sort Videos", options) { which ->
@@ -992,16 +980,6 @@ class VideoFragment : Fragment() {
         }
     }
 
-    /**
-     * Instagram Reels Style Vertical Video Player for the 2nd Section ("Shorts & Status"):
-     * - Full-screen vertical swipe feed (PagerSnapHelper)
-     * - Right-side vertical action column:
-     *   1. Like (Heart icon at top)
-     *   2. Share (Middle)
-     *   3. 3-Dot Menu (Bottom: Share, 2.0x Speed, Save Status to Phone, Lock to Vault)
-     * - Press/Hold & Horizontal Swipe Speed Control:
-     *   Starts at 2.0x on press/hold, swipe right -> 4.0x, swipe left -> 0.2x!
-     */
     private fun openInstagramStyleReelsViewer() {
         val ctx = context ?: return
         if (allVideosList.isEmpty()) {
@@ -1065,7 +1043,6 @@ class VideoFragment : Fragment() {
                     )
                 }
 
-                // Speed Badge at Top Center (Shows 2.0x / 4.0x / 0.2x during touch/swipe)
                 val tvSpeedBadge = TextView(ctx).apply {
                     text = "2.0x Speed"
                     setTextColor(Color.parseColor("#0A0A10"))
@@ -1084,8 +1061,6 @@ class VideoFragment : Fragment() {
                     }
                 }
 
-                // Right-Side Instagram Reels Action Column:
-                // 1. Like (Top), 2. Share (Middle), 3. Three-Dots (Bottom)
                 val rightCol = LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER_HORIZONTAL
@@ -1151,7 +1126,6 @@ class VideoFragment : Fragment() {
                 rightCol.addView(btnShare)
                 rightCol.addView(btnThreeDots)
 
-                // Bottom-Left Reel Title & Resolution Info
                 val tvReelTitle = TextView(ctx).apply {
                     setTextColor(Color.WHITE)
                     textSize = 14.5f
@@ -1195,13 +1169,13 @@ class VideoFragment : Fragment() {
 
                 holder.btnThreeDots.setOnClickListener {
                     val menuItems = arrayOf(
-                        "📤   Share Reel Video",
-                        "⚡   Toggle 2.0x Fast Speed",
-                        "⚡   Set 4.0x Ultra Speed",
-                        "🐢   Set 0.2x Slow-Mo Speed",
-                        "⚡   Reset Normal 1.0x Speed",
-                        "💾   Save / Status Saver",
-                        "🔒   Lock into Secret Privacy Vault"
+                        "Share Reel Video",
+                        "Toggle 2.0x Fast Speed",
+                        "Set 4.0x Ultra Speed",
+                        "Set 0.2x Slow-Mo Speed",
+                        "Reset Normal 1.0x Speed",
+                        "Save / Status Saver",
+                        "Lock into Secret Privacy Vault"
                     )
                     showBrightVideoMenuDialog(ctx, "Reel Options", menuItems) { which ->
                         when (which) {
@@ -1231,8 +1205,6 @@ class VideoFragment : Fragment() {
                     }
                 }
 
-                // Touch & Swipe Speed Control on Reel Screen:
-                // Hold/Click starts 2.0x, swipe right -> 4.0x, swipe left -> 0.2x
                 var downX = 0f
                 var isSpeedTouchActive = false
                 val reelGesture = GestureDetector(ctx, object : GestureDetector.SimpleOnGestureListener() {
@@ -1311,7 +1283,6 @@ class VideoFragment : Fragment() {
             }
         })
 
-        // Top-Left Back Button on Reels Viewer
         val btnCloseReels = TextView(ctx).apply {
             text = "<-  Shorts & Reels"
             setTextColor(Color.WHITE)
@@ -1384,12 +1355,18 @@ class VideoFragment : Fragment() {
         }
     }
 
-    private fun parseDurationToSeconds(dur: String): Long {
-        val parts = dur.split(":").mapNotNull { it.toLongOrNull() }
-        return when (parts.size) {
-            3 -> parts[0] * 3600L + parts[1] * 60L + parts[2]
-            2 -> parts[0] * 60L + parts[1]
-            1 -> parts[0]
+    private fun parseDurationToSeconds(dur: Any?): Long {
+        return when (dur) {
+            is Long -> if (dur < 36000L) dur else dur / 1000L
+            is String -> {
+                val parts = dur.split(":").mapNotNull { it.toLongOrNull() }
+                when (parts.size) {
+                    3 -> parts[0] * 3600L + parts[1] * 60L + parts[2]
+                    2 -> parts[0] * 60L + parts[1]
+                    1 -> parts[0]
+                    else -> 0L
+                }
+            }
             else -> 0L
         }
     }
