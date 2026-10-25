@@ -7,7 +7,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.LruCache
@@ -28,6 +27,7 @@ import java.io.File
 import java.util.ArrayList
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class VideoAdapter(
     private val context: Context,
@@ -38,13 +38,6 @@ class VideoAdapter(
         private val frameMemoryCache = object : LruCache<String, Bitmap>(80) {}
         private val frameExtractorPool = Executors.newFixedThreadPool(3)
 
-        /**
-         * Guaranteed Thumbnail Loader for 360p, 720p, 1080p, 2K, 4K, and 8K videos:
-         * 1. Checks fast LruCache first.
-         * 2. Uses Glide hardware-accelerated video decoder.
-         * 3. If Glide fails on an 8K/4K/MKV/WEBM container, extracts a real video frame on a background thread
-         *    using MediaMetadataRetriever so no video card ever stays blank!
-         */
         fun loadGuaranteedVideoThumbnail(
             context: Context,
             path: String,
@@ -132,41 +125,76 @@ class VideoAdapter(
                 }
             }
         }
+
+        fun formatVideoDurationAny(durationVal: Any?): String {
+            return when (durationVal) {
+                is Long -> {
+                    val safeMs = if (durationVal < 36000L) durationVal * 1000L else durationVal
+                    val totalSecs = TimeUnit.MILLISECONDS.toSeconds(safeMs.coerceAtLeast(0L))
+                    val hrs = totalSecs / 3600
+                    val mins = (totalSecs % 3600) / 60
+                    val secs = totalSecs % 60
+                    if (hrs > 0) {
+                        String.format(Locale.US, "%02d:%02d:%02d", hrs, mins, secs)
+                    } else {
+                        String.format(Locale.US, "%02d:%02d", mins, secs)
+                    }
+                }
+                is String -> durationVal
+                else -> "00:00"
+            }
+        }
     }
 
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvTitle: TextView = view.findViewById(R.id.tvVideoTitle)
-        val tvDuration: TextView = view.findViewById(R.id.tvVideoDuration)
-        val imgThumbnail: ImageView = view.findViewById(R.id.imgVideoThumbnail)
-        val tvMetaSub: TextView? = findSecondTextView(view)
-        val btnMore: ImageView? = findMoreImageView(view)
+        val tvTitle: TextView
+        val tvDuration: TextView?
+        val tvMetaSub: TextView?
+        val imgThumbnail: ImageView
+        val btnMore: ImageView?
+
+        init {
+            val textViews = mutableListOf<TextView>()
+            val imageViews = mutableListOf<ImageView>()
+            collectViews(view, textViews, imageViews)
+
+            val pkg = view.context.packageName
+            val res = view.resources
+
+            val titleId = res.getIdentifier("tvVideoTitle", "id", pkg)
+            val durId = res.getIdentifier("tvVideoDuration", "id", pkg)
+            val thumbId = res.getIdentifier("imgVideoThumbnail", "id", pkg)
+
+            tvTitle = (if (titleId != 0) view.findViewById<TextView?>(titleId) else null)
+                ?: textViews.firstOrNull()
+                ?: TextView(view.context)
+
+            tvDuration = (if (durId != 0) view.findViewById<TextView?>(durId) else null)
+                ?: textViews.getOrNull(1)
+
+            tvMetaSub = textViews.firstOrNull { it !== tvTitle && it !== tvDuration }
+
+            imgThumbnail = (if (thumbId != 0) view.findViewById<ImageView?>(thumbId) else null)
+                ?: imageViews.firstOrNull()
+                ?: ImageView(view.context)
+
+            btnMore = if (imageViews.size > 1) imageViews.lastOrNull { it !== imgThumbnail } else null
+        }
 
         companion object {
-            private fun findSecondTextView(root: View): TextView? {
-                val list = mutableListOf<TextView>()
-                collectTextViews(root, list)
-                return list.firstOrNull {
-                    it.id != R.id.tvVideoTitle && it.id != R.id.tvVideoDuration
-                }
-            }
-
-            private fun findMoreImageView(root: View): ImageView? {
-                val list = mutableListOf<ImageView>()
-                collectImageViews(root, list)
-                return list.lastOrNull { it.id != R.id.imgVideoThumbnail }
-            }
-
-            private fun collectTextViews(v: View, out: MutableList<TextView>) {
-                if (v is TextView) out.add(v)
-                else if (v is ViewGroup) {
-                    for (i in 0 until v.childCount) collectTextViews(v.getChildAt(i), out)
-                }
-            }
-
-            private fun collectImageViews(v: View, out: MutableList<ImageView>) {
-                if (v is ImageView) out.add(v)
-                else if (v is ViewGroup) {
-                    for (i in 0 until v.childCount) collectImageViews(v.getChildAt(i), out)
+            private fun collectViews(
+                v: View,
+                textOut: MutableList<TextView>,
+                imgOut: MutableList<ImageView>
+            ) {
+                when (v) {
+                    is TextView -> textOut.add(v)
+                    is ImageView -> imgOut.add(v)
+                    is ViewGroup -> {
+                        for (i in 0 until v.childCount) {
+                            collectViews(v.getChildAt(i), textOut, imgOut)
+                        }
+                    }
                 }
             }
         }
@@ -186,15 +214,19 @@ class VideoAdapter(
 
         holder.tvTitle.text = video.title
         holder.tvTitle.setTextColor(Color.WHITE)
-        holder.tvDuration.text = video.duration
 
+        val durStr = formatVideoDurationAny(video.duration)
         val resBadge = detectResolutionLabel(video.title, video.size)
         val sizeStr = formatVideoSize(video.size)
         val ext = File(video.path).extension.uppercase(Locale.US).ifEmpty { "MP4" }
 
-        holder.tvMetaSub?.let { sub ->
-            sub.text = "$resBadge  |  $sizeStr  |  $ext"
-            sub.setTextColor(accentColor)
+        if (holder.tvMetaSub != null) {
+            holder.tvDuration?.text = durStr
+            holder.tvMetaSub.text = "$resBadge  |  $sizeStr  |  $ext"
+            holder.tvMetaSub.setTextColor(accentColor)
+        } else {
+            holder.tvDuration?.text = "$durStr  •  $resBadge  •  $sizeStr"
+            holder.tvDuration?.setTextColor(Color.parseColor("#B0C4DE"))
         }
 
         loadGuaranteedVideoThumbnail(context, video.path, holder.imgThumbnail)
@@ -244,14 +276,14 @@ class VideoAdapter(
         val isFav = prefs.getBoolean("fav_${item.path}", false)
 
         val options = arrayOf(
-            "▶️   Play Video Now (8K Hybrid Engine)",
-            "🎧   Play in Background Audio Bar",
-            "🎵   Extract / Convert Video to MP3",
-            if (isFav) "💔   Remove from Favorites" else "❤️   Add to Favorites",
-            "🔒   Lock Video into Secret Privacy Vault",
-            "📤   Share Video (Wi-Fi Direct / WhatsApp)",
-            "ℹ️   Video Resolution & File Path",
-            "🗑️   Delete Video Permanently (From Phone)"
+            "Play Video Now (8K Hybrid Engine)",
+            "Play in Background Audio Bar",
+            "Extract / Convert Video to MP3",
+            if (isFav) "Remove from Favorites" else "Add to Favorites",
+            "Lock Video into Secret Privacy Vault",
+            "Share Video (Wi-Fi Direct / WhatsApp)",
+            "Video Resolution & File Path",
+            "Delete Video Permanently (From Phone)"
         )
 
         VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
@@ -273,7 +305,7 @@ class VideoAdapter(
                     prefs.edit().putBoolean("fav_${item.path}", !isFav).apply()
                     Toast.makeText(
                         context,
-                        if (!isFav) "Added to Favorites ❤️" else "Removed from Favorites",
+                        if (!isFav) "Added to Favorites" else "Removed from Favorites",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -292,12 +324,13 @@ class VideoAdapter(
                 }
                 6 -> {
                     val res = detectResolutionLabel(item.title, item.size)
+                    val durStr = formatVideoDurationAny(item.duration)
                     AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                         .setTitle("Video Details & Info")
                         .setMessage(
                             "Title: ${item.title}\n\n" +
                                 "Quality: $res\n\n" +
-                                "Duration: ${item.duration}\n\n" +
+                                "Duration: $durStr\n\n" +
                                 "Size: ${formatVideoSize(item.size)}\n\n" +
                                 "Location: ${item.path}"
                         )
