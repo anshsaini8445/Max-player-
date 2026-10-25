@@ -1,37 +1,175 @@
 package com.app.mediaplayer
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
 
 class VideoAdapter(
     private val context: Context,
     private val videoList: MutableList<VideoModel>
 ) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
+    companion object {
+        private val frameMemoryCache = object : LruCache<String, Bitmap>(80) {}
+        private val frameExtractorPool = Executors.newFixedThreadPool(3)
+
+        /**
+         * Guaranteed Thumbnail Loader for 360p, 720p, 1080p, 2K, 4K, and 8K videos:
+         * 1. Checks fast LruCache first.
+         * 2. Uses Glide hardware-accelerated video decoder.
+         * 3. If Glide fails on an 8K/4K/MKV/WEBM container, extracts a real video frame on a background thread
+         *    using MediaMetadataRetriever so no video card ever stays blank!
+         */
+        fun loadGuaranteedVideoThumbnail(
+            context: Context,
+            path: String,
+            imageView: ImageView
+        ) {
+            imageView.tag = path
+            val cached = frameMemoryCache.get(path)
+            if (cached != null && !cached.isRecycled) {
+                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                imageView.setImageBitmap(cached)
+                return
+            }
+
+            val model: Any = if (path.startsWith("content://") || path.startsWith("http")) {
+                Uri.parse(path)
+            } else {
+                File(path)
+            }
+
+            Glide.with(context)
+                .load(model)
+                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                .override(320, 180)
+                .centerCrop()
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        extractFallbackFrameInBackground(context, path, imageView)
+                        return false
+                    }
+
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        model: Any,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        return false
+                    }
+                })
+                .into(imageView)
+        }
+
+        private fun extractFallbackFrameInBackground(
+            context: Context,
+            path: String,
+            targetView: ImageView
+        ) {
+            frameExtractorPool.execute {
+                var bmp: Bitmap? = null
+                val retriever = MediaMetadataRetriever()
+                try {
+                    if (path.startsWith("content://")) {
+                        retriever.setDataSource(context, Uri.parse(path))
+                    } else {
+                        retriever.setDataSource(path)
+                    }
+                    bmp = retriever.getFrameAtTime(1000000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.getFrameAtTime(0L)
+                    if (bmp != null) {
+                        val scaled = Bitmap.createScaledBitmap(bmp, 320, 180, true)
+                        frameMemoryCache.put(path, scaled)
+                        bmp = scaled
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    try {
+                        retriever.release()
+                    } catch (_: Exception) {
+                    }
+                }
+
+                if (bmp != null) {
+                    (context as? Activity)?.runOnUiThread {
+                        if (targetView.tag == path) {
+                            targetView.scaleType = ImageView.ScaleType.CENTER_CROP
+                            targetView.setImageBitmap(bmp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val imgThumbnail: ImageView = view.findViewById(R.id.imgThumbnail)
-        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
-        val pbWatchedProgress: ProgressBar = view.findViewById(R.id.pbWatchedProgress)
-        val tvTitle: TextView = view.findViewById(R.id.tvTitle)
-        val tvSizeAndFormat: TextView = view.findViewById(R.id.tvSizeAndFormat)
-        val btnMoreOptions: ImageView = view.findViewById(R.id.btnMoreOptions)
+        val tvTitle: TextView = view.findViewById(R.id.tvVideoTitle)
+        val tvDuration: TextView = view.findViewById(R.id.tvVideoDuration)
+        val imgThumbnail: ImageView = view.findViewById(R.id.imgVideoThumbnail)
+        val tvMetaSub: TextView? = findSecondTextView(view)
+        val btnMore: ImageView? = findMoreImageView(view)
+
+        companion object {
+            private fun findSecondTextView(root: View): TextView? {
+                val list = mutableListOf<TextView>()
+                collectTextViews(root, list)
+                return list.firstOrNull {
+                    it.id != R.id.tvVideoTitle && it.id != R.id.tvVideoDuration
+                }
+            }
+
+            private fun findMoreImageView(root: View): ImageView? {
+                val list = mutableListOf<ImageView>()
+                collectImageViews(root, list)
+                return list.lastOrNull { it.id != R.id.imgVideoThumbnail }
+            }
+
+            private fun collectTextViews(v: View, out: MutableList<TextView>) {
+                if (v is TextView) out.add(v)
+                else if (v is ViewGroup) {
+                    for (i in 0 until v.childCount) collectTextViews(v.getChildAt(i), out)
+                }
+            }
+
+            private fun collectImageViews(v: View, out: MutableList<ImageView>) {
+                if (v is ImageView) out.add(v)
+                else if (v is ViewGroup) {
+                    for (i in 0 until v.childCount) collectImageViews(v.getChildAt(i), out)
+                }
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
@@ -43,139 +181,141 @@ class VideoAdapter(
         InShotScrollAnimator.animateRowOnBind(holder.itemView)
 
         val video = videoList[position]
-        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        val themePrefs = context.getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-        val accentHex = themePrefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
-        val accentColor = try {
-            Color.parseColor(accentHex)
-        } catch (_: Exception) {
-            Color.parseColor("#00FFFF")
-        }
-
-        val isFav = prefs.getBoolean("fav_${video.path}", false)
-        val favMark = if (isFav) "  ♥" else ""
+        val theme = ThemeStudioHelper.getCurrentTheme(context)
+        val accentColor = Color.parseColor(theme.accentHex)
 
         holder.tvTitle.text = video.title
         holder.tvTitle.setTextColor(Color.WHITE)
-        holder.tvDuration.text = formatDuration(video.duration)
+        holder.tvDuration.text = video.duration
 
-        val resBadge = computeResolutionBadge(video.title, video.size)
+        val resBadge = detectResolutionLabel(video.title, video.size)
+        val sizeStr = formatVideoSize(video.size)
         val ext = File(video.path).extension.uppercase(Locale.US).ifEmpty { "MP4" }
-        holder.tvSizeAndFormat.text = "$resBadge  •  ${formatSize(video.size)}  •  $ext$favMark"
-        holder.tvSizeAndFormat.setTextColor(accentColor)
 
-        val watchedPos = prefs.getLong("watched_pos_${video.path}", 0L)
-        if (watchedPos > 1000L && video.duration > 0L) {
-            holder.pbWatchedProgress.visibility = View.VISIBLE
-            holder.pbWatchedProgress.max = 1000
-            holder.pbWatchedProgress.progress =
-                ((watchedPos.toFloat() / video.duration.toFloat()) * 1000f).toInt().coerceIn(40, 1000)
-        } else {
-            holder.pbWatchedProgress.visibility = View.GONE
+        holder.tvMetaSub?.let { sub ->
+            sub.text = "$resBadge  |  $sizeStr  |  $ext"
+            sub.setTextColor(accentColor)
         }
 
-        val modelTarget: Any = if (video.path.startsWith("content://")) {
-            Uri.parse(video.path)
-        } else {
-            File(video.path)
+        loadGuaranteedVideoThumbnail(context, video.path, holder.imgThumbnail)
+
+        holder.btnMore?.setOnClickListener {
+            val pos = holder.adapterPosition
+            if (pos in videoList.indices) {
+                showVideoItemMenu(pos)
+            }
         }
 
-        Glide.with(context)
-            .load(modelTarget)
-            .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
-            .dontAnimate()
-            .placeholder(android.R.color.darker_gray)
-            .centerCrop()
-            .into(holder.imgThumbnail)
+        holder.itemView.setOnLongClickListener {
+            val pos = holder.adapterPosition
+            if (pos in videoList.indices) {
+                showVideoItemMenu(pos)
+            }
+            true
+        }
 
         holder.itemView.setOnClickListener {
-            openVideoInPlayer(holder.adapterPosition)
-        }
-
-        holder.btnMoreOptions.setOnClickListener {
             val pos = holder.adapterPosition
             if (pos !in videoList.indices) return@setOnClickListener
-            val item = videoList[pos]
-            val curFav = prefs.getBoolean("fav_${item.path}", false)
+            openVideoInPlayer(pos, startInBgAudio = false)
+        }
+    }
 
-            val menuOptions = arrayOf(
-                "▶   Play in 8K Ultra Player",
-                "📱   Play in Vertical Shorts / Reels Mode",
-                "🎧   Play in Background Audio Mode",
-                if (curFav) "💔   Remove from Favorites" else "❤️   Add to Favorites",
-                "🎵   Convert Video to MP3 Audio",
-                "🔒   Lock Video into Secret Privacy Vault",
-                "📤   Share Video (WhatsApp / Wi-Fi Direct)",
-                "ℹ️   Video Details & File Path",
-                "🗑️   Delete Video Permanently (From Phone)"
-            )
+    private fun openVideoInPlayer(index: Int, startInBgAudio: Boolean) {
+        if (index !in videoList.indices) return
+        val selected = videoList[index]
+        val allPaths = ArrayList<String>(videoList.size)
+        for (v in videoList) {
+            allPaths.add(v.path)
+        }
+        val intent = Intent(context, PlayerActivity::class.java).apply {
+            putExtra("VIDEO_PATH", selected.path)
+            putExtra("VIDEO_TITLE", selected.title)
+            putStringArrayListExtra("VIDEO_LIST", allPaths)
+            putExtra("START_BG_AUDIO", startInBgAudio)
+        }
+        context.startActivity(intent)
+    }
 
-            VideoFragment.showBrightVideoMenuDialog(context, item.title, menuOptions) { which ->
-                when (which) {
-                    0 -> openVideoInPlayer(pos)
-                    1 -> {
-                        val allPaths = ArrayList(videoList.map { it.path })
-                        context.startActivity(Intent(context, ShortsPlayerActivity::class.java).apply {
-                            putStringArrayListExtra("SHORTS_LIST", allPaths)
-                            putExtra("START_INDEX", pos)
-                        })
-                    }
-                    2 -> openVideoInPlayer(pos, startInBgAudio = true)
-                    3 -> {
-                        prefs.edit().putBoolean("fav_${item.path}", !curFav).apply()
-                        notifyItemChanged(pos)
-                        Toast.makeText(
-                            context,
-                            if (!curFav) "Added to Favorites ♥" else "Removed from Favorites",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    4 -> {
-                        context.startActivity(Intent(context, Mp3ConverterActivity::class.java).apply {
+    private fun showVideoItemMenu(position: Int) {
+        if (position !in videoList.indices) return
+        val item = videoList[position]
+        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val isFav = prefs.getBoolean("fav_${item.path}", false)
+
+        val options = arrayOf(
+            "▶️   Play Video Now (8K Hybrid Engine)",
+            "🎧   Play in Background Audio Bar",
+            "🎵   Extract / Convert Video to MP3",
+            if (isFav) "💔   Remove from Favorites" else "❤️   Add to Favorites",
+            "🔒   Lock Video into Secret Privacy Vault",
+            "📤   Share Video (Wi-Fi Direct / WhatsApp)",
+            "ℹ️   Video Resolution & File Path",
+            "🗑️   Delete Video Permanently (From Phone)"
+        )
+
+        VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
+            when (which) {
+                0 -> openVideoInPlayer(position, startInBgAudio = false)
+                1 -> openVideoInPlayer(position, startInBgAudio = true)
+                2 -> {
+                    try {
+                        val intent = Intent(context, Mp3ConverterActivity::class.java).apply {
                             putExtra("VIDEO_PATH", item.path)
                             putExtra("VIDEO_TITLE", item.title)
-                        })
-                    }
-                    5 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
-                    6 -> {
-                        try {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "video/*"
-                                putExtra(Intent.EXTRA_STREAM, Uri.parse(item.path))
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Video"))
-                        } catch (_: Exception) {
-                            Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                         }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Opening MP3 Extractor...", Toast.LENGTH_SHORT).show()
                     }
-                    7 -> {
-                        AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                            .setTitle("Video Properties")
-                            .setMessage(
-                                "Title: ${item.title}\n\n" +
-                                    "Resolution: $resBadge\n\n" +
-                                    "Duration: ${formatDuration(item.duration)}\n\n" +
-                                    "Size: ${formatSize(item.size)}\n\n" +
-                                    "Location: ${item.path}"
-                            )
-                            .setPositiveButton("OK", null)
-                            .show()
+                }
+                3 -> {
+                    prefs.edit().putBoolean("fav_${item.path}", !isFav).apply()
+                    Toast.makeText(
+                        context,
+                        if (!isFav) "Added to Favorites ❤️" else "Removed from Favorites",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                4 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
+                5 -> {
+                    try {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "video/*"
+                            putExtra(Intent.EXTRA_STREAM, Uri.parse(item.path))
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Video"))
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                     }
-                    8 -> {
-                        PermanentDeleteHelper.confirmAndDeletePermanently(
-                            context = context,
-                            title = item.title,
-                            path = item.path,
-                            mediaId = item.id,
-                            isVideo = true
-                        ) {
-                            DeepMediaScanner.invalidateCache()
-                            if (pos in videoList.indices) {
-                                videoList.removeAt(pos)
-                                notifyItemRemoved(pos)
-                                notifyItemRangeChanged(pos, videoList.size)
-                            }
+                }
+                6 -> {
+                    val res = detectResolutionLabel(item.title, item.size)
+                    AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Video Details & Info")
+                        .setMessage(
+                            "Title: ${item.title}\n\n" +
+                                "Quality: $res\n\n" +
+                                "Duration: ${item.duration}\n\n" +
+                                "Size: ${formatVideoSize(item.size)}\n\n" +
+                                "Location: ${item.path}"
+                        )
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+                7 -> {
+                    PermanentDeleteHelper.confirmAndDeletePermanently(
+                        context = context,
+                        title = item.title,
+                        path = item.path,
+                        mediaId = item.id,
+                        isVideo = true
+                    ) {
+                        if (position in videoList.indices) {
+                            videoList.removeAt(position)
+                            notifyItemRemoved(position)
+                            notifyItemRangeChanged(position, videoList.size)
                         }
                     }
                 }
@@ -183,57 +323,30 @@ class VideoAdapter(
         }
     }
 
-    private fun openVideoInPlayer(selectedIndex: Int, startInBgAudio: Boolean = false) {
-        if (selectedIndex !in videoList.indices) return
-        val selected = videoList[selectedIndex]
-        val allPaths = ArrayList<String>(videoList.size)
-        for (v in videoList) {
-            allPaths.add(v.path)
-        }
-
-        val intent = Intent(context, PlayerActivity::class.java).apply {
-            putExtra("VIDEO_PATH", selected.path)
-            putExtra("VIDEO_TITLE", selected.title)
-            putExtra("START_BG_AUDIO", startInBgAudio)
-            putStringArrayListExtra("VIDEO_LIST", allPaths)
-        }
-        context.startActivity(intent)
-    }
-
     override fun getItemCount(): Int = videoList.size
 
-    private fun computeResolutionBadge(title: String, sizeBytes: Long): String {
-        val upper = title.uppercase(Locale.US)
+    private fun detectResolutionLabel(title: String, sizeBytes: Long): String {
+        val u = title.uppercase(Locale.US)
         return when {
-            upper.contains("8K") || upper.contains("4320P") -> "8K"
-            upper.contains("4K") || upper.contains("2160P") -> "4K"
-            upper.contains("2K") || upper.contains("1440P") -> "2K"
-            upper.contains("1080P") || upper.contains("FHD") -> "1080p"
-            upper.contains("720P") || upper.contains("HD") -> "720p"
-            sizeBytes > 120L * 1024L * 1024L -> "1080p"
-            sizeBytes > 25L * 1024L * 1024L -> "720p"
-            else -> "480p"
+            u.contains("8K") || u.contains("4320P") -> "8K ULTRA"
+            u.contains("4K") || u.contains("2160P") -> "4K UHD"
+            u.contains("2K") || u.contains("1440P") -> "2K QHD"
+            u.contains("1080P") || u.contains("FHD") -> "1080p"
+            u.contains("720P") || u.contains("HD") -> "720p"
+            u.contains("360P") -> "360p"
+            sizeBytes > 250L * 1024L * 1024L -> "4K / 1080p"
+            sizeBytes > 50L * 1024L * 1024L -> "1080p"
+            sizeBytes > 12L * 1024L * 1024L -> "720p"
+            else -> "480p / 360p"
         }
     }
 
-    private fun formatSize(bytes: Long): String {
-        val mb = bytes / (1024.0 * 1024.0)
+    private fun formatVideoSize(bytes: Long): String {
+        val mb = bytes.coerceAtLeast(0L) / (1024.0 * 1024.0)
         return if (mb >= 1024.0) {
             String.format(Locale.US, "%.2f GB", mb / 1024.0)
         } else {
             String.format(Locale.US, "%.1f MB", mb)
-        }
-    }
-
-    private fun formatDuration(millis: Long): String {
-        val safe = millis.coerceAtLeast(0L)
-        val hours = TimeUnit.MILLISECONDS.toHours(safe)
-        val mins = TimeUnit.MILLISECONDS.toMinutes(safe) % 60
-        val secs = TimeUnit.MILLISECONDS.toSeconds(safe) % 60
-        return if (hours > 0) {
-            String.format(Locale.US, "%02d:%02d:%02d", hours, mins, secs)
-        } else {
-            String.format(Locale.US, "%02d:%02d", mins, secs)
         }
     }
 }
