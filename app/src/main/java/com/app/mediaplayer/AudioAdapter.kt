@@ -8,8 +8,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Shader
@@ -111,7 +112,8 @@ class AudioAdapter(
             val imageViews = mutableListOf<ImageView>()
             collectChildViews(view, textViews, imageViews)
 
-            tvAudioTitle = view.findViewById<TextView?>(R.id.tvAudioTitle)
+            val titleId = view.resources.getIdentifier("tvAudioTitle", "id", view.context.packageName)
+            tvAudioTitle = (if (titleId != 0) view.findViewById<TextView?>(titleId) else null)
                 ?: textViews.firstOrNull()
                 ?: TextView(view.context)
 
@@ -154,7 +156,7 @@ class AudioAdapter(
         val accentColor = Color.parseColor(theme.accentHex)
 
         val isFav = prefs.getBoolean("fav_audio_${audio.path}", false)
-        val favSymbol = if (isFav) "  ❤️" else ""
+        val favSymbol = if (isFav) "  *" else ""
 
         holder.tvAudioTitle.text = audio.title.substringBeforeLast('.')
         holder.tvAudioTitle.setTextColor(Color.WHITE)
@@ -233,16 +235,16 @@ class AudioAdapter(
         val isFav = prefs.getBoolean("fav_audio_${item.path}", false)
 
         val options = arrayOf(
-            "▶️   Play Song Now",
-            "⏭️   Play Next (After Current Song)",
-            "📋   Add to Playing Queue",
-            if (isFav) "💔   Remove from Favorites" else "❤️   Add to Favorites",
-            "🎛️   Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
-            "🎚️   Open 5-Band Dolby Equalizer",
-            "🔒   Lock Song into Secret Privacy Vault",
-            "📤   Share Audio File (WhatsApp / Bluetooth)",
-            "ℹ️   Song Details & File Path",
-            "🗑️   Delete Song Permanently (From Phone)"
+            "Play Song Now",
+            "Play Next (After Current Song)",
+            "Add to Playing Queue",
+            if (isFav) "Remove from Favorites" else "Add to Favorites",
+            "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+            "Open 5-Band Dolby Equalizer",
+            "Lock Song into Secret Privacy Vault",
+            "Share Audio File (WhatsApp / Bluetooth)",
+            "Song Details & File Path",
+            "Delete Song Permanently (From Phone)"
         )
 
         VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
@@ -260,7 +262,7 @@ class AudioAdapter(
                     notifyItemChanged(position)
                     Toast.makeText(
                         context,
-                        if (!isFav) "Added to Favorites ❤️" else "Removed from Favorites",
+                        if (!isFav) "Added to Favorites" else "Removed from Favorites",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
