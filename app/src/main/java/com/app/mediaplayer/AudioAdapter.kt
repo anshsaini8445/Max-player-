@@ -8,9 +8,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Shader
@@ -40,7 +39,7 @@ class AudioAdapter(
 ) : RecyclerView.Adapter<AudioAdapter.AudioViewHolder>() {
 
     companion object {
-        private val artCache = object : LruCache<String, Bitmap>(80) {}
+        private val artCache = object : LruCache<String, Bitmap>(90) {}
         private val noArtSet = HashSet<String>()
         private val thumbExecutor = Executors.newFixedThreadPool(3)
 
