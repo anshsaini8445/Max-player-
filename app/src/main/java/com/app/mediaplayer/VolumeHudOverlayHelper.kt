@@ -18,7 +18,9 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class VolumeHudOverlayHelper(
     private val context: Context,
@@ -29,20 +31,14 @@ class VolumeHudOverlayHelper(
 ) {
 
     private val density = context.resources.displayMetrics.density
-    private lateinit var hudCard: LinearLayout
-    private lateinit var speakerIconView: SpeakerVectorView
-    private lateinit var tvVolumePercent: TextView
-    private lateinit var boostBarWithDotsView: VolumeBarWithBoostDotsView
+    private val hudCard: LinearLayout
+    private val hudIconView: HudVectorIconView
+    private val tvHudPercent: TextView
+    private val boostBarWithDotsView: HudBarWithBoostDotsView
 
     private val handler = Handler(Looper.getMainLooper())
     private val hideHudRunnable = Runnable {
-        if (::hudCard.isInitialized) {
-            hudCard.animate()
-                .alpha(0f)
-                .setDuration(180L)
-                .withEndAction { hudCard.visibility = View.GONE }
-                .start()
-        }
+        hideHudInternal()
     }
 
     private var currentVolumePct: Int = 80
@@ -64,17 +60,17 @@ class VolumeHudOverlayHelper(
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#EA050508"))
                 cornerRadius = 20f * density
-                setStroke((1 * density).toInt(), Color.parseColor("#28FFFFFF"))
+                setStroke((1.2f * density).toInt(), Color.parseColor("#3300FFFF"))
             }
             layoutParams = FrameLayout.LayoutParams(
-                (290 * density).toInt(),
+                (292 * density).toInt(),
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP or Gravity.CENTER_HORIZONTAL
             ).apply {
-                topMargin = (34 * density).toInt()
+                topMargin = (28 * density).toInt()
             }
             visibility = View.GONE
-            elevation = 30f * density
+            elevation = 32f * density
         }
 
         val topRow = LinearLayout(context).apply {
@@ -86,24 +82,24 @@ class VolumeHudOverlayHelper(
             ).apply { bottomMargin = (14 * density).toInt() }
         }
 
-        speakerIconView = SpeakerVectorView(context, density).apply {
+        hudIconView = HudVectorIconView(context, density).apply {
             layoutParams = LinearLayout.LayoutParams(
                 (30 * density).toInt(),
                 (28 * density).toInt()
             ).apply { marginEnd = (10 * density).toInt() }
         }
 
-        tvVolumePercent = TextView(context).apply {
+        tvHudPercent = TextView(context).apply {
             text = "$currentVolumePct%"
             setTextColor(Color.WHITE)
             textSize = 23f
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        topRow.addView(speakerIconView)
-        topRow.addView(tvVolumePercent)
+        topRow.addView(hudIconView)
+        topRow.addView(tvHudPercent)
 
-        boostBarWithDotsView = VolumeBarWithBoostDotsView(context, density).apply {
+        boostBarWithDotsView = HudBarWithBoostDotsView(context, density).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 (14 * density).toInt()
@@ -113,6 +109,14 @@ class VolumeHudOverlayHelper(
         hudCard.addView(topRow)
         hudCard.addView(boostBarWithDotsView)
         rootContainer.addView(hudCard)
+    }
+
+    private fun hideHudInternal() {
+        hudCard.animate()
+            .alpha(0f)
+            .setDuration(180L)
+            .withEndAction { hudCard.visibility = View.GONE }
+            .start()
     }
 
     fun getCurrentVolumePercent(): Int = currentVolumePct
@@ -185,40 +189,59 @@ class VolumeHudOverlayHelper(
     }
 
     fun showVolumeHud(percent: Int) {
-        tvVolumePercent.text = "$percent%"
-        tvVolumePercent.setTextColor(
-            if (percent > 100) Color.parseColor("#00FFFF") else Color.WHITE
+        val safePct = percent.coerceIn(0, 200)
+        tvHudPercent.text = "$safePct%"
+        tvHudPercent.setTextColor(
+            if (safePct > 100) Color.parseColor("#00FFFF") else Color.WHITE
         )
-        speakerIconView.setMuted(percent == 0)
-        boostBarWithDotsView.setVolumePercent(percent)
+        hudIconView.setMode(isBrightness = false, isMuted = safePct == 0)
+        boostBarWithDotsView.setHudState(percent = safePct, isBrightnessMode = false)
 
         hudCard.animate().cancel()
         hudCard.alpha = 1f
         hudCard.visibility = View.VISIBLE
 
         handler.removeCallbacks(hideHudRunnable)
-        handler.postDelayed(hideHudRunnable, 1100L)
+        handler.postDelayed(hideHudRunnable, 1150L)
     }
 
-    private class SpeakerVectorView(
+    fun showBrightnessHud(percent: Int) {
+        val safePct = percent.coerceIn(0, 100)
+        tvHudPercent.text = "$safePct%"
+        tvHudPercent.setTextColor(Color.WHITE)
+        hudIconView.setMode(isBrightness = true, isMuted = false)
+        boostBarWithDotsView.setHudState(percent = safePct, isBrightnessMode = true)
+
+        hudCard.animate().cancel()
+        hudCard.alpha = 1f
+        hudCard.visibility = View.VISIBLE
+
+        handler.removeCallbacks(hideHudRunnable)
+        handler.postDelayed(hideHudRunnable, 1150L)
+    }
+
+    private class HudVectorIconView(
         context: Context,
         private val d: Float
     ) : View(context) {
 
+        private var isBrightnessMode = false
         private var isMuted = false
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#D6D6D6")
+
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
             style = Paint.Style.FILL
         }
-        private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#D6D6D6")
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
             style = Paint.Style.STROKE
             strokeWidth = 2.4f * d
             strokeCap = Paint.Cap.ROUND
         }
 
-        fun setMuted(muted: Boolean) {
-            isMuted = muted
+        fun setMode(isBrightness: Boolean, isMuted: Boolean) {
+            this.isBrightnessMode = isBrightness
+            this.isMuted = isMuted
             invalidate()
         }
 
@@ -226,37 +249,62 @@ class VolumeHudOverlayHelper(
             super.onDraw(canvas)
             val w = width.toFloat()
             val h = height.toFloat()
+            val cx = w / 2f
             val cy = h / 2f
 
-            val path = Path().apply {
-                moveTo(w * 0.10f, cy - h * 0.18f)
-                lineTo(w * 0.28f, cy - h * 0.18f)
-                lineTo(w * 0.52f, cy - h * 0.42f)
-                lineTo(w * 0.52f, cy + h * 0.42f)
-                lineTo(w * 0.28f, cy + h * 0.18f)
-                lineTo(w * 0.10f, cy + h * 0.18f)
-                close()
-            }
-            canvas.drawPath(path, paint)
+            if (isBrightnessMode) {
+                // Sun Brightness Vector Icon
+                val sunR = w.coerceAtMost(h) * 0.22f
+                fillPaint.color = Color.parseColor("#FFD700")
+                strokePaint.color = Color.parseColor("#FFD700")
+                canvas.drawCircle(cx, cy, sunR, fillPaint)
 
-            if (isMuted) {
-                canvas.drawLine(w * 0.64f, cy - h * 0.24f, w * 0.92f, cy + h * 0.24f, wavePaint)
-                canvas.drawLine(w * 0.92f, cy - h * 0.24f, w * 0.64f, cy + h * 0.24f, wavePaint)
+                val rayInner = sunR * 1.45f
+                val rayOuter = sunR * 2.05f
+                for (i in 0 until 8) {
+                    val angle = Math.toRadians((i * 45).toDouble())
+                    val x1 = (cx + cos(angle) * rayInner).toFloat()
+                    val y1 = (cy + sin(angle) * rayInner).toFloat()
+                    val x2 = (cx + cos(angle) * rayOuter).toFloat()
+                    val y2 = (cy + sin(angle) * rayOuter).toFloat()
+                    canvas.drawLine(x1, y1, x2, y2, strokePaint)
+                }
             } else {
-                val innerArc = RectF(w * 0.42f, cy - h * 0.26f, w * 0.74f, cy + h * 0.26f)
-                val outerArc = RectF(w * 0.34f, cy - h * 0.42f, w * 0.90f, cy + h * 0.42f)
-                canvas.drawArc(innerArc, -45f, 90f, false, wavePaint)
-                canvas.drawArc(outerArc, -45f, 90f, false, wavePaint)
+                // Speaker Volume Vector Icon
+                fillPaint.color = Color.parseColor("#E0E0E0")
+                strokePaint.color = Color.parseColor("#E0E0E0")
+                val path = Path().apply {
+                    moveTo(w * 0.10f, cy - h * 0.18f)
+                    lineTo(w * 0.28f, cy - h * 0.18f)
+                    lineTo(w * 0.52f, cy - h * 0.42f)
+                    lineTo(w * 0.52f, cy + h * 0.42f)
+                    lineTo(w * 0.28f, cy + h * 0.18f)
+                    lineTo(w * 0.10f, cy + h * 0.18f)
+                    close()
+                }
+                canvas.drawPath(path, fillPaint)
+
+                if (isMuted) {
+                    strokePaint.color = Color.parseColor("#FF5252")
+                    canvas.drawLine(w * 0.64f, cy - h * 0.24f, w * 0.92f, cy + h * 0.24f, strokePaint)
+                    canvas.drawLine(w * 0.92f, cy - h * 0.24f, w * 0.64f, cy + h * 0.24f, strokePaint)
+                } else {
+                    val innerArc = RectF(w * 0.42f, cy - h * 0.26f, w * 0.74f, cy + h * 0.26f)
+                    val outerArc = RectF(w * 0.34f, cy - h * 0.42f, w * 0.90f, cy + h * 0.42f)
+                    canvas.drawArc(innerArc, -45f, 90f, false, strokePaint)
+                    canvas.drawArc(outerArc, -45f, 90f, false, strokePaint)
+                }
             }
         }
     }
 
-    private class VolumeBarWithBoostDotsView(
+    private class HudBarWithBoostDotsView(
         context: Context,
         private val d: Float
     ) : View(context) {
 
-        private var volumePct = 80
+        private var currentPct = 80
+        private var isBrightness = false
 
         private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#4DFFFFFF")
@@ -273,8 +321,9 @@ class VolumeHudOverlayHelper(
             style = Paint.Style.FILL
         }
 
-        fun setVolumePercent(pct: Int) {
-            volumePct = pct.coerceIn(0, 200)
+        fun setHudState(percent: Int, isBrightnessMode: Boolean) {
+            this.isBrightness = isBrightnessMode
+            this.currentPct = if (isBrightnessMode) percent.coerceIn(0, 100) else percent.coerceIn(0, 200)
             invalidate()
         }
 
@@ -293,7 +342,7 @@ class VolumeHudOverlayHelper(
             val trackRect = RectF(0f, topY, barMaxW, bottomY)
             canvas.drawRoundRect(trackRect, radius, radius, trackPaint)
 
-            val normalProgress = (volumePct.coerceIn(0, 100) / 100f)
+            val normalProgress = (currentPct.coerceIn(0, 100) / 100f)
             if (normalProgress > 0f) {
                 val fillW = (barMaxW * normalProgress).coerceAtLeast(barHeight)
                 val fillRect = RectF(0f, topY, fillW, bottomY)
@@ -308,8 +357,12 @@ class VolumeHudOverlayHelper(
 
             for (i in 0 until 4) {
                 val dotCenterX = dotsRegionStart + (i + 0.5f) * dotSpacing
-                val threshold = 100 + ((i + 1) * 25)
-                val isLit = volumePct >= threshold - 12
+                val isLit = if (isBrightness) {
+                    currentPct >= ((i + 1) * 25)
+                } else {
+                    val threshold = 100 + ((i + 1) * 25)
+                    currentPct >= threshold - 12
+                }
                 canvas.drawCircle(
                     dotCenterX,
                     cy,
