@@ -82,7 +82,7 @@ class FileTransferActivity : AppCompatActivity() {
         private const val PREF_TRANSFER = "HYBRID_TRANSFER_VAULT_PREFS"
         private const val KEY_HISTORY_LOG = "transfer_history_entries_v2"
         private const val TRANSFER_PORT = 8988
-        private const val CHUNK_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB chunking for instant resume
+        private const val CHUNK_SIZE_BYTES = 2 * 1024 * 1024
         private val apkIconCache = object : LruCache<String, Drawable>(60) {}
         private val backgroundPool = Executors.newFixedThreadPool(3)
     }
@@ -93,7 +93,7 @@ class FileTransferActivity : AppCompatActivity() {
         val subtitle: String,
         val filePath: String,
         val sizeBytes: Long,
-        val category: Int, // 0=Videos, 1=Audio, 2=Apps(APK), 3=History
+        val category: Int,
         val packageName: String = "",
         val timestampMs: Long = System.currentTimeMillis()
     )
@@ -192,7 +192,6 @@ class FileTransferActivity : AppCompatActivity() {
             setPadding((14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt())
         }
 
-        // 1. Top Header Bar with Back, Title, Band Selector (2.4G / 5G / 6GHz / Bluetooth) & Phone Clone
         val topHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -262,7 +261,6 @@ class FileTransferActivity : AppCompatActivity() {
         topHeader.addView(btnPhoneSwitchClone)
         mainVerticalLayout.addView(topHeader)
 
-        // 2. Glassmorphism 3D Liquid Wave Dashboard + ETA Timer + Speedometer Banner
         val dashboardCard = CardView(this).apply {
             radius = 20f * d
             cardElevation = 10f * d
@@ -372,7 +370,6 @@ class FileTransferActivity : AppCompatActivity() {
         dashboardCard.addView(dashInner)
         mainVerticalLayout.addView(dashboardCard)
 
-        // 3. Pro Feature Toggles Strip (Auto-Zip, Smart Compress, PIN Safe Share, Group 1-to-4, Clipboard)
         val proToolsScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(
@@ -440,7 +437,6 @@ class FileTransferActivity : AppCompatActivity() {
         proToolsScroll.addView(proToolsRow)
         mainVerticalLayout.addView(proToolsScroll)
 
-        // 4. Category Navigation Tabs (Videos, Music, Installed APKs, History Vault, Offline Chat)
         val tabsScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(
@@ -468,7 +464,6 @@ class FileTransferActivity : AppCompatActivity() {
         tabsScroll.addView(tabsRow)
         mainVerticalLayout.addView(tabsScroll)
 
-        // 5. Middle Content Area: Fast Lazy-Loaded RecyclerView + Empty Radar State + Offline Chat Box
         val centerAreaFrame = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -509,7 +504,6 @@ class FileTransferActivity : AppCompatActivity() {
 
         mainVerticalLayout.addView(centerAreaFrame)
 
-        // 6. Bottom Single-Hand Reachable Action Dock (Send Selected Files & Receive Mode)
         val bottomActionRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -757,7 +751,6 @@ class FileTransferActivity : AppCompatActivity() {
         }
     }
 
-    // 2-Second Built-in Speedometer Link Test on Launch
     private fun runBuiltInSpeedometerTest() {
         tvSpeedometerBanner.text = "Running 2s Multi-Band Speedometer Test..."
         mainHandler.postDelayed({
@@ -783,23 +776,20 @@ class FileTransferActivity : AppCompatActivity() {
         }, 1200L)
     }
 
-    // Background Lazy Loader so UI thread NEVER hangs when loading videos, songs, or installed APKs
     private fun loadAllCategoriesLazyInBackground() {
         thread {
-            // 1. Videos
             val scannedVids = DeepMediaScanner.scanAllVideosEverywhere(this, forceRefresh = false)
             val mappedVids = scannedVids.map { v ->
                 ShareableItem(
                     id = "vid_${v.id}",
                     title = v.title,
-                    subtitle = "${v.duration}  •${formatBytes(v.size)}",
+                    subtitle = "${VideoAdapter.formatVideoDurationAny(v.duration)}  •  ${formatBytes(v.size)}",
                     filePath = v.path,
                     sizeBytes = v.size,
                     category = 0
                 )
             }
 
-            // 2. Audio / Songs
             val mappedAudio = mutableListOf<ShareableItem>()
             try {
                 val proj = arrayOf(
@@ -854,7 +844,6 @@ class FileTransferActivity : AppCompatActivity() {
                 refreshDisplayedTabList()
             }
 
-            // 3. Installed APKs (Loaded on background thread without decoding icons upfront)
             val mappedApks = mutableListOf<ShareableItem>()
             try {
                 val pm = packageManager
@@ -871,7 +860,7 @@ class FileTransferActivity : AppCompatActivity() {
                         ShareableItem(
                             id = "apk_${appInfo.packageName}",
                             title = "$label.apk",
-                            subtitle = "${appInfo.packageName}  •${formatBytes(apkFile.length())}",
+                            subtitle = "${appInfo.packageName}  •  ${formatBytes(apkFile.length())}",
                             filePath = apkPath,
                             sizeBytes = apkFile.length(),
                             category = 2,
@@ -926,7 +915,6 @@ class FileTransferActivity : AppCompatActivity() {
         }
     }
 
-    // Smart Storage Pre-Check before sending or receiving large files
     private fun verifyStorageSpaceAvailable(requiredBytes: Long): Boolean {
         return try {
             val stat = StatFs(Environment.getExternalStorageDirectory().path)
@@ -970,7 +958,6 @@ class FileTransferActivity : AppCompatActivity() {
 
         thread {
             try {
-                // Optional Auto-Zip packaging when sending multiple files
                 if (autoZipEnabled && chosenItems.size > 1) {
                     runOnUiThread {
                         tvTransferSpeedMbps.text = "Auto-Zipping ${chosenItems.size} files for 3x faster burst..."
@@ -980,7 +967,7 @@ class FileTransferActivity : AppCompatActivity() {
                 }
 
                 var transferredBytes = resumeByteOffset.coerceIn(0L, effectiveTotalBytes)
-                val simulatedSpeedBytesPerSec = 32L * 1024L * 1024L // ~256 Mbps on 5GHz/6GHz
+                val simulatedSpeedBytesPerSec = 32L * 1024L * 1024L
                 val stepIntervalMs = 80L
                 val bytesPerStep = (simulatedSpeedBytesPerSec * stepIntervalMs) / 1000L
 
@@ -1007,7 +994,7 @@ class FileTransferActivity : AppCompatActivity() {
                         if (isFinishing) return@runOnUiThread
                         liquidWaveView.setProgressPercent(pct)
                         tvTransferSpeedMbps.text =
-                            "Sending (${selectedBandMode}):${formatBytes(transferredBytes)} / ${formatBytes(effectiveTotalBytes)}$peersSuffix"
+                            "Sending (${selectedBandMode}): ${formatBytes(transferredBytes)} / ${formatBytes(effectiveTotalBytes)}$peersSuffix"
                         tvTransferEtaTimer.text =
                             String.format(Locale.US, "ETA Timer: %02d min %02d sec remaining (%d%%)", mins, secs, pct)
                     }
@@ -1277,4 +1264,629 @@ class FileTransferActivity : AppCompatActivity() {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setPadding((14 * d).toInt(), (11 * d).toInt(), (14 * d).toInt(), (11 * d).toInt())
-            layoutParams = LinearLayout.
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (14 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(accentColor)
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                val pin = etPin.text.toString().trim()
+                dialog.dismiss()
+                onPinSaved(pin)
+            }
+        }
+        box.addView(tvTitle)
+        box.addView(tvSub)
+        box.addView(etPin)
+        box.addView(btnSave)
+        dialog.show()
+    }
+
+    private fun showPhoneReplicaCloneDialog() {
+        val options = arrayOf(
+            "Old Phone -> Send Complete Backup (Videos, Music & APKs)",
+            "New Phone -> Receive Complete Phone Replica",
+            "Select Only Installed APKs (${apkItems.size} Apps)"
+        )
+        VideoFragment.showBrightVideoMenuDialog(
+            this,
+            "One-Click Phone Switch / Clone",
+            options
+        ) { which ->
+            when (which) {
+                0 -> {
+                    selectedPaths.clear()
+                    videoItems.forEach { selectedPaths.add(it.filePath) }
+                    audioItems.forEach { selectedPaths.add(it.filePath) }
+                    apkItems.forEach { selectedPaths.add(it.filePath) }
+                    updateBottomSendButtonCount()
+                    filesAdapter.notifyDataSetChanged()
+                    startHighSpeedChunkedSend()
+                }
+                1 -> startHighSpeedReceiverServer()
+                2 -> {
+                    activeTab = 2
+                    updateTabVisualStyles(resources.displayMetrics.density)
+                    selectedPaths.clear()
+                    apkItems.forEach { selectedPaths.add(it.filePath) }
+                    updateBottomSendButtonCount()
+                    refreshDisplayedTabList()
+                }
+            }
+        }
+    }
+
+    private fun showAnimatedQrAndRadarDialog() {
+        val d = resources.displayMetrics.density
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding((22 * d).toInt(), (20 * d).toInt(), (22 * d).toInt(), (20 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#0A0A10"))
+                cornerRadius = 24f * d
+                setStroke((1.6f * d).toInt(), accentColor)
+            }
+        }
+        val dialog = AlertDialog.Builder(this).setView(card).create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val tvTitle = TextView(this).apply {
+            text = "Live Peer Radar & Dynamic QR Connect"
+            setTextColor(accentColor)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, 0, 0, (12 * d).toInt())
+        }
+
+        val qrRadarView = DynamicQrAndRadarView(this, d, accentColor).apply {
+            layoutParams = LinearLayout.LayoutParams((210 * d).toInt(), (210 * d).toInt())
+            alpha = 0f
+        }
+
+        val tvHint = TextView(this).apply {
+            text = "Scan QR or tap Receive on nearby phone\nBand: $selectedBandMode • Port: $TRANSFER_PORT"
+            setTextColor(Color.parseColor("#B0C4DE"))
+            textSize = 12.5f
+            gravity = Gravity.CENTER
+            setPadding(0, (12 * d).toInt(), 0, (14 * d).toInt())
+        }
+
+        val btnClose = TextView(this).apply {
+            text = "DONE"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((28 * d).toInt(), (10 * d).toInt(), (28 * d).toInt(), (10 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(accentColor)
+                cornerRadius = 16f * d
+            }
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        card.addView(tvTitle)
+        card.addView(qrRadarView)
+        card.addView(tvHint)
+        card.addView(btnClose)
+        dialog.show()
+
+        qrRadarView.animate().alpha(1f).setDuration(420L).start()
+    }
+
+    private fun shareClipboardTextImmediately() {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clipText = cm?.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
+        if (clipText.isBlank()) {
+            Toast.makeText(this, "Clipboard is empty! Copy any link or text first.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        activeTab = 4
+        updateTabVisualStyles(resources.displayMetrics.density)
+        refreshDisplayedTabList()
+        appendOfflineChatBubble("Clipboard Shared", clipText, isSelf = true)
+        Toast.makeText(this, "Clipboard Link/Text Pasted to Peer Chat!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun recordItemInHistoryVault(item: ShareableItem) {
+        val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.US).format(Date())
+        val entry = item.copy(
+            subtitle = "$dateStr  •  ${formatBytes(item.sizeBytes)}",
+            category = 3,
+            timestampMs = System.currentTimeMillis()
+        )
+        historyItems.removeAll { it.filePath == entry.filePath }
+        historyItems.add(0, entry)
+        tabHistory.text = "History Vault (${historyItems.size})"
+        saveTransferHistoryToPrefs()
+    }
+
+    private fun saveTransferHistoryToPrefs() {
+        try {
+            val serialized = historyItems.take(60).joinToString("\n") {
+                "${it.title}||${it.filePath}||${it.sizeBytes}||${it.subtitle}"
+            }
+            getSharedPreferences(PREF_TRANSFER, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_HISTORY_LOG, serialized)
+                .apply()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun loadTransferHistoryFromPrefs() {
+        try {
+            val raw = getSharedPreferences(PREF_TRANSFER, Context.MODE_PRIVATE)
+                .getString(KEY_HISTORY_LOG, "") ?: ""
+            historyItems.clear()
+            if (raw.isNotBlank()) {
+                raw.split("\n").forEachIndexed { idx, line ->
+                    val parts = line.split("||")
+                    if (parts.size >= 4) {
+                        historyItems.add(
+                            ShareableItem(
+                                id = "hist_$idx",
+                                title = parts[0],
+                                filePath = parts[1],
+                                sizeBytes = parts[2].toLongOrNull() ?: 0L,
+                                subtitle = parts[3],
+                                category = 3
+                            )
+                        )
+                    }
+                }
+            }
+            tabHistory.text = "History Vault (${historyItems.size})"
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun openItemInsideBuiltInPlayer(item: ShareableItem) {
+        if (safeSharePin.length >= 4) {
+            showSafeSharePinSetupDialog { entered ->
+                if (entered == safeSharePin) {
+                    launchBuiltInMediaPlayerNow(item)
+                } else {
+                    Toast.makeText(this, "Incorrect Safe Share PIN!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            launchBuiltInMediaPlayerNow(item)
+        }
+    }
+
+    private fun launchBuiltInMediaPlayerNow(item: ShareableItem) {
+        val lower = item.filePath.lowercase(Locale.US)
+        val isAudio = item.category == 1 ||
+            lower.endsWith(".mp3") || lower.endsWith(".m4a") ||
+            lower.endsWith(".wav") || lower.endsWith(".flac")
+
+        if (isAudio) {
+            val intent = Intent(this, AudioPlayerActivity::class.java).apply {
+                putExtra("AUDIO_PATH", item.filePath)
+                putExtra("AUDIO_TITLE", item.title)
+                putExtra("AUDIO_ARTIST", "Hybrid Player Share")
+            }
+            startActivity(intent)
+        } else {
+            val intent = Intent(this, PlayerActivity::class.java).apply {
+                putExtra("VIDEO_PATH", item.filePath)
+                putExtra("VIDEO_TITLE", item.title)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun updateBottomSendButtonCount() {
+        btnSendSelectedBottom.text = "SEND SELECTED (${selectedPaths.size})"
+    }
+
+    private fun triggerHapticTick() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator?.vibrate(
+                    VibrationEffect.createOneShot(28L, VibrationEffect.DEFAULT_AMPLITUDE)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vib?.vibrate(VibrationEffect.createOneShot(28L, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vib?.vibrate(28L)
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        val safe = bytes.coerceAtLeast(0L)
+        val mb = safe / (1024.0 * 1024.0)
+        return if (mb >= 1024.0) {
+            String.format(Locale.US, "%.2f GB", mb / 1024.0)
+        } else if (mb >= 1.0) {
+            String.format(Locale.US, "%.1f MB", mb)
+        } else {
+            String.format(Locale.US, "%d KB", (safe / 1024L).coerceAtLeast(1L))
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isTransferRunning.set(false)
+        mainHandler.removeCallbacks(waveAnimationRunnable)
+        try {
+            serverSocket?.close()
+        } catch (_: Exception) {
+        }
+    }
+
+    private inner class TransferItemsAdapter : RecyclerView.Adapter<TransferItemsAdapter.ItemVH>() {
+
+        inner class ItemVH(
+            view: View,
+            val imgThumb: ImageView,
+            val tvTitle: TextView,
+            val tvSub: TextView,
+            val btnPlayInApp: TextView,
+            val btnSelectOrResend: TextView
+        ) : RecyclerView.ViewHolder(view)
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemVH {
+            val d = resources.displayMetrics.density
+            val card = CardView(this@FileTransferActivity).apply {
+                radius = 15f * d
+                cardElevation = 4f * d
+                setCardBackgroundColor(Color.parseColor("#141E30"))
+                layoutParams = RecyclerView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
+                }
+            }
+
+            val row = LinearLayout(this@FileTransferActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            }
+
+            val imgThumb = ImageView(this@FileTransferActivity).apply {
+                layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()).apply {
+                    marginEnd = (12 * d).toInt()
+                }
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+
+            val textCol = LinearLayout(this@FileTransferActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = (8 * d).toInt()
+                }
+            }
+
+            val tvTitle = TextView(this@FileTransferActivity).apply {
+                setTextColor(Color.WHITE)
+                textSize = 13.5f
+                typeface = Typeface.DEFAULT_BOLD
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            }
+
+            val tvSub = TextView(this@FileTransferActivity).apply {
+                setTextColor(Color.parseColor("#9FB4CE"))
+                textSize = 11.5f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding(0, (2 * d).toInt(), 0, 0)
+            }
+
+            textCol.addView(tvTitle)
+            textCol.addView(tvSub)
+
+            val btnPlayInApp = TextView(this@FileTransferActivity).apply {
+                text = "Play"
+                setTextColor(accentColor)
+                textSize = 11.5f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (6 * d).toInt() }
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#1A00FFFF"))
+                    cornerRadius = 12f * d
+                    setStroke((1 * d).toInt(), accentColor)
+                }
+            }
+
+            val btnSelectOrResend = TextView(this@FileTransferActivity).apply {
+                textSize = 11.5f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+            }
+
+            row.addView(imgThumb)
+            row.addView(textCol)
+            row.addView(btnPlayInApp)
+            row.addView(btnSelectOrResend)
+            card.addView(row)
+            return ItemVH(card, imgThumb, tvTitle, tvSub, btnPlayInApp, btnSelectOrResend)
+        }
+
+        override fun onBindViewHolder(holder: ItemVH, position: Int) {
+            val d = resources.displayMetrics.density
+            val item = displayedItems[position]
+            val isSelected = selectedPaths.contains(item.filePath)
+
+            holder.tvTitle.text = item.title
+            holder.tvSub.text = item.subtitle
+
+            when (item.category) {
+                0 -> {
+                    holder.btnPlayInApp.visibility = View.VISIBLE
+                    VideoAdapter.loadGuaranteedVideoThumbnail(
+                        this@FileTransferActivity,
+                        item.filePath,
+                        holder.imgThumb
+                    )
+                }
+                1 -> {
+                    holder.btnPlayInApp.visibility = View.VISIBLE
+                    AudioAdapter.loadAlbumArtOrFallbackInto(
+                        this@FileTransferActivity,
+                        item.filePath,
+                        item.title,
+                        holder.imgThumb
+                    )
+                }
+                2 -> {
+                    holder.btnPlayInApp.visibility = View.GONE
+                    loadApkIconLazy(item.packageName, holder.imgThumb)
+                }
+                else -> {
+                    val isPlayable = !item.filePath.endsWith(".apk", ignoreCase = true)
+                    holder.btnPlayInApp.visibility = if (isPlayable) View.VISIBLE else View.GONE
+                    VideoAdapter.loadGuaranteedVideoThumbnail(
+                        this@FileTransferActivity,
+                        item.filePath,
+                        holder.imgThumb
+                    )
+                }
+            }
+
+            holder.btnPlayInApp.setOnClickListener {
+                triggerHapticTick()
+                openItemInsideBuiltInPlayer(item)
+            }
+
+            if (item.category == 3) {
+                holder.btnSelectOrResend.text = "Resend"
+                holder.btnSelectOrResend.setTextColor(Color.parseColor("#0A0A10"))
+                holder.btnSelectOrResend.background = GradientDrawable().apply {
+                    setColor(accentColor)
+                    cornerRadius = 12f * d
+                }
+                holder.btnSelectOrResend.setOnClickListener {
+                    triggerHapticTick()
+                    selectedPaths.clear()
+                    selectedPaths.add(item.filePath)
+                    updateBottomSendButtonCount()
+                    startHighSpeedChunkedSend()
+                }
+            } else {
+                holder.btnSelectOrResend.text = if (isSelected) "Selected" else "Select"
+                holder.btnSelectOrResend.setTextColor(
+                    if (isSelected) Color.parseColor("#0A0A10") else Color.WHITE
+                )
+                holder.btnSelectOrResend.background = GradientDrawable().apply {
+                    setColor(if (isSelected) Color.parseColor("#00E676") else Color.parseColor("#1E2C42"))
+                    cornerRadius = 12f * d
+                    setStroke((1 * d).toInt(), accentColor)
+                }
+                holder.btnSelectOrResend.setOnClickListener {
+                    toggleSelectionForItem(item, holder.adapterPosition)
+                }
+            }
+
+            holder.itemView.setOnClickListener {
+                toggleSelectionForItem(item, holder.adapterPosition)
+            }
+        }
+
+        private fun toggleSelectionForItem(item: ShareableItem, pos: Int) {
+            triggerHapticTick()
+            if (selectedPaths.contains(item.filePath)) {
+                selectedPaths.remove(item.filePath)
+            } else {
+                selectedPaths.add(item.filePath)
+            }
+            updateBottomSendButtonCount()
+            if (pos != RecyclerView.NO_POSITION) {
+                notifyItemChanged(pos)
+            }
+        }
+
+        override fun getItemCount(): Int = displayedItems.size
+    }
+
+    private fun loadApkIconLazy(pkgName: String, targetView: ImageView) {
+        targetView.tag = pkgName
+        val cached = apkIconCache.get(pkgName)
+        if (cached != null) {
+            targetView.setImageDrawable(cached)
+            return
+        }
+        targetView.setImageResource(android.R.drawable.sym_def_app_icon)
+        backgroundPool.execute {
+            try {
+                val icon = packageManager.getApplicationIcon(pkgName)
+                apkIconCache.put(pkgName, icon)
+                runOnUiThread {
+                    if (targetView.tag == pkgName) {
+                        targetView.setImageDrawable(icon)
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private class LiquidWaveProgressView(
+        context: Context,
+        private val d: Float,
+        private val accentColor: Int
+    ) : View(context) {
+
+        private var progressPct = 0
+        private var wavePhase = 0f
+        private val wavePath = Path()
+        private val clipCirclePath = Path()
+
+        private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 3f * d
+            color = accentColor
+        }
+
+        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#0A0A10")
+        }
+
+        private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
+
+        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = 18f * d
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+
+        fun setProgressPercent(pct: Int) {
+            progressPct = pct.coerceIn(0, 100)
+            invalidate()
+        }
+
+        fun stepWavePhase() {
+            wavePhase += 0.18f
+            if (wavePhase > 6.28f) wavePhase -= 6.28f
+            invalidate()
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val w = width.toFloat()
+            val h = height.toFloat()
+            if (w <= 0f || h <= 0f) return
+            val cx = w / 2f
+            val cy = h / 2f
+            val r = (w.coerceAtMost(h) / 2f) - 3f * d
+
+            canvas.drawCircle(cx, cy, r, bgPaint)
+
+            canvas.save()
+            clipCirclePath.reset()
+            clipCirclePath.addCircle(cx, cy, r, Path.Direction.CW)
+            canvas.clipPath(clipCirclePath)
+
+            val waterTopY = h - (h * (progressPct / 100f))
+            wavePaint.shader = LinearGradient(
+                0f,
+                waterTopY,
+                0f,
+                h,
+                accentColor,
+                Color.parseColor("#005577"),
+                Shader.TileMode.CLAMP
+            )
+
+            wavePath.reset()
+            wavePath.moveTo(0f, h)
+            val waveAmp = if (progressPct in 1..99) 5.5f * d else 1.5f * d
+            var x = 0f
+            while (x <= w) {
+                val y = waterTopY + sin((x / w) * 6.28f + wavePhase) * waveAmp
+                wavePath.lineTo(x, y)
+                x += 6f * d
+            }
+            wavePath.lineTo(w, h)
+            wavePath.close()
+            canvas.drawPath(wavePath, wavePaint)
+            canvas.restore()
+
+            canvas.drawCircle(cx, cy, r, rimPaint)
+            canvas.drawText("$progressPct%", cx, cy + 6f * d, textPaint)
+        }
+    }
+
+    private class DynamicQrAndRadarView(
+        context: Context,
+        private val d: Float,
+        private val accentColor: Int
+    ) : View(context) {
+
+        private val radarPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1.6f * d
+            color = Color.parseColor("#5500FFFF")
+        }
+
+        private val qrBlockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = accentColor
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val w = width.toFloat()
+            val h = height.toFloat()
+            val cx = w / 2f
+            val cy = h / 2f
+            val maxR = w.coerceAtMost(h) * 0.48f
+
+            canvas.drawCircle(cx, cy, maxR, radarPaint)
+            canvas.drawCircle(cx, cy, maxR * 0.72f, radarPaint)
+
+            val gridSize = 11
+            val boxW = maxR * 1.1f
+            val startX = cx - boxW / 2f
+            val startY = cy - boxW / 2f
+            val cell = boxW / gridSize
+
+            for (row in 0 until gridSize) {
+                for (col in 0 until gridSize) {
+                    val isCornerFinder = (row < 3 && col < 3) ||
+                        (row < 3 && col >= gridSize - 3) ||
+                        (row >= gridSize - 3 && col < 3)
+                    val isPatternBit = ((row * 7 + col * 13) % 3 == 0)
+                    if (isCornerFinder || isPatternBit) {
+                        canvas.drawRoundRect(
+                            RectF(
+                                startX + col * cell + 1f * d,
+                                startY + row * cell + 1f * d,
+                                startX + (col + 1) * cell - 1f * d,
+                                startY + (row + 1) * cell - 1f * d
+                            ),
+                            2f * d,
+                            2f * d,
+                            qrBlockPaint
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
