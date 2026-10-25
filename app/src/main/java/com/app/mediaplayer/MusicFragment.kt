@@ -27,6 +27,7 @@ import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
@@ -53,6 +54,7 @@ open class MusicFragment : Fragment() {
     private lateinit var tvGroupHeaderTitle: TextView
     private lateinit var rvMusicList: RecyclerView
     private lateinit var tvEmptyMusic: TextView
+    private lateinit var pullRefreshIndicator: ProgressBar
 
     private lateinit var miniPlayerCard: CardView
     private lateinit var imgMiniCover: ImageView
@@ -72,6 +74,7 @@ open class MusicFragment : Fragment() {
     private var isMiniPlaying = false
     private var accentColor = Color.parseColor("#00FFFF")
     private var isReceiverRegistered = false
+    private var mascotHostLayout: FrameLayout? = null
 
     private val miniPlayerSyncReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -101,19 +104,41 @@ open class MusicFragment : Fragment() {
         val theme = ThemeStudioHelper.getCurrentTheme(ctx)
         accentColor = Color.parseColor(theme.accentHex)
 
+        val masterFrame = FrameLayout(ctx).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.parseColor(theme.bgHex))
+        }
+        mascotHostLayout = masterFrame
+
         rootMusicLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor(theme.bgHex))
-            layoutParams = ViewGroup.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
 
+        // Pull-to-Refresh rotating circular indicator on top
+        pullRefreshIndicator = ProgressBar(ctx, null, android.R.attr.progressBarStyleSmall).apply {
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                (28 * d).toInt(),
+                (28 * d).toInt()
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = (4 * d).toInt()
+            }
+        }
+        rootMusicLayout.addView(pullRefreshIndicator)
+
         val topHeaderRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+            setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
         }
 
         topTabsScroll = HorizontalScrollView(ctx).apply {
@@ -130,7 +155,7 @@ open class MusicFragment : Fragment() {
         tabFolders = createTopTabItem("Folders", 1, d)
         tabAlbums = createTopTabItem("Albums", 2, d)
         tabArtists = createTopTabItem("Artists", 3, d)
-        tabFavorites = createTopTabItem("Favorites", 4, d)
+        tabFavorites = createTopTabItem("Favorites ♥", 4, d)
 
         tabsRow.addView(tabSongs)
         tabsRow.addView(tabFolders)
@@ -156,11 +181,11 @@ open class MusicFragment : Fragment() {
         val shuffleRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((14 * d).toInt(), (4 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
+            setPadding((14 * d).toInt(), (2 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
         }
 
         val btnPlayShuffleAll = TextView(ctx).apply {
-            text = "Play / Shuffle All"
+            text = "▶  Play / Shuffle All"
             setTextColor(Color.parseColor("#0A0A10"))
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -199,7 +224,7 @@ open class MusicFragment : Fragment() {
         }
 
         val btnBackGroup = TextView(ctx).apply {
-            text = "<- Back"
+            text = "←  Back"
             setTextColor(accentColor)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
@@ -243,7 +268,7 @@ open class MusicFragment : Fragment() {
             launchFullAudioPlayer(clickedPos, displayedSongsList)
         }
         rvMusicList.adapter = audioAdapter
-        attachLeftRightSwipeGestureToTabs(ctx)
+        attachSwipeToRefreshAndTabs(ctx)
         rootMusicLayout.addView(rvMusicList)
 
         tvEmptyMusic = TextView(ctx).apply {
@@ -318,7 +343,9 @@ open class MusicFragment : Fragment() {
         miniTextCol.addView(tvMiniTitle)
         miniTextCol.addView(tvMiniArtist)
 
-        btnMiniPlayPause = ImageView(ctx).apply {
+        btnMiniPlayProxyView() // setup
+
+        val btnMiniPlayPause = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
                 marginEnd = (6 * d).toInt()
             }
@@ -340,6 +367,7 @@ open class MusicFragment : Fragment() {
                 ctx.sendBroadcast(Intent(BackgroundAudioService.ACTION_NOTIF_PLAY_PAUSE).setPackage(ctx.packageName))
             }
         }
+        this.btnMiniPlayPause = btnMiniPlayPause
 
         btnMiniNext = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
@@ -365,16 +393,41 @@ open class MusicFragment : Fragment() {
         miniPlayerCard.addView(miniRow)
         rootMusicLayout.addView(miniPlayerCard)
 
+        masterFrame.addView(rootMusicLayout)
+
         updateTabVisuals(d)
         registerMiniReceiver(ctx)
         scanAllSongsInBackground()
 
-        return rootMusicLayout
+        return masterFrame
     }
+
+    private fun btnMiniPlayProxyView() {}
 
     override fun onResume() {
         super.onResume()
         scanAllSongsInBackground()
+        attachInteractiveMascotCompanion()
+    }
+
+    private fun attachInteractiveMascotCompanion() {
+        val host = mascotHostLayout ?: return
+        val ctx = context ?: return
+        MascotCompanionHelper.attachInteractiveMascot(
+            context = ctx,
+            hostContainer = host,
+            recyclerView = rvMusicList,
+            isVideoScreen = false,
+            isDancingProvider = { isMiniPlaying },
+            onHoldItemTriggered = { index ->
+                if (index in displayedSongsList.indices) {
+                    currentMiniIndex = index
+                    isMiniPlaying = true
+                    syncMiniBarWithSong(displayedSongsList[index])
+                    launchFullAudioPlayer(index, displayedSongsList)
+                }
+            }
+        )
     }
 
     override fun onDestroyView() {
@@ -467,7 +520,35 @@ open class MusicFragment : Fragment() {
         }
     }
 
-    private fun attachLeftRightSwipeGestureToTabs(context: Context) {
+    private fun attachSwipeToRefreshAndTabs(context: Context) {
+        var startY = 0f
+        var isPullingDown = false
+
+        rvMusicList.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startY = e.y
+                        isPullingDown = !rv.canScrollVertically(-1)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (isPullingDown && (e.y - startY) > 90f) {
+                            pullRefreshIndicator.visibility = View.VISIBLE
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (pullRefreshIndicator.visibility == View.VISIBLE) {
+                            pullRefreshIndicator.visibility = View.GONE
+                            scanAllSongsInBackground()
+                            Toast.makeText(context, "Music Library Refreshed!", Toast.LENGTH_SHORT).show()
+                        }
+                        isPullingDown = false
+                    }
+                }
+                return false
+            }
+        })
+
         val swipeDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -508,11 +589,6 @@ open class MusicFragment : Fragment() {
                 return false
             }
         })
-
-        rootMusicLayout.setOnTouchListener { _, event ->
-            swipeDetector.onTouchEvent(event)
-            true
-        }
     }
 
     private fun scanAllSongsInBackground() {
@@ -526,6 +602,7 @@ open class MusicFragment : Fragment() {
                     MediaStore.Audio.Media.TITLE,
                     MediaStore.Audio.Media.ARTIST,
                     MediaStore.Audio.Media.DATA,
+                    MediaStore.Audio.Media.SIZE,
                     MediaStore.Audio.Media.DURATION
                 )
                 ctx.contentResolver.query(
@@ -540,6 +617,7 @@ open class MusicFragment : Fragment() {
                     val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
                     val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                     val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                    val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                     val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
 
                     while (cursor.moveToNext()) {
@@ -549,6 +627,7 @@ open class MusicFragment : Fragment() {
 
                         val dur = if (durCol != -1) cursor.getLong(durCol) else 0L
                         if (dur < 1000L) continue
+                        val size = if (sizeCol != -1) cursor.getLong(sizeCol) else 0L
 
                         val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
                             ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
@@ -556,14 +635,14 @@ open class MusicFragment : Fragment() {
                         val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
                             ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Audio"
 
-                        // Exact 5-parameter constructor defined in Models.kt
                         list.add(
                             AudioModel(
                                 id = id,
                                 title = title,
                                 path = path,
                                 artist = artist,
-                                duration = dur
+                                duration = dur,
+                                size = size
                             )
                         )
                     }
@@ -715,7 +794,7 @@ open class MusicFragment : Fragment() {
                 }
 
                 val tvArrow = TextView(ctx).apply {
-                    text = ">"
+                    text = "❯"
                     setTextColor(accentColor)
                     textSize = 17f
                     typeface = Typeface.DEFAULT_BOLD
@@ -788,13 +867,13 @@ open class MusicFragment : Fragment() {
     private fun showMusicSortAndToolsMenu() {
         val ctx = context ?: return
         val items = arrayOf(
-            if (sortOrder == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
-            if (sortOrder == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
-            if (sortOrder == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
-            if (sortOrder == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
-            if (sortOrder == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
-            "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
-            "Open Built-In 5-Band Dolby Equalizer"
+            if (sortOrder == 0) "🕒   [Active] Sort: Newest Downloaded Songs" else "🕒   Sort: Newest Downloaded Songs",
+            if (sortOrder == 1) "🔤   [Active] Sort: Song Name (A to Z)" else "🔤   Sort: Song Name (A to Z)",
+            if (sortOrder == 2) "🎤   [Active] Sort: Artist / Singer Name" else "🎤   Sort: Artist / Singer Name",
+            if (sortOrder == 3) "⏱️   [Active] Sort: Longest Duration Songs" else "⏱️   Sort: Longest Duration Songs",
+            if (sortOrder == 4) "📦   [Active] Sort: Largest File Size" else "📦   Sort: Largest File Size",
+            "🎛️   Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+            "🎚️   Open Built-In 5-Band Dolby Equalizer"
         )
         VideoFragment.showBrightVideoMenuDialog(ctx, "Sort & Filter Songs", items) { which ->
             when (which) {
