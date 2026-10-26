@@ -46,7 +46,8 @@ object PermanentDeleteHelper {
         path: String,
         mediaId: Long = 0L,
         isVideo: Boolean = true,
-        onDeleted: () -> Unit
+        onDeletedSuccess: (() -> Unit)? = null,
+        onDeleted: (() -> Unit)? = null
     ) {
         showModernDeleteConfirmationDialog(
             context = context,
@@ -60,7 +61,8 @@ object PermanentDeleteHelper {
                 mediaIds = if (mediaId > 0L) listOf(mediaId) else emptyList(),
                 isVideo = isVideo
             )
-            onDeleted()
+            onDeletedSuccess?.invoke()
+            onDeleted?.invoke()
             Toast.makeText(context, "Deleted permanently from storage", Toast.LENGTH_SHORT).show()
         }
     }
@@ -112,7 +114,6 @@ object PermanentDeleteHelper {
 
         val failedUrisForAndroid11 = ArrayList<Uri>()
 
-        // 1. Delete by MediaStore ID
         for (id in mediaIds) {
             if (id <= 0L) continue
             val itemUri = ContentUris.withAppendedId(baseUri, id)
@@ -127,7 +128,6 @@ object PermanentDeleteHelper {
             }
         }
 
-        // 2. Delete by File Path from MediaStore & Physical File System
         for (rawPath in paths) {
             if (rawPath.isEmpty()) continue
             try {
@@ -143,7 +143,6 @@ object PermanentDeleteHelper {
                 val args = arrayOf(rawPath)
                 resolver.delete(baseUri, where, args)
             } catch (_: SecurityException) {
-                // Lookup URI if security exception occurs on scoped storage
                 try {
                     val proj = arrayOf(MediaStore.MediaColumns._ID)
                     resolver.query(
@@ -167,7 +166,6 @@ object PermanentDeleteHelper {
             }
         }
 
-        // 3. Notify MediaScanner so Gallery & File Managers immediately remove the deleted files
         try {
             MediaScannerConnection.scanFile(
                 context.applicationContext,
@@ -178,7 +176,6 @@ object PermanentDeleteHelper {
         } catch (_: Exception) {
         }
 
-        // 4. On Android 11+ (API 30+), if any file is owned by another app and requires system trash/delete confirmation
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
             failedUrisForAndroid11.isNotEmpty() &&
             context is Activity
