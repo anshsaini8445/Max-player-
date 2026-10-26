@@ -1,52 +1,81 @@
 package com.app.mediaplayer
 
-import android.content.ContentUris
 import android.content.Context
-import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 object DeepMediaScanner {
 
-    // Strictly real video extensions (Excludes .IFO and .BUP DVD metadata files so junk never appears)
-    private val validVideoExtensions = setOf(
-        "mp4", "mkv", "webm", "avi", "mov", "flv", "3gp", "ts", "m4v", "wmv",
-        "crdownload", "part", "download"
-    )
+    private const val SNAPSHOT_PREF = "HYBRID_INSTANT_VIDEO_SNAPSHOT"
+    private const val KEY_SNAPSHOT_DATA = "instant_video_rows_v3"
 
     @Volatile
-    private var memoryCachedVideos: List<VideoModel> = emptyList()
+    private var memoryCache: List<VideoModel> = emptyList()
 
     @Volatile
-    private var lastScanTimeMs: Long = 0L
+    private var lastScanTimestampMs: Long = 0L
 
-    fun getCachedVideosInstant(): List<VideoModel> {
-        return memoryCachedVideos
+    /**
+     * Sub-10ms Instant Loader:
+     * Returns in-memory videos immediately, or restores the persistent snapshot from SharedPreferences
+     * so the Video screen populates in less than 0.1 seconds on app startup.
+     */
+    fun getCachedVideosInstant(context: Context? = null): List<VideoModel> {
+        if (memoryCache.isNotEmpty()) {
+            return memoryCache
+        }
+        if (context != null) {
+            val restored = loadInstantSnapshotFromDisk(context)
+            if (restored.isNotEmpty()) {
+                memoryCache = restored
+                return restored
+            }
+        }
+        return memoryCache
     }
 
     fun invalidateCache() {
-        lastScanTimeMs = 0L
+        memoryCache = emptyList()
+        lastScanTimestampMs = 0L
     }
 
-    // Ultra-fast non-blocking MediaStore + shallow download scan (0.05s response, zero UI freeze)
-    fun scanAllVideosEverywhere(context: Context, forceRefresh: Boolean = false): List<VideoModel> {
+    fun removeDeletedPathsFromCache(context: Context, deletedPaths: Collection<String>) {
+        val deleteSet = deletedPaths.toHashSet()
+        memoryCache = memoryCache.filterNot { deleteSet.contains(it.path) }
+        saveInstantSnapshotToDisk(context, memoryCache)
+    }
+
+    fun scanAllVideosEverywhere(
+        context: Context,
+        forceRefresh: Boolean = false
+    ): List<VideoModel> {
         val now = System.currentTimeMillis()
-        if (!forceRefresh && memoryCachedVideos.isNotEmpty() && (now - lastScanTimeMs) < 15000L) {
-            return memoryCachedVideos.filter { !PermanentDeleteHelper.isMarkedDeleted(context, it.path) }
+        if (!forceRefresh && memoryCache.isNotEmpty() && (now - lastScanTimestampMs) < 15000L) {
+            return memoryCache
         }
 
-        val results = mutableListOf<VideoModel>()
-        val seenPaths = HashSet<String>()
+        if (!forceRefresh && memoryCache.isEmpty()) {
+            val diskSnapshot = loadInstantSnapshotFromDisk(context)
+            if (diskSnapshot.isNotEmpty()) {
+                memoryCache = diskSnapshot
+            }
+        }
+
+        val results = ArrayList<VideoModel>(256)
+        val seenPaths = HashSet<String>(256)
 
         try {
             val projection = arrayOf(
                 MediaStore.Video.Media._ID,
                 MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.TITLE,
                 MediaStore.Video.Media.DATA,
-                MediaStore.Video.Media.SIZE,
-                MediaStore.Video.Media.DURATION
+                MediaStore.Video.Media.DURATION,
+                MediaStore.Video.Media.SIZE
             )
+
             context.contentResolver.query(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -54,112 +83,118 @@ object DeepMediaScanner {
                 null,
                 "${MediaStore.Video.Media.DATE_ADDED} DESC"
             )?.use { cursor ->
-                val idCol = cursor.getColumnIndex(MediaStore.Video.Media._ID)
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val nameCol = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+                val titleCol = cursor.getColumnIndex(MediaStore.Video.Media.TITLE)
                 val dataCol = cursor.getColumnIndex(MediaStore.Video.Media.DATA)
-                val sizeCol = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
                 val durCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
 
                 while (cursor.moveToNext()) {
-                    val id = if (idCol != -1) cursor.getLong(idCol) else 0L
-                    val rawPath = if (dataCol != -1) cursor.getString(dataCol) else null
-                    val path = if (!rawPath.isNullOrEmpty()) {
-                        rawPath
-                    } else {
-                        ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id).toString()
-                    }
-
+                    val id = cursor.getLong(idCol)
+                    val path = if (dataCol != -1) cursor.getString(dataCol) ?: "" else ""
+                    if (path.isEmpty() || !seenPaths.add(path)) continue
                     if (PermanentDeleteHelper.isMarkedDeleted(context, path)) continue
 
-                    val ext = path.substringAfterLast('.', "").lowercase(Locale.US)
-                    if (ext == "ifo" || ext == "bup" || ext == "txt" || ext == "db") continue
+                    val fileObj = File(path)
+                    if (!fileObj.exists() || fileObj.length() < 1024L) continue
 
-                    val size = if (sizeCol != -1) cursor.getLong(sizeCol).coerceAtLeast(0L) else 0L
-                    val duration = if (durCol != -1) cursor.getLong(durCol).coerceAtLeast(0L) else 0L
-                    val title = if (nameCol != -1) {
-                        cursor.getString(nameCol) ?: File(path).name
+                    val rawTitle = (if (nameCol != -1) cursor.getString(nameCol) else null)
+                        ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
+                        ?: fileObj.name
+
+                    val durationMs = if (durCol != -1) cursor.getLong(durCol).coerceAtLeast(0L) else 0L
+                    val sizeBytes = if (sizeCol != -1) {
+                        val s = cursor.getLong(sizeCol)
+                        if (s > 0L) s else fileObj.length()
                     } else {
-                        File(path).name
+                        fileObj.length()
                     }
 
-                    if (size > 80 * 1024L && (duration > 500L || validVideoExtensions.contains(ext))) {
-                        seenPaths.add(path)
-                        results.add(VideoModel(id, title, path, size, duration))
-                    }
+                    results.add(
+                        VideoModel(
+                            id = id,
+                            title = rawTitle,
+                            duration = formatMillisToClock(durationMs),
+                            size = sizeBytes,
+                            path = path
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // Fast 2-level scan for WhatsApp Statuses and Chrome partial downloads without slow retriever calls
-        try {
-            val extRoot = Environment.getExternalStorageDirectory()
-            if (extRoot != null && extRoot.exists()) {
-                val quickDirs = listOf(
-                    File(extRoot, "Download"),
-                    File(extRoot, "Android/media/com.whatsapp/WhatsApp/Media/.Statuses"),
-                    File(extRoot, "WhatsApp/Media/.Statuses")
-                )
-                for (dir in quickDirs) {
-                    scanDirectoryFast(context, dir, seenPaths, results, 0)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        memoryCachedVideos = results
-        lastScanTimeMs = System.currentTimeMillis()
+        memoryCache = results
+        lastScanTimestampMs = System.currentTimeMillis()
+        saveInstantSnapshotToDisk(context, results)
         return results
     }
 
-    private fun scanDirectoryFast(
-        context: Context,
-        dir: File,
-        seenPaths: HashSet<String>,
-        results: MutableList<VideoModel>,
-        depth: Int
-    ) {
-        if (depth > 2 || !dir.exists() || !dir.isDirectory) return
-        val files = dir.listFiles() ?: return
-
-        for (file in files) {
-            if (file.isDirectory) {
-                scanDirectoryFast(context, file, seenPaths, results, depth + 1)
-            } else {
-                val path = file.absolutePath
-                if (seenPaths.contains(path) || PermanentDeleteHelper.isMarkedDeleted(context, path)) continue
-
-                val ext = file.extension.lowercase(Locale.US)
-                if (!validVideoExtensions.contains(ext)) continue
-
-                val length = file.length()
-                if (length < 100 * 1024L) continue
-
-                val isPartial = ext == "crdownload" || ext == "part" || ext == "download"
-                if (isPartial && length < 1024 * 1024L) continue
-
-                val estimatedDurMs = if (path.contains(".Statuses", ignoreCase = true)) 25000L else 60000L
-                val displayTitle = if (isPartial) "[Downloading] ${file.name}" else file.name
-                seenPaths.add(path)
-                results.add(
-                    VideoModel(
-                        id = path.hashCode().toLong(),
-                        title = displayTitle,
-                        path = path,
-                        size = length,
-                        duration = estimatedDurMs
-                    )
-                )
+    private fun saveInstantSnapshotToDisk(context: Context, list: List<VideoModel>) {
+        try {
+            val sb = StringBuilder()
+            val limit = list.size.coerceAtMost(400)
+            for (i in 0 until limit) {
+                val v = list[i]
+                val cleanTitle = v.title.replace("|", " ").replace("\n", " ")
+                sb.append(v.id).append('|')
+                    .append(cleanTitle).append('|')
+                    .append(v.duration).append('|')
+                    .append(v.size).append('|')
+                    .append(v.path).append('\n')
             }
+            context.getSharedPreferences(SNAPSHOT_PREF, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_SNAPSHOT_DATA, sb.toString())
+                .apply()
+        } catch (_: Exception) {
         }
     }
 
-    fun filterShortsAndStatusVideos(allVideos: List<VideoModel>): List<VideoModel> {
-        return allVideos.filter { video ->
-            val durSec = video.duration / 1000L
-            (durSec in 1L..90L) || video.path.contains(".Statuses", ignoreCase = true)
+    private fun loadInstantSnapshotFromDisk(context: Context): List<VideoModel> {
+        val out = ArrayList<VideoModel>()
+        try {
+            val raw = context.getSharedPreferences(SNAPSHOT_PREF, Context.MODE_PRIVATE)
+                .getString(KEY_SNAPSHOT_DATA, null) ?: return emptyList()
+            val lines = raw.split('\n')
+            for (line in lines) {
+                if (line.isBlank()) continue
+                val parts = line.split('|')
+                if (parts.size >= 5) {
+                    val path = parts[4]
+                    if (PermanentDeleteHelper.isMarkedDeleted(context, path)) continue
+                    val id = parts[0].toLongOrNull() ?: 0L
+                    val title = parts[1]
+                    val dur = parts[2]
+                    val size = parts[3].toLongOrNull() ?: 0L
+                    out.add(
+                        VideoModel(
+                            id = id,
+                            title = title,
+                            duration = dur,
+                            size = size,
+                            path = path
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return out
+    }
+
+    private fun formatMillisToClock(millis: Long): String {
+        val safe = millis.coerceAtLeast(0L)
+        val totalSecs = TimeUnit.MILLISECONDS.toSeconds(safe)
+        val hours = totalSecs / 3600
+        val minutes = (totalSecs % 3600) / 60
+        val seconds = totalSecs % 60
+        return if (hours > 0) {
+            String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
         }
     }
 }
