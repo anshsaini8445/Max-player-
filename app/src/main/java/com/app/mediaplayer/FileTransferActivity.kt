@@ -2,13 +2,11 @@ package com.app.mediaplayer
 
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
@@ -36,7 +34,6 @@ import android.text.InputType
 import android.text.TextUtils
 import android.util.LruCache
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -45,7 +42,6 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -55,7 +51,6 @@ import androidx.recyclerview.widget.RecyclerView
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -64,6 +59,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.text.SimpleDateFormat
+import java.util.ArrayList
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -72,7 +68,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.concurrent.thread
-import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -164,9 +159,16 @@ class FileTransferActivity : AppCompatActivity() {
         buildUltraTransferUi()
         ThemeStudioHelper.applyThemeAndOneHandModeToRoot(this, rootFrame)
 
+        // Read preselected video paths sent from VideoFragment's 2-second hold Multi-Select bar
+        val preselected = intent?.getStringArrayListExtra("PRESELECTED_PATHS")
+        if (!preselected.isNullOrEmpty()) {
+            selectedPaths.addAll(preselected)
+            updateBottomSendButtonCount()
+        }
+
         runBuiltInSpeedometerTest()
         loadTransferHistoryFromPrefs()
-        loadAllCategoriesLazyInBackground()
+        loadAllCategoriesLazyInBackground(autoStartPreselected = !preselected.isNullOrEmpty())
         mainHandler.post(waveAnimationRunnable)
     }
 
@@ -200,7 +202,7 @@ class FileTransferActivity : AppCompatActivity() {
 
         val btnBack = TextView(this).apply {
             text = "<-"
-            setTextColor(accentColor)
+            setTextColor(Color.WHITE)
             textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -210,7 +212,7 @@ class FileTransferActivity : AppCompatActivity() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#182436"))
-                setStroke((1.2f * d).toInt(), accentColor)
+                setStroke((1.2f * d).toInt(), Color.WHITE)
             }
             setOnClickListener { finish() }
         }
@@ -776,7 +778,26 @@ class FileTransferActivity : AppCompatActivity() {
         }, 1200L)
     }
 
-    private fun loadAllCategoriesLazyInBackground() {
+    private fun loadAllCategoriesLazyInBackground(autoStartPreselected: Boolean = false) {
+        val instantCachedVids = DeepMediaScanner.getCachedVideosInstant(this)
+        if (instantCachedVids.isNotEmpty()) {
+            videoItems.clear()
+            videoItems.addAll(
+                instantCachedVids.map { v ->
+                    ShareableItem(
+                        id = "vid_${v.id}",
+                        title = v.title,
+                        subtitle = "${VideoAdapter.formatVideoDurationAny(v.duration)}  •  ${formatBytes(v.size)}",
+                        filePath = v.path,
+                        sizeBytes = v.size,
+                        category = 0
+                    )
+                }
+            )
+            tabVideos.text = "Videos (${videoItems.size})"
+            refreshDisplayedTabList()
+        }
+
         thread {
             val scannedVids = DeepMediaScanner.scanAllVideosEverywhere(this, forceRefresh = false)
             val mappedVids = scannedVids.map { v ->
@@ -841,7 +862,11 @@ class FileTransferActivity : AppCompatActivity() {
                 audioItems.addAll(mappedAudio)
                 tabVideos.text = "Videos (${videoItems.size})"
                 tabAudio.text = "Music (${audioItems.size})"
+                updateBottomSendButtonCount()
                 refreshDisplayedTabList()
+                if (autoStartPreselected && selectedPaths.isNotEmpty()) {
+                    startHighSpeedChunkedSend()
+                }
             }
 
             val mappedApks = mutableListOf<ShareableItem>()
@@ -1476,6 +1501,7 @@ class FileTransferActivity : AppCompatActivity() {
             val intent = Intent(this, PlayerActivity::class.java).apply {
                 putExtra("VIDEO_PATH", item.filePath)
                 putExtra("VIDEO_TITLE", item.title)
+                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             }
             startActivity(intent)
         }
@@ -1594,7 +1620,7 @@ class FileTransferActivity : AppCompatActivity() {
 
             val btnPlayInApp = TextView(this@FileTransferActivity).apply {
                 text = "Play"
-                setTextColor(accentColor)
+                setTextColor(Color.WHITE)
                 textSize = 11.5f
                 typeface = Typeface.DEFAULT_BOLD
                 setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
@@ -1605,7 +1631,7 @@ class FileTransferActivity : AppCompatActivity() {
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#1A00FFFF"))
                     cornerRadius = 12f * d
-                    setStroke((1 * d).toInt(), accentColor)
+                    setStroke((1 * d).toInt(), Color.WHITE)
                 }
             }
 
