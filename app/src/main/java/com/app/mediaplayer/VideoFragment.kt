@@ -7,23 +7,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.PixelFormat
 import android.graphics.PorterDuff
-import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.TextUtils
 import android.view.GestureDetector
 import android.view.Gravity
@@ -49,6 +40,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -98,16 +91,13 @@ class VideoFragment : Fragment() {
             onSelect: (Int) -> Unit
         ) {
             val d = context.resources.displayMetrics.density
-            val theme = ThemeStudioHelper.getCurrentTheme(context)
-            val accentColor = Color.parseColor(theme.accentHex)
-
             val rootCard = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#0A0A10"))
                     cornerRadius = 22f * d
-                    setStroke((1.5f * d).toInt(), accentColor)
+                    setStroke((1.5f * d).toInt(), Color.parseColor("#44FFFFFF"))
                 }
             }
 
@@ -124,8 +114,8 @@ class VideoFragment : Fragment() {
 
             val tvHeader = TextView(context).apply {
                 text = headerTitle
-                setTextColor(accentColor)
-                textSize = 16f
+                setTextColor(Color.WHITE)
+                textSize = 16.5f
                 typeface = Typeface.DEFAULT_BOLD
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -138,7 +128,7 @@ class VideoFragment : Fragment() {
                 textSize = 14f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams((30 * d).toInt(), (30 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.parseColor("#26FFFFFF"))
@@ -155,7 +145,7 @@ class VideoFragment : Fragment() {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     (1 * d).toInt()
                 )
-                setBackgroundColor(Color.parseColor("#3300FFFF"))
+                setBackgroundColor(Color.parseColor("#33FFFFFF"))
             }
             rootCard.addView(topDivider)
 
@@ -168,7 +158,7 @@ class VideoFragment : Fragment() {
                 val tvItem = TextView(context).apply {
                     text = label
                     setTextColor(Color.WHITE)
-                    textSize = 14.5f
+                    textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding((12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt())
@@ -207,11 +197,19 @@ class VideoFragment : Fragment() {
     private lateinit var chipHistory: TextView
     private lateinit var btnSortAndLayout: ImageView
 
+    // Multi-Select Top Header & Bottom Action Dock (Select All / Hybrid Share / Other Apps / Permanent Delete)
+    private lateinit var multiSelectTopBar: LinearLayout
+    private lateinit var tvMultiSelectCount: TextView
+    private lateinit var btnSelectAllToggle: TextView
+    private lateinit var btnCancelMultiSelect: TextView
+    private lateinit var multiSelectBottomDock: LinearLayout
+
     private lateinit var folderBackHeader: LinearLayout
     private lateinit var tvFolderTitle: TextView
     private lateinit var rvVideos: RecyclerView
     private lateinit var tvEmptyVideos: TextView
 
+    // Upgraded Bottom Background Audio Bar with Back-to-Video, Fast Convert MP3, Prev, Play/Pause, Next
     private lateinit var bgAudioDockCard: CardView
     private lateinit var tvBgDockTitle: TextView
     private lateinit var tvBgDockTime: TextView
@@ -219,6 +217,7 @@ class VideoFragment : Fragment() {
     private lateinit var btnBgDockPrev: ImageView
     private lateinit var btnBgDockPlayPause: ImageView
     private lateinit var btnBgDockNext: ImageView
+    private lateinit var btnBgDockConvertMp3: TextView
     private lateinit var btnBgDockClose: TextView
 
     private val allVideosList = mutableListOf<VideoModel>()
@@ -278,6 +277,7 @@ class VideoFragment : Fragment() {
             )
         }
 
+        // 1. Pull-to-Refresh Circular Spinner
         pullRefreshCard = CardView(ctx).apply {
             radius = 22f * d
             cardElevation = 10f * d
@@ -293,7 +293,7 @@ class VideoFragment : Fragment() {
             }
         }
         val spinner = ProgressBar(ctx, null, android.R.attr.progressBarStyleSmall).apply {
-            indeterminateTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             layoutParams = FrameLayout.LayoutParams(
                 (26 * d).toInt(),
                 (26 * d).toInt(),
@@ -303,6 +303,11 @@ class VideoFragment : Fragment() {
         pullRefreshCard.addView(spinner)
         rootVideoCol.addView(pullRefreshCard)
 
+        // 2. Multi-Selection Top Header Bar (Hidden until user holds a video for 2s)
+        buildMultiSelectTopHeaderBar(ctx, d)
+        rootVideoCol.addView(multiSelectTopBar)
+
+        // 3. Top Category Chips Row
         val topBarRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -333,16 +338,16 @@ class VideoFragment : Fragment() {
         topChipsScroll.addView(chipsContainer)
 
         btnSortAndLayout = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt()).apply {
+            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt()).apply {
                 marginStart = (8 * d).toInt()
             }
-            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
+            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
             setImageResource(android.R.drawable.ic_menu_sort_by_size)
             setColorFilter(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#182234"))
-                setStroke((1 * d).toInt(), accentColor)
+                setStroke((1.2f * d).toInt(), Color.parseColor("#44FFFFFF"))
             }
             setOnClickListener {
                 showSortAndViewModeDialog()
@@ -353,6 +358,7 @@ class VideoFragment : Fragment() {
         topBarRow.addView(btnSortAndLayout)
         rootVideoCol.addView(topBarRow)
 
+        // 4. Folder Back Header
         folderBackHeader = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -363,8 +369,8 @@ class VideoFragment : Fragment() {
 
         val btnBackFolder = TextView(ctx).apply {
             text = "<-  Back to Folders"
-            setTextColor(accentColor)
-            textSize = 13.5f
+            setTextColor(Color.WHITE)
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((6 * d).toInt(), (4 * d).toInt(), (14 * d).toInt(), (4 * d).toInt())
             setOnClickListener {
@@ -387,6 +393,7 @@ class VideoFragment : Fragment() {
         folderBackHeader.addView(tvFolderTitle)
         rootVideoCol.addView(folderBackHeader)
 
+        // 5. Instant High-Performance Video RecyclerView
         rvVideos = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -396,16 +403,19 @@ class VideoFragment : Fragment() {
             setPadding((8 * d).toInt(), (4 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             clipToPadding = false
             setHasFixedSize(true)
-            setItemViewCacheSize(28)
+            setItemViewCacheSize(32)
+            itemAnimator = null
         }
         applyRecyclerViewLayoutManager(ctx)
-        videoAdapter = VideoAdapter(ctx, displayedVideosList)
+        videoAdapter = VideoAdapter(ctx, displayedVideosList) { isSelecting, selectedCount ->
+            updateMultiSelectBarUi(isSelecting, selectedCount)
+        }
         rvVideos.adapter = videoAdapter
         attachPullToRefreshAndTabSwipe(ctx)
         rootVideoCol.addView(rvVideos)
 
         tvEmptyVideos = TextView(ctx).apply {
-            text = "Scanning videos..."
+            text = "No videos found"
             setTextColor(Color.parseColor("#B0C4DE"))
             textSize = 14.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -419,14 +429,20 @@ class VideoFragment : Fragment() {
         }
         rootVideoCol.addView(tvEmptyVideos)
 
-        buildXPlayerStyleBackgroundAudioBar(ctx, d)
+        // 6. Multi-Select Bottom Action Dock (Hybrid Share / Other Apps Share / Permanent Delete)
+        buildMultiSelectBottomActionDock(ctx, d)
+        rootVideoCol.addView(multiSelectBottomDock)
+
+        // 7. Upgraded Background Audio Dock Bar
+        buildUpgradedBackgroundAudioBar(ctx, d)
         rootVideoCol.addView(bgAudioDockCard)
 
         masterFrame.addView(rootVideoCol)
         updateCategoryChipVisuals(d)
         registerBgReceiver(ctx)
 
-        val instantCache = DeepMediaScanner.getCachedVideosInstant()
+        // Instant < 0.1s Startup Load from Memory/Disk Snapshot Cache
+        val instantCache = DeepMediaScanner.getCachedVideosInstant(ctx)
         if (instantCache.isNotEmpty()) {
             allVideosList.clear()
             allVideosList.addAll(instantCache)
@@ -435,6 +451,202 @@ class VideoFragment : Fragment() {
         triggerBackgroundVideoScan(showToastOnComplete = false)
 
         return masterFrame
+    }
+
+    private fun buildMultiSelectTopHeaderBar(ctx: Context, d: Float) {
+        multiSelectTopBar = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#162438"))
+                setStroke((1 * d).toInt(), Color.parseColor("#33FFFFFF"))
+            }
+        }
+
+        tvMultiSelectCount = TextView(ctx).apply {
+            text = "1 Selected"
+            setTextColor(Color.WHITE)
+            textSize = 15.5f
+            typeface = Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        btnSelectAllToggle = TextView(ctx).apply {
+            text = "Select All"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (8 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#28FFFFFF"))
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                videoAdapter.selectAllVideos()
+            }
+        }
+
+        btnCancelMultiSelect = TextView(ctx).apply {
+            text = "Done"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                videoAdapter.exitMultiSelectMode()
+            }
+        }
+
+        multiSelectTopBar.addView(tvMultiSelectCount)
+        multiSelectTopBar.addView(btnSelectAllToggle)
+        multiSelectTopBar.addView(btnCancelMultiSelect)
+    }
+
+    private fun buildMultiSelectBottomActionDock(ctx: Context, d: Float) {
+        multiSelectBottomDock = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins((8 * d).toInt(), (4 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#121C2D"))
+                cornerRadius = 20f * d
+                setStroke((1.5f * d).toInt(), Color.parseColor("#44FFFFFF"))
+            }
+        }
+
+        // Option 1: Hybrid Share (In-App High-Speed Transfer)
+        val btnHybridShare = TextView(ctx).apply {
+            text = "Hybrid Share"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#00E676"))
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                val selected = videoAdapter.getSelectedVideos()
+                if (selected.isEmpty()) {
+                    Toast.makeText(ctx, "Select at least 1 video", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val paths = ArrayList(selected.map { it.path })
+                videoAdapter.exitMultiSelectMode()
+                try {
+                    val intent = Intent(ctx, FileTransferActivity::class.java).apply {
+                        putStringArrayListExtra("PRESELECTED_PATHS", paths)
+                    }
+                    startActivity(intent)
+                } catch (_: Exception) {
+                }
+            }
+        }
+
+        // Option 2: Share via Other Apps (WhatsApp, Bluetooth, Nearby)
+        val btnOtherAppsShare = TextView(ctx).apply {
+            text = "Share Apps"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E2E46"))
+                cornerRadius = 14f * d
+                setStroke((1 * d).toInt(), Color.WHITE)
+            }
+            setOnClickListener {
+                val selected = videoAdapter.getSelectedVideos()
+                if (selected.isEmpty()) {
+                    Toast.makeText(ctx, "Select at least 1 video", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val uris = ArrayList<Uri>()
+                selected.forEach { uris.add(Uri.parse(it.path)) }
+                videoAdapter.exitMultiSelectMode()
+                try {
+                    val shareIntent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                        type = "video/*"
+                        putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, "Share ${uris.size} Videos"))
+                } catch (_: Exception) {
+                    Toast.makeText(ctx, "Unable to share selected videos", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // Option 3: Permanent Delete from Phone Storage
+        val btnBatchDelete = TextView(ctx).apply {
+            text = "Delete"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.9f)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FF1744"))
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                val selected = videoAdapter.getSelectedVideos()
+                if (selected.isEmpty()) {
+                    Toast.makeText(ctx, "Select at least 1 video to delete", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                PermanentDeleteHelper.confirmAndDeleteMultipleVideosPermanently(ctx, selected) {
+                    val delSet = selected.map { it.path }.toHashSet()
+                    allVideosList.removeAll { delSet.contains(it.path) }
+                    displayedVideosList.removeAll { delSet.contains(it.path) }
+                    videoAdapter.exitMultiSelectMode()
+                    refreshVideoDisplay()
+                }
+            }
+        }
+
+        multiSelectBottomDock.addView(btnHybridShare)
+        multiSelectBottomDock.addView(btnOtherAppsShare)
+        multiSelectBottomDock.addView(btnBatchDelete)
+    }
+
+    private fun updateMultiSelectBarUi(isSelecting: Boolean, count: Int) {
+        if (!isSelecting) {
+            multiSelectTopBar.visibility = View.GONE
+            multiSelectBottomDock.visibility = View.GONE
+        } else {
+            multiSelectTopBar.visibility = View.VISIBLE
+            multiSelectBottomDock.visibility = View.VISIBLE
+            tvMultiSelectCount.text = "$count Selected"
+            btnSelectAllToggle.text =
+                if (count == displayedVideosList.size && count > 0) "Unselect All" else "Select All"
+        }
     }
 
     override fun onResume() {
@@ -464,7 +676,7 @@ class VideoFragment : Fragment() {
             hostContainer = masterFrame,
             recyclerView = rvVideos,
             isVideoScreen = true,
-            isDancingProvider = { bgBarVisible && bgBarPlaying || AudioFragment.isSharedPlayerPlaying() },
+            isDancingProvider = { (bgBarVisible && bgBarPlaying) || AudioFragment.isSharedPlayerPlaying() },
             onHoldItemTriggered = { heldPosition ->
                 if (heldPosition in displayedVideosList.indices) {
                     val chosen = displayedVideosList[heldPosition]
@@ -473,18 +685,19 @@ class VideoFragment : Fragment() {
                         putExtra("VIDEO_PATH", chosen.path)
                         putExtra("VIDEO_TITLE", chosen.title)
                         putStringArrayListExtra("VIDEO_LIST", allPaths)
+                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
                     }
-                    Toast.makeText(ctx, "Mascot 3s Hold -> Playing: ${chosen.title}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, "Puppy 2s Hold -> Playing: ${chosen.title}", Toast.LENGTH_SHORT).show()
                     startActivity(intent)
                 }
             }
         )
     }
 
-    private fun buildXPlayerStyleBackgroundAudioBar(ctx: Context, d: Float) {
+    private fun buildUpgradedBackgroundAudioBar(ctx: Context, d: Float) {
         bgAudioDockCard = CardView(ctx).apply {
-            radius = 18f * d
-            cardElevation = 12f * d
+            radius = 20f * d
+            cardElevation = 14f * d
             setCardBackgroundColor(Color.parseColor("#101928"))
             visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
@@ -497,27 +710,126 @@ class VideoFragment : Fragment() {
 
         val dockCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (12 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#101928"))
-                cornerRadius = 18f * d
-                setStroke((1.4f * d).toInt(), accentColor)
+                cornerRadius = 20f * d
+                setStroke((1.5f * d).toInt(), Color.parseColor("#44FFFFFF"))
             }
         }
 
+        val topInfoRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val textCol = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (8 * d).toInt()
+            }
+            setOnClickListener {
+                if (bgBarPath.isNotEmpty()) {
+                    val intent = Intent(ctx, PlayerActivity::class.java).apply {
+                        putExtra("VIDEO_PATH", bgBarPath)
+                        putExtra("VIDEO_TITLE", bgBarTitle)
+                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    startActivity(intent)
+                }
+            }
+        }
+
+        tvBgDockTitle = TextView(ctx).apply {
+            text = "Background Play (Tap to Return to Video)"
+            setTextColor(Color.WHITE)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+
+        tvBgDockTime = TextView(ctx).apply {
+            text = "00:00 / 00:00  •  Tap to Open Video"
+            setTextColor(Color.parseColor("#B0C4DE"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        textCol.addView(tvBgDockTitle)
+        textCol.addView(tvBgDockTime)
+
+        btnBgDockConvertMp3 = TextView(ctx).apply {
+            text = "Fast MP3"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (8 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 14f * d
+            }
+            setOnClickListener {
+                if (bgBarPath.isNotEmpty()) {
+                    try {
+                        val intent = Intent(ctx, Mp3ConverterActivity::class.java).apply {
+                            putExtra("VIDEO_PATH", bgBarPath)
+                            putExtra("VIDEO_TITLE", bgBarTitle)
+                        }
+                        startActivity(intent)
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
+
+        btnBgDockClose = TextView(ctx).apply {
+            text = "X"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams((30 * d).toInt(), (30 * d).toInt())
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#28FFFFFF"))
+            }
+            setOnClickListener {
+                bgBarVisible = false
+                bgBarPlaying = false
+                bgAudioDockCard.visibility = View.GONE
+                ctx.startService(
+                    Intent(ctx, BackgroundAudioService::class.java)
+                        .setAction(BackgroundAudioService.ACTION_STOP_SERVICE)
+                )
+            }
+        }
+
+        topInfoRow.addView(textCol)
+        topInfoRow.addView(btnBgDockConvertMp3)
+        topInfoRow.addView(btnBgDockClose)
+        dockCol.addView(topInfoRow)
+
         sbBgDockSeek = SeekBar(ctx).apply {
             max = 1000
-            progressDrawable.setColorFilter(accentColor, PorterDuff.Mode.SRC_IN)
+            progressDrawable.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
             thumb.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            ).apply {
+                topMargin = (4 * d).toInt()
+                bottomMargin = (4 * d).toInt()
+            }
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
                     if (fromUser) {
                         val targetMs = ((p / 1000f) * bgBarDurationMs).toLong()
-                        tvBgDockTime.text = "${formatShortTime(targetMs)} / ${formatShortTime(bgBarDurationMs)}"
+                        tvBgDockTime.text = "${formatShortTime(targetMs)} / ${formatShortTime(bgBarDurationMs)}  •  Tap to Open Video"
                     }
                 }
                 override fun onStartTrackingTouch(s: SeekBar?) {}
@@ -535,52 +847,17 @@ class VideoFragment : Fragment() {
         }
         dockCol.addView(sbBgDockSeek)
 
-        val controlsRow = LinearLayout(ctx).apply {
+        // Bottom Transport Row: Previous | Back to Video | Pause/Play | Next
+        val transportRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((2 * d).toInt(), (4 * d).toInt(), (2 * d).toInt(), 0)
+            gravity = Gravity.CENTER
         }
-
-        val textCol = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = (8 * d).toInt()
-            }
-            setOnClickListener {
-                if (bgBarPath.isNotEmpty()) {
-                    val intent = Intent(ctx, PlayerActivity::class.java).apply {
-                        putExtra("VIDEO_PATH", bgBarPath)
-                        putExtra("VIDEO_TITLE", bgBarTitle)
-                    }
-                    startActivity(intent)
-                }
-            }
-        }
-
-        tvBgDockTitle = TextView(ctx).apply {
-            text = "Background Audio"
-            setTextColor(Color.WHITE)
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-        }
-
-        tvBgDockTime = TextView(ctx).apply {
-            text = "00:00 / 00:00"
-            setTextColor(accentColor)
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        textCol.addView(tvBgDockTitle)
-        textCol.addView(tvBgDockTime)
 
         btnBgDockPrev = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((34 * d).toInt(), (34 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt()).apply {
+                marginEnd = (16 * d).toInt()
             }
-            setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt())
+            setPadding((7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt())
             setImageResource(android.R.drawable.ic_media_previous)
             setColorFilter(Color.WHITE)
             setOnClickListener {
@@ -589,12 +866,17 @@ class VideoFragment : Fragment() {
         }
 
         btnBgDockPlayPause = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
+                marginEnd = (16 * d).toInt()
             }
-            setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageResource(android.R.drawable.ic_media_pause)
-            setColorFilter(accentColor)
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#24FFFFFF"))
+                setStroke((1.2f * d).toInt(), Color.WHITE)
+            }
             setOnClickListener {
                 bgBarPlaying = !bgBarPlaying
                 refreshBgDockUi()
@@ -603,10 +885,10 @@ class VideoFragment : Fragment() {
         }
 
         btnBgDockNext = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((34 * d).toInt(), (34 * d).toInt()).apply {
-                marginEnd = (8 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt()).apply {
+                marginEnd = (16 * d).toInt()
             }
-            setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt())
+            setPadding((7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt())
             setImageResource(android.R.drawable.ic_media_next)
             setColorFilter(Color.WHITE)
             setOnClickListener {
@@ -614,34 +896,35 @@ class VideoFragment : Fragment() {
             }
         }
 
-        btnBgDockClose = TextView(ctx).apply {
-            text = "X"
+        val btnBackToVideoPill = TextView(ctx).apply {
+            text = "Back to Video"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams((28 * d).toInt(), (28 * d).toInt())
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#28FFFFFF"))
+                setColor(Color.parseColor("#1E2E46"))
+                cornerRadius = 16f * d
+                setStroke((1 * d).toInt(), Color.WHITE)
             }
             setOnClickListener {
-                bgBarVisible = false
-                bgBarPlaying = false
-                bgAudioDockCard.visibility = View.GONE
-                ctx.startService(
-                    Intent(ctx, BackgroundAudioService::class.java)
-                        .setAction(BackgroundAudioService.ACTION_STOP_SERVICE)
-                )
+                if (bgBarPath.isNotEmpty()) {
+                    val intent = Intent(ctx, PlayerActivity::class.java).apply {
+                        putExtra("VIDEO_PATH", bgBarPath)
+                        putExtra("VIDEO_TITLE", bgBarTitle)
+                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    startActivity(intent)
+                }
             }
         }
 
-        controlsRow.addView(textCol)
-        controlsRow.addView(btnBgDockPrev)
-        controlsRow.addView(btnBgDockPlayPause)
-        controlsRow.addView(btnBgDockNext)
-        controlsRow.addView(btnBgDockClose)
-        dockCol.addView(controlsRow)
+        transportRow.addView(btnBgDockPrev)
+        transportRow.addView(btnBgDockPlayPause)
+        transportRow.addView(btnBgDockNext)
+        transportRow.addView(btnBackToVideoPill)
+        dockCol.addView(transportRow)
+
         bgAudioDockCard.addView(dockCol)
     }
 
@@ -653,7 +936,7 @@ class VideoFragment : Fragment() {
         }
         bgAudioDockCard.visibility = View.VISIBLE
         tvBgDockTitle.text = bgBarTitle
-        tvBgDockTime.text = "${formatShortTime(bgBarPositionMs)} / ${formatShortTime(bgBarDurationMs)}"
+        tvBgDockTime.text = "${formatShortTime(bgBarPositionMs)} / ${formatShortTime(bgBarDurationMs)}  •  Tap to Open Video"
         val progress = ((bgBarPositionMs.toFloat() / bgBarDurationMs.toFloat()) * 1000f).roundToInt().coerceIn(0, 1000)
         sbBgDockSeek.progress = progress
         btnBgDockPlayPause.setImageResource(
@@ -712,6 +995,7 @@ class VideoFragment : Fragment() {
         val d = resources.displayMetrics.density
         activeTab = targetTab.coerceIn(0, 4)
         selectedFolderPath = null
+        videoAdapter.exitMultiSelectMode()
         updateCategoryChipVisuals(d)
         applyRecyclerViewLayoutManager(requireContext())
         refreshVideoDisplay()
@@ -723,7 +1007,7 @@ class VideoFragment : Fragment() {
             val isSel = idx == activeTab
             tv.setTextColor(if (isSel) Color.parseColor("#0A0A10") else Color.WHITE)
             tv.background = GradientDrawable().apply {
-                setColor(if (isSel) accentColor else Color.parseColor("#182234"))
+                setColor(if (isSel) Color.WHITE else Color.parseColor("#182234"))
                 cornerRadius = 18f * d
             }
         }
@@ -764,9 +1048,12 @@ class VideoFragment : Fragment() {
             activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 pullRefreshCard.visibility = View.GONE
+                val changed = scanned.size != allVideosList.size || showToastOnComplete || allVideosList.isEmpty()
                 allVideosList.clear()
                 allVideosList.addAll(scanned)
-                refreshVideoDisplay()
+                if (changed) {
+                    refreshVideoDisplay()
+                }
                 if (showToastOnComplete) {
                     Toast.makeText(ctx, "Refreshed! ${scanned.size} Videos Loaded.", Toast.LENGTH_SHORT).show()
                 }
@@ -897,7 +1184,7 @@ class VideoFragment : Fragment() {
                 }
 
                 val tvCount = TextView(ctx).apply {
-                    setTextColor(accentColor)
+                    setTextColor(Color.parseColor("#B0C4DE"))
                     textSize = 12f
                     typeface = Typeface.DEFAULT_BOLD
                     setPadding(0, (3 * d).toInt(), 0, 0)
@@ -905,7 +1192,7 @@ class VideoFragment : Fragment() {
 
                 val tvArrow = TextView(ctx).apply {
                     text = ">"
-                    setTextColor(accentColor)
+                    setTextColor(Color.WHITE)
                     textSize = 17f
                     typeface = Typeface.DEFAULT_BOLD
                 }
@@ -920,7 +1207,6 @@ class VideoFragment : Fragment() {
             }
 
             override fun onBindViewHolder(holder: FolderCardVH, position: Int) {
-                InShotScrollAnimator.animateRowOnBind(holder.itemView)
                 val entry = folderGroups[position]
                 val folderPath = entry.key
                 val videos = entry.value
@@ -952,6 +1238,7 @@ class VideoFragment : Fragment() {
         val prefs = ctx.getSharedPreferences("HYBRID_VIDEO_UI_PREFS", Context.MODE_PRIVATE)
         val options = arrayOf(
             if (!isGridView) "Switch View: 2-Column Grid View" else "Switch View: Vertical List View",
+            "Select Multiple Videos (Batch Delete / Share)",
             if (sortOrder == 0) "[Active] Sort: Newest First (Latest Videos)" else "Sort: Newest First (Latest Videos)",
             if (sortOrder == 1) "[Active] Sort: New Last (Oldest Videos First)" else "Sort: New Last (Oldest Videos First)",
             if (sortOrder == 2) "[Active] Sort: Name (A to Z)" else "Sort: Name (A to Z)",
@@ -968,12 +1255,15 @@ class VideoFragment : Fragment() {
                     prefs.edit().putBoolean("video_is_grid", isGridView).apply()
                     refreshVideoDisplay()
                 }
-                1, 2, 3, 4, 5, 6 -> {
-                    sortOrder = which - 1
+                1 -> {
+                    videoAdapter.selectAllVideos()
+                }
+                2, 3, 4, 5, 6, 7 -> {
+                    sortOrder = which - 2
                     prefs.edit().putInt("video_sort_order", sortOrder).apply()
                     refreshVideoDisplay()
                 }
-                7 -> {
+                8 -> {
                     StatusSaverHelper.openWhatsAppStatusSaverDialog(ctx)
                 }
             }
@@ -1007,10 +1297,20 @@ class VideoFragment : Fragment() {
             setBackgroundColor(Color.BLACK)
         }
 
-        var activeReelPlayer: ExoPlayer? = ExoPlayer.Builder(ctx).build().apply {
-            repeatMode = Player.REPEAT_MODE_ONE
-            playWhenReady = true
+        val renderersFactory = DefaultRenderersFactory(ctx).apply {
+            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            setEnableDecoderFallback(true)
         }
+        val fastLoadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(1500, 15000, 200, 500)
+            .build()
+
+        var activeReelPlayer: ExoPlayer? = ExoPlayer.Builder(ctx, renderersFactory)
+            .setLoadControl(fastLoadControl)
+            .build().apply {
+                repeatMode = Player.REPEAT_MODE_ONE
+                playWhenReady = true
+            }
 
         val rvReelsPager = RecyclerView(ctx).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -1056,7 +1356,7 @@ class VideoFragment : Fragment() {
                         Gravity.TOP or Gravity.CENTER_HORIZONTAL
                     ).apply { topMargin = (56 * d).toInt() }
                     background = GradientDrawable().apply {
-                        setColor(accentColor)
+                        setColor(Color.WHITE)
                         cornerRadius = 18f * d
                     }
                 }
@@ -1075,50 +1375,50 @@ class VideoFragment : Fragment() {
                 }
 
                 val btnLike = TextView(ctx).apply {
-                    text = "♥\nLike"
+                    text = "Like"
                     setTextColor(Color.WHITE)
-                    textSize = 12f
+                    textSize = 12.5f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
                     setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
-                    layoutParams = LinearLayout.LayoutParams((56 * d).toInt(), (58 * d).toInt()).apply {
+                    layoutParams = LinearLayout.LayoutParams((58 * d).toInt(), (58 * d).toInt()).apply {
                         bottomMargin = (18 * d).toInt()
                     }
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(Color.parseColor("#66000000"))
-                        setStroke((1.2f * d).toInt(), Color.parseColor("#44FFFFFF"))
+                        setStroke((1.4f * d).toInt(), Color.WHITE)
                     }
                 }
 
                 val btnShare = TextView(ctx).apply {
-                    text = "➤\nShare"
+                    text = "Share"
                     setTextColor(Color.WHITE)
-                    textSize = 12f
+                    textSize = 12.5f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
                     setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
-                    layoutParams = LinearLayout.LayoutParams((56 * d).toInt(), (58 * d).toInt()).apply {
+                    layoutParams = LinearLayout.LayoutParams((58 * d).toInt(), (58 * d).toInt()).apply {
                         bottomMargin = (18 * d).toInt()
                     }
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(Color.parseColor("#66000000"))
-                        setStroke((1.2f * d).toInt(), Color.parseColor("#44FFFFFF"))
+                        setStroke((1.4f * d).toInt(), Color.WHITE)
                     }
                 }
 
                 val btnThreeDots = TextView(ctx).apply {
-                    text = "⋮"
-                    setTextColor(accentColor)
-                    textSize = 22f
+                    text = "..."
+                    setTextColor(Color.WHITE)
+                    textSize = 18f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams((52 * d).toInt(), (52 * d).toInt())
+                    layoutParams = LinearLayout.LayoutParams((54 * d).toInt(), (54 * d).toInt())
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(Color.parseColor("#66000000"))
-                        setStroke((1.2f * d).toInt(), accentColor)
+                        setStroke((1.4f * d).toInt(), Color.WHITE)
                     }
                 }
 
@@ -1160,7 +1460,7 @@ class VideoFragment : Fragment() {
                     val nowLiked = !prefs.getBoolean("fav_${item.path}", false)
                     prefs.edit().putBoolean("fav_${item.path}", nowLiked).apply()
                     holder.btnLike.setTextColor(if (nowLiked) Color.parseColor("#FF4081") else Color.WHITE)
-                    Toast.makeText(ctx, if (nowLiked) "Liked Reel ♥" else "Removed Like", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, if (nowLiked) "Liked Reel" else "Removed Like", Toast.LENGTH_SHORT).show()
                 }
 
                 holder.btnShare.setOnClickListener {
@@ -1175,7 +1475,7 @@ class VideoFragment : Fragment() {
                         "Set 0.2x Slow-Mo Speed",
                         "Reset Normal 1.0x Speed",
                         "Save / Status Saver",
-                        "Lock into Secret Privacy Vault"
+                        "Delete Reel Permanently (From Phone)"
                     )
                     showBrightVideoMenuDialog(ctx, "Reel Options", menuItems) { which ->
                         when (which) {
@@ -1200,7 +1500,18 @@ class VideoFragment : Fragment() {
                                 holder.tvSpeedBadge.visibility = View.GONE
                             }
                             5 -> StatusSaverHelper.openWhatsAppStatusSaverDialog(ctx)
-                            6 -> FakeVaultHelper.lockMediaIntoVault(ctx, item.path, item.title)
+                            6 -> {
+                                PermanentDeleteHelper.confirmAndDeletePermanently(
+                                    context = ctx,
+                                    title = item.title,
+                                    path = item.path,
+                                    mediaId = item.id,
+                                    isVideo = true
+                                ) {
+                                    dialog.dismiss()
+                                    triggerBackgroundVideoScan(showToastOnComplete = false)
+                                }
+                            }
                         }
                     }
                 }
@@ -1300,7 +1611,7 @@ class VideoFragment : Fragment() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#88000000"))
                 cornerRadius = 20f * d
-                setStroke((1 * d).toInt(), accentColor)
+                setStroke((1.2f * d).toInt(), Color.WHITE)
             }
             setOnClickListener { dialog.dismiss() }
         }
