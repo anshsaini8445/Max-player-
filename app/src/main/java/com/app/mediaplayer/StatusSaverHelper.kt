@@ -29,6 +29,44 @@ import kotlin.concurrent.thread
 
 object StatusSaverHelper {
 
+    fun saveVideoStatusToGallery(
+        context: Context,
+        videoPath: String,
+        title: String = "",
+        onComplete: ((Boolean) -> Unit)? = null
+    ): Boolean {
+        val file = File(videoPath)
+        if (!file.exists()) {
+            Toast.makeText(context, "Status file not found", Toast.LENGTH_SHORT).show()
+            onComplete?.invoke(false)
+            return false
+        }
+        saveStatusFileToGallery(context, file, onComplete)
+        return true
+    }
+
+    fun saveVideoStatusToGallery(
+        context: Context,
+        sourceFile: File,
+        onComplete: ((Boolean) -> Unit)? = null
+    ): Boolean {
+        if (!sourceFile.exists()) {
+            Toast.makeText(context, "Status file not found", Toast.LENGTH_SHORT).show()
+            onComplete?.invoke(false)
+            return false
+        }
+        saveStatusFileToGallery(context, sourceFile, onComplete)
+        return true
+    }
+
+    fun saveVideoStatusToGallery(
+        context: Context,
+        video: VideoModel,
+        onComplete: ((Boolean) -> Unit)? = null
+    ): Boolean {
+        return saveVideoStatusToGallery(context, video.path, video.title, onComplete)
+    }
+
     fun openWhatsAppStatusSaverDialog(context: Context) {
         val d = context.resources.displayMetrics.density
 
@@ -237,7 +275,11 @@ object StatusSaverHelper {
         return results.sortedByDescending { it.lastModified() }
     }
 
-    private fun saveStatusFileToGallery(context: Context, sourceFile: File) {
+    private fun saveStatusFileToGallery(
+        context: Context,
+        sourceFile: File,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
         thread {
             try {
                 val destDir = File(
@@ -267,10 +309,12 @@ object StatusSaverHelper {
                         "Status Saved to Gallery: Movies/HybridStatusSaver/${destFile.name}",
                         Toast.LENGTH_LONG
                     ).show()
+                    onComplete?.invoke(true)
                 }
             } catch (e: Exception) {
                 (context as? Activity)?.runOnUiThread {
                     Toast.makeText(context, "Unable to save status: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    onComplete?.invoke(false)
                 }
             }
         }
