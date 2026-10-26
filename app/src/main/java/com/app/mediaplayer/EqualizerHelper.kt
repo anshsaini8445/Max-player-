@@ -9,6 +9,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import android.view.Gravity
 import android.view.ViewGroup
@@ -19,33 +20,63 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import java.util.Locale
 
 object EqualizerHelper {
 
+    private const val PREF_EQ = "HYBRID_EQUALIZER_PREFS"
     private var activeEqualizer: Equalizer? = null
     private var activeBassBoost: BassBoost? = null
     private var activeVirtualizer: Virtualizer? = null
-    private var boundSessionId: Int = -1
+    private var activeLoudness: LoudnessEnhancer? = null
 
     fun showEqualizerDialog(context: Context, audioSessionId: Int) {
         val d = context.resources.displayMetrics.density
-        val prefs = context.getSharedPreferences("MAX_EQ_PREFS", Context.MODE_PRIVATE)
-        var isEqEnabled = prefs.getBoolean("eq_enabled", true)
+        val prefs = context.getSharedPreferences(PREF_EQ, Context.MODE_PRIVATE)
+        val safeSession = if (audioSessionId > 0) audioSessionId else 0
 
-        initAudioEffectsSafely(audioSessionId, isEqEnabled)
+        try {
+            activeEqualizer?.release()
+            activeEqualizer = Equalizer(0, safeSession).apply {
+                enabled = prefs.getBoolean("eq_enabled", true)
+            }
+        } catch (_: Exception) {
+        }
 
-        val root = LinearLayout(context).apply {
+        try {
+            activeBassBoost?.release()
+            activeBassBoost = BassBoost(0, safeSession).apply {
+                enabled = true
+            }
+        } catch (_: Exception) {
+        }
+
+        try {
+            activeVirtualizer?.release()
+            activeVirtualizer = Virtualizer(0, safeSession).apply {
+                enabled = true
+            }
+        } catch (_: Exception) {
+        }
+
+        try {
+            activeLoudness?.release()
+            activeLoudness = LoudnessEnhancer(safeSession).apply {
+                enabled = true
+            }
+        } catch (_: Exception) {
+        }
+
+        val rootCard = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#0A0A10"))
+                setColor(Color.parseColor("#F50A0A10"))
                 cornerRadius = 24f * d
-                setStroke((1.6f * d).toInt(), Color.parseColor("#00FFFF"))
+                setStroke((1.5f * d).toInt(), Color.parseColor("#4DFFFFFF"))
             }
         }
 
-        val dialog = AlertDialog.Builder(context).setView(root).create()
+        val dialog = AlertDialog.Builder(context).setView(rootCard).create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         val headerRow = LinearLayout(context).apply {
@@ -55,257 +86,268 @@ object EqualizerHelper {
         }
 
         val tvTitle = TextView(context).apply {
-            text = "OG Built-In Dolby Equalizer"
-            setTextColor(Color.parseColor("#00FFFF"))
-            textSize = 16.5f
+            text = "5-Band Dolby Equalizer & Bass"
+            setTextColor(Color.WHITE)
+            textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        val swEnable = Switch(context).apply {
-            isChecked = isEqEnabled
-            setOnCheckedChangeListener { _, checked ->
-                isEqEnabled = checked
-                prefs.edit().putBoolean("eq_enabled", checked).apply()
+        val swMaster = Switch(context).apply {
+            isChecked = prefs.getBoolean("eq_enabled", true)
+            setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean("eq_enabled", isChecked).apply()
                 try {
-                    activeEqualizer?.enabled = checked
-                    activeBassBoost?.enabled = checked
-                    activeVirtualizer?.enabled = checked
+                    activeEqualizer?.enabled = isChecked
                 } catch (_: Exception) {
                 }
             }
         }
 
         val btnClose = TextView(context).apply {
-            text = "✕"
+            text = "X"
             setTextColor(Color.WHITE)
-            textSize = 15f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt()).apply {
-                marginStart = (8 * d).toInt()
+                marginStart = (10 * d).toInt()
             }
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#26FFFFFF"))
+                setColor(Color.parseColor("#28FFFFFF"))
             }
             setOnClickListener { dialog.dismiss() }
         }
 
         headerRow.addView(tvTitle)
-        headerRow.addView(swEnable)
+        headerRow.addView(swMaster)
         headerRow.addView(btnClose)
-        root.addView(headerRow)
+        rootCard.addView(headerRow)
 
-        val bandSeekBars = mutableListOf<SeekBar>()
-        val bandValueLabels = mutableListOf<TextView>()
-
-        val presetNames = listOf(
-            "Flat Reset",
-            "8K Cinema Surround",
-            "Extreme Bass",
-            "Clear Vocals",
-            "Dolby Pop",
-            "Rock & Metal"
-        )
-        val presetGains = listOf(
-            intArrayOf(50, 50, 50, 50, 50),
-            intArrayOf(78, 65, 52, 70, 82),
-            intArrayOf(92, 80, 50, 48, 55),
-            intArrayOf(42, 58, 84, 78, 60),
-            intArrayOf(65, 74, 60, 72, 76),
-            intArrayOf(84, 68, 45, 74, 86)
-        )
-
-        val hsvPresets = HorizontalScrollView(context).apply {
-            isHorizontalScrollBarEnabled = false
-            setPadding(0, 0, 0, (12 * d).toInt())
+        val scroll = ScrollView(context)
+        val bodyCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
         }
-        val presetRow = LinearLayout(context).apply {
+
+        // Preset Chips Row (Pure White Modern Pills)
+        val presetsScroll = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (14 * d).toInt() }
+        }
+
+        val presetsRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
         }
 
-        presetNames.forEachIndexed { idx, name ->
-            val chip = TextView(context).apply {
-                text = name
-                setTextColor(Color.parseColor("#0A0A10"))
+        val bandSeekBars = mutableListOf<SeekBar>()
+        val presets = listOf(
+            "Dolby Cinema" to intArrayOf(80, 65, 55, 70, 85),
+            "Sub-Woofer Bass" to intArrayOf(95, 80, 50, 55, 65),
+            "Clear Vocal" to intArrayOf(45, 55, 85, 80, 60),
+            "Rock" to intArrayOf(85, 65, 45, 70, 90),
+            "Pop" to intArrayOf(60, 75, 80, 70, 60),
+            "Flat / Normal" to intArrayOf(50, 50, 50, 50, 50)
+        )
+
+        for ((presetName, levels) in presets) {
+            val pill = TextView(context).apply {
+                text = presetName
+                setTextColor(Color.WHITE)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
-                setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+                setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply { marginEnd = (8 * d).toInt() }
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#00FFFF"))
+                    setColor(Color.parseColor("#22FFFFFF"))
                     cornerRadius = 16f * d
+                    setStroke((1 * d).toInt(), Color.WHITE)
                 }
                 setOnClickListener {
-                    val gains = presetGains[idx]
-                    for (b in 0 until gains.size.coerceAtMost(bandSeekBars.size)) {
-                        bandSeekBars[b].progress = gains[b]
+                    bandSeekBars.forEachIndexed { idx, sb ->
+                        sb.progress = levels.getOrElse(idx) { 50 }
                     }
-                    Toast.makeText(context, "Preset Applied: $name", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Preset Applied: $presetName", Toast.LENGTH_SHORT).show()
                 }
             }
-            presetRow.addView(chip)
+            presetsRow.addView(pill)
         }
-        hsvPresets.addView(presetRow)
-        root.addView(hsvPresets)
+        presetsScroll.addView(presetsRow)
+        bodyCol.addView(presetsScroll)
 
-        val scroll = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (310 * d).toInt()
-            )
-        }
-        val bandsCol = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        // 5-Band Sliders
+        val freqLabels = arrayOf("60 Hz (Sub-Bass)", "230 Hz (Bass)", "910 Hz (Mid)", "3.6 kHz (Presence)", "14 kHz (Brilliance)")
+        for (i in 0 until 5) {
+            val savedProgress = prefs.getInt("eq_band_$i", 60)
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, (4 * d).toInt(), 0, (8 * d).toInt())
+            }
 
-        val defaultFreqLabels = arrayOf("60 Hz (Sub-Bass)", "230 Hz (Bass)", "910 Hz (Mid)", "3.6 kHz (Vocal)", "14 kHz (Treble)")
-
-        for (bandIdx in 0 until 5) {
-            val savedProg = prefs.getInt("eq_band_$bandIdx", 50).coerceIn(0, 100)
-
-            val rowHeader = LinearLayout(context).apply {
+            val labelRow = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding((4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
             }
             val tvFreq = TextView(context).apply {
-                text = defaultFreqLabels[bandIdx]
+                text = freqLabels[i]
                 setTextColor(Color.WHITE)
                 textSize = 12.5f
                 typeface = Typeface.DEFAULT_BOLD
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
-            val dbVal = ((savedProg - 50) * 0.3f)
             val tvDb = TextView(context).apply {
-                text = String.format(Locale.US, "%+.1f dB", dbVal)
-                setTextColor(Color.parseColor("#00FFFF"))
+                text = "${(savedProgress - 50) / 3} dB"
+                setTextColor(Color.WHITE)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
             }
-            bandValueLabels.add(tvDb)
-            rowHeader.addView(tvFreq)
-            rowHeader.addView(tvDb)
-            bandsCol.addView(rowHeader)
+            labelRow.addView(tvFreq)
+            labelRow.addView(tvDb)
 
             val sb = SeekBar(context).apply {
                 max = 100
-                progress = savedProg
-                progressDrawable.setColorFilter(Color.parseColor("#00FFFF"), PorterDuff.Mode.SRC_IN)
-                thumb.setColorFilter(Color.parseColor("#00FFFF"), PorterDuff.Mode.SRC_IN)
+                progress = savedProgress
+                progressDrawable.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+                thumb.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                        prefs.edit().putInt("eq_band_$bandIdx", p).apply()
-                        val db = (p - 50) * 0.3f
-                        tvDb.text = String.format(Locale.US, "%+.1f dB", db)
-                        applyBandGainToHardware(bandIdx, p)
+                        tvDb.text = "${(p - 50) / 3} dB"
+                        prefs.edit().putInt("eq_band_$i", p).apply()
+                        applyBandToHardwareEqualizer(i, p)
                     }
                     override fun onStartTrackingTouch(s: SeekBar?) {}
                     override fun onStopTrackingTouch(s: SeekBar?) {}
                 })
             }
+            applyBandToHardwareEqualizer(i, savedProgress)
             bandSeekBars.add(sb)
-            bandsCol.addView(sb)
-            applyBandGainToHardware(bandIdx, savedProg)
+            row.addView(labelRow)
+            row.addView(sb)
+            bodyCol.addView(row)
         }
 
-        // Dedicated Deep Bass Boost Slider
-        val savedBass = prefs.getInt("eq_bass_boost", 40).coerceIn(0, 100)
-        val tvBassHeader = TextView(context).apply {
-            text = "Sub-Woofer Bass Boost ($savedBass%)"
-            setTextColor(Color.parseColor("#00E676"))
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding((4 * d).toInt(), (12 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
-        }
-        val sbBass = SeekBar(context).apply {
-            max = 100
-            progress = savedBass
-            progressDrawable.setColorFilter(Color.parseColor("#00E676"), PorterDuff.Mode.SRC_IN)
-            thumb.setColorFilter(Color.parseColor("#00E676"), PorterDuff.Mode.SRC_IN)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    prefs.edit().putInt("eq_bass_boost", p).apply()
-                    tvBassHeader.text = "Sub-Woofer Bass Boost ($p%)"
-                    try {
-                        activeBassBoost?.setStrength((p * 10).toShort())
-                    } catch (_: Exception) {
-                    }
+        // Sub-Woofer Bass Boost Slider
+        val savedBass = prefs.getInt("eq_bass_strength", 55)
+        bodyCol.addView(
+            createEnhancerSliderRow(
+                context = context,
+                title = "Sub-Woofer Bass Boost",
+                initialPct = savedBass,
+                d = d
+            ) { pct ->
+                prefs.edit().putInt("eq_bass_strength", pct).apply()
+                try {
+                    activeBassBoost?.setStrength((pct * 10).toShort())
+                } catch (_: Exception) {
                 }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
-        }
-        bandsCol.addView(tvBassHeader)
-        bandsCol.addView(sbBass)
+            }
+        )
 
-        // Dedicated 3D Surround Virtualizer Slider
-        val savedVirt = prefs.getInt("eq_virtualizer", 35).coerceIn(0, 100)
-        val tvVirtHeader = TextView(context).apply {
-            text = "3D Surround Spatial Audio ($savedVirt%)"
-            setTextColor(Color.parseColor("#FFD700"))
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding((4 * d).toInt(), (10 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
-        }
-        val sbVirt = SeekBar(context).apply {
-            max = 100
-            progress = savedVirt
-            progressDrawable.setColorFilter(Color.parseColor("#FFD700"), PorterDuff.Mode.SRC_IN)
-            thumb.setColorFilter(Color.parseColor("#FFD700"), PorterDuff.Mode.SRC_IN)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    prefs.edit().putInt("eq_virtualizer", p).apply()
-                    tvVirtHeader.text = "3D Surround Spatial Audio ($p%)"
-                    try {
-                        activeVirtualizer?.setStrength((p * 10).toShort())
-                    } catch (_: Exception) {
-                    }
+        // 3D Surround Virtualizer Slider
+        val savedVirt = prefs.getInt("eq_virtualizer_strength", 50)
+        bodyCol.addView(
+            createEnhancerSliderRow(
+                context = context,
+                title = "3D Surround Sound Virtualizer",
+                initialPct = savedVirt,
+                d = d
+            ) { pct ->
+                prefs.edit().putInt("eq_virtualizer_strength", pct).apply()
+                try {
+                    activeVirtualizer?.setStrength((pct * 10).toShort())
+                } catch (_: Exception) {
                 }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
-        }
-        bandsCol.addView(tvVirtHeader)
-        bandsCol.addView(sbVirt)
+            }
+        )
 
-        scroll.addView(bandsCol)
-        root.addView(scroll)
+        // 200% Loudness Pre-Amp Gain Slider
+        val savedGain = prefs.getInt("eq_loudness_gain_pct", 40)
+        bodyCol.addView(
+            createEnhancerSliderRow(
+                context = context,
+                title = "200% Pre-Amp Dialogue & Loudness Boost",
+                initialPct = savedGain,
+                d = d
+            ) { pct ->
+                prefs.edit().putInt("eq_loudness_gain_pct", pct).apply()
+                try {
+                    activeLoudness?.setTargetGain(pct * 24)
+                } catch (_: Exception) {
+                }
+            }
+        )
+
+        scroll.addView(bodyCol)
+        rootCard.addView(scroll)
         dialog.show()
     }
 
-    private fun initAudioEffectsSafely(sessionId: Int, enabled: Boolean) {
-        if (sessionId <= 0) return
-        try {
-            if (boundSessionId != sessionId || activeEqualizer == null) {
-                activeEqualizer?.release()
-                activeBassBoost?.release()
-                activeVirtualizer?.release()
-
-                activeEqualizer = Equalizer(0, sessionId).apply { this.enabled = enabled }
-                activeBassBoost = BassBoost(0, sessionId).apply { this.enabled = enabled }
-                activeVirtualizer = Virtualizer(0, sessionId).apply { this.enabled = enabled }
-                boundSessionId = sessionId
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun applyBandGainToHardware(bandIdx: Int, progress0to100: Int) {
+    private fun applyBandToHardwareEqualizer(bandIndex: Int, percent: Int) {
         try {
             val eq = activeEqualizer ?: return
             val numBands = eq.numberOfBands.toInt()
-            if (bandIdx >= numBands) return
+            if (bandIndex >= numBands) return
             val range = eq.bandLevelRange
             val minMb = range[0].toInt()
             val maxMb = range[1].toInt()
-            val targetMb = minMb + ((maxMb - minMb) * (progress0to100 / 100f)).toInt()
-            eq.setBandLevel(bandIdx.toShort(), targetMb.toShort())
+            val targetMb = (minMb + ((maxMb - minMb) * (percent / 100f))).toInt().toShort()
+            eq.setBandLevel(bandIndex.toShort(), targetMb)
         } catch (_: Exception) {
         }
+    }
+
+    private fun createEnhancerSliderRow(
+        context: Context,
+        title: String,
+        initialPct: Int,
+        d: Float,
+        onChanged: (Int) -> Unit
+    ): LinearLayout {
+        val col = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, (8 * d).toInt(), 0, (6 * d).toInt())
+        }
+        val topRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val tvTitle = TextView(context).apply {
+            text = title
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val tvPct = TextView(context).apply {
+            text = "$initialPct%"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        topRow.addView(tvTitle)
+        topRow.addView(tvPct)
+
+        val sb = SeekBar(context).apply {
+            max = 100
+            progress = initialPct
+            progressDrawable.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+            thumb.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    tvPct.text = "$p%"
+                    onChanged(p)
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }
+        onChanged(initialPct)
+        col.addView(topRow)
+        col.addView(sb)
+        return col
     }
 }
