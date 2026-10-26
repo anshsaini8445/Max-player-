@@ -5,11 +5,18 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.LruCache
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,13 +38,20 @@ import java.util.concurrent.TimeUnit
 
 class VideoAdapter(
     private val context: Context,
-    private val videoList: MutableList<VideoModel>
+    private val videoList: MutableList<VideoModel>,
+    private val onSelectionChanged: ((Boolean, Int) -> Unit)? = null
 ) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
     companion object {
-        private val frameMemoryCache = object : LruCache<String, Bitmap>(80) {}
-        private val frameExtractorPool = Executors.newFixedThreadPool(3)
+        private val frameMemoryCache = object : LruCache<String, Bitmap>(120) {}
+        private val frameExtractorPool = Executors.newFixedThreadPool(4)
 
+        /**
+         * Ultra-Fast Guaranteed Thumbnail Loader for 360p, 720p, 1080p, 2K, 4K, and 8K videos:
+         * 1. Instant RAM hit from LruCache (< 1ms).
+         * 2. Hardware-decoded Glide thumbnail with ALL disk caching so subsequent app opens are instant.
+         * 3. Multi-threaded MediaMetadataRetriever fallback for 8K/4K/MKV files.
+         */
         fun loadGuaranteedVideoThumbnail(
             context: Context,
             path: String,
@@ -59,8 +73,9 @@ class VideoAdapter(
 
             Glide.with(context)
                 .load(model)
-                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .override(320, 180)
+                .dontAnimate()
                 .centerCrop()
                 .listener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(
@@ -146,6 +161,35 @@ class VideoAdapter(
         }
     }
 
+    private var isMultiSelectMode = false
+    private val selectedPaths = LinkedHashSet<String>()
+
+    fun isSelectionModeActive(): Boolean = isMultiSelectMode
+
+    fun getSelectedVideos(): List<VideoModel> {
+        return videoList.filter { selectedPaths.contains(it.path) }
+    }
+
+    fun getSelectedCount(): Int = selectedPaths.size
+
+    fun selectAllVideos() {
+        isMultiSelectMode = true
+        if (selectedPaths.size == videoList.size) {
+            selectedPaths.clear()
+        } else {
+            videoList.forEach { selectedPaths.add(it.path) }
+        }
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(isMultiSelectMode, selectedPaths.size)
+    }
+
+    fun exitMultiSelectMode() {
+        isMultiSelectMode = false
+        selectedPaths.clear()
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(false, 0)
+    }
+
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView
         val tvDuration: TextView?
@@ -206,14 +250,14 @@ class VideoAdapter(
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
-        InShotScrollAnimator.animateRowOnBind(holder.itemView)
-
+        val d = context.resources.displayMetrics.density
         val video = videoList[position]
         val theme = ThemeStudioHelper.getCurrentTheme(context)
         val accentColor = Color.parseColor(theme.accentHex)
+        val isSelected = selectedPaths.contains(video.path)
 
         holder.tvTitle.text = video.title
-        holder.tvTitle.setTextColor(Color.WHITE)
+        holder.tvTitle.setTextColor(if (isSelected) accentColor else Color.WHITE)
 
         val durStr = formatVideoDurationAny(video.duration)
         val resBadge = detectResolutionLabel(video.title, video.size)
@@ -231,17 +275,38 @@ class VideoAdapter(
 
         loadGuaranteedVideoThumbnail(context, video.path, holder.imgThumbnail)
 
-        holder.btnMore?.setOnClickListener {
-            val pos = holder.adapterPosition
-            if (pos in videoList.indices) {
-                showVideoItemMenu(pos)
+        holder.btnMore?.let { rightIcon ->
+            rightIcon.clearColorFilter()
+            if (isMultiSelectMode) {
+                rightIcon.setImageDrawable(SelectionCheckCircleDrawable(d, isSelected, accentColor))
+                rightIcon.setOnClickListener {
+                    toggleItemSelection(video.path, holder.adapterPosition)
+                }
+            } else {
+                rightIcon.setImageDrawable(ThreeDotsMenuDrawable(d))
+                rightIcon.setOnClickListener {
+                    val pos = holder.adapterPosition
+                    if (pos in videoList.indices) {
+                        showVideoItemMenu(pos)
+                    }
+                }
             }
         }
 
+        // Holding a video row activates Multi-Select Mode (Select All / Delete / Hybrid Share / Other Apps Share)
         holder.itemView.setOnLongClickListener {
             val pos = holder.adapterPosition
             if (pos in videoList.indices) {
-                showVideoItemMenu(pos)
+                val item = videoList[pos]
+                if (!isMultiSelectMode) {
+                    isMultiSelectMode = true
+                    selectedPaths.clear()
+                    selectedPaths.add(item.path)
+                    notifyDataSetChanged()
+                    onSelectionChanged?.invoke(true, selectedPaths.size)
+                } else {
+                    toggleItemSelection(item.path, pos)
+                }
             }
             true
         }
@@ -249,8 +314,24 @@ class VideoAdapter(
         holder.itemView.setOnClickListener {
             val pos = holder.adapterPosition
             if (pos !in videoList.indices) return@setOnClickListener
-            openVideoInPlayer(pos, startInBgAudio = false)
+            if (isMultiSelectMode) {
+                toggleItemSelection(videoList[pos].path, pos)
+            } else {
+                openVideoInPlayer(pos, startInBgAudio = false)
+            }
         }
+    }
+
+    private fun toggleItemSelection(path: String, adapterPos: Int) {
+        if (selectedPaths.contains(path)) {
+            selectedPaths.remove(path)
+        } else {
+            selectedPaths.add(path)
+        }
+        if (adapterPos != RecyclerView.NO_POSITION) {
+            notifyItemChanged(adapterPos)
+        }
+        onSelectionChanged?.invoke(isMultiSelectMode, selectedPaths.size)
     }
 
     private fun openVideoInPlayer(index: Int, startInBgAudio: Boolean) {
@@ -265,6 +346,7 @@ class VideoAdapter(
             putExtra("VIDEO_TITLE", selected.title)
             putStringArrayListExtra("VIDEO_LIST", allPaths)
             putExtra("START_BG_AUDIO", startInBgAudio)
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
         }
         context.startActivity(intent)
     }
@@ -276,12 +358,14 @@ class VideoAdapter(
         val isFav = prefs.getBoolean("fav_${item.path}", false)
 
         val options = arrayOf(
-            "Play Video Now (8K Hybrid Engine)",
+            "Play Video Now (Instant 8K Engine)",
+            "Select Multiple Videos (Batch Delete / Share)",
             "Play in Background Audio Bar",
             "Extract / Convert Video to MP3",
             if (isFav) "Remove from Favorites" else "Add to Favorites",
             "Lock Video into Secret Privacy Vault",
-            "Share Video (Wi-Fi Direct / WhatsApp)",
+            "Share via Hybrid Turbo Share",
+            "Share via Other Apps (WhatsApp / Bluetooth)",
             "Video Resolution & File Path",
             "Delete Video Permanently (From Phone)"
         )
@@ -289,8 +373,15 @@ class VideoAdapter(
         VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
             when (which) {
                 0 -> openVideoInPlayer(position, startInBgAudio = false)
-                1 -> openVideoInPlayer(position, startInBgAudio = true)
-                2 -> {
+                1 -> {
+                    isMultiSelectMode = true
+                    selectedPaths.clear()
+                    selectedPaths.add(item.path)
+                    notifyDataSetChanged()
+                    onSelectionChanged?.invoke(true, selectedPaths.size)
+                }
+                2 -> openVideoInPlayer(position, startInBgAudio = true)
+                3 -> {
                     try {
                         val intent = Intent(context, Mp3ConverterActivity::class.java).apply {
                             putExtra("VIDEO_PATH", item.path)
@@ -301,7 +392,7 @@ class VideoAdapter(
                         Toast.makeText(context, "Opening MP3 Extractor...", Toast.LENGTH_SHORT).show()
                     }
                 }
-                3 -> {
+                4 -> {
                     prefs.edit().putBoolean("fav_${item.path}", !isFav).apply()
                     Toast.makeText(
                         context,
@@ -309,8 +400,17 @@ class VideoAdapter(
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-                4 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
-                5 -> {
+                5 -> FakeVaultHelper.lockMediaIntoVault(context, item.path, item.title)
+                6 -> {
+                    try {
+                        val intent = Intent(context, FileTransferActivity::class.java).apply {
+                            putStringArrayListExtra("PRESELECTED_PATHS", arrayListOf(item.path))
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {
+                    }
+                }
+                7 -> {
                     try {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "video/*"
@@ -322,7 +422,7 @@ class VideoAdapter(
                         Toast.makeText(context, "Unable to share video", Toast.LENGTH_SHORT).show()
                     }
                 }
-                6 -> {
+                8 -> {
                     val res = detectResolutionLabel(item.title, item.size)
                     val durStr = formatVideoDurationAny(item.duration)
                     AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -337,7 +437,7 @@ class VideoAdapter(
                         .setPositiveButton("OK", null)
                         .show()
                 }
-                7 -> {
+                9 -> {
                     PermanentDeleteHelper.confirmAndDeletePermanently(
                         context = context,
                         title = item.title,
@@ -381,5 +481,69 @@ class VideoAdapter(
         } else {
             String.format(Locale.US, "%.1f MB", mb)
         }
+    }
+
+    private class SelectionCheckCircleDrawable(
+        private val d: Float,
+        private val isChecked: Boolean,
+        private val accentColor: Int
+    ) : Drawable() {
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = if (isChecked) accentColor else Color.parseColor("#22FFFFFF")
+        }
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 2f * d
+            color = Color.WHITE
+        }
+        private val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 2.5f * d
+            strokeCap = Paint.Cap.ROUND
+            color = Color.parseColor("#0A0A10")
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val cx = b.exactCenterX()
+            val cy = b.exactCenterY()
+            val r = b.width().coerceAtMost(b.height()) * 0.42f
+            canvas.drawCircle(cx, cy, r, fillPaint)
+            canvas.drawCircle(cx, cy, r, strokePaint)
+            if (isChecked) {
+                canvas.drawLine(cx - r * 0.42f, cy, cx - r * 0.1f, cy + r * 0.35f, checkPaint)
+                canvas.drawLine(cx - r * 0.1f, cy + r * 0.35f, cx + r * 0.45f, cy - r * 0.32f, checkPaint)
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+    }
+
+    private class ThreeDotsMenuDrawable(private val d: Float) : Drawable() {
+        private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.WHITE
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val cx = b.exactCenterX()
+            val cy = b.exactCenterY()
+            val r = b.width().coerceAtMost(b.height()) * 0.42f
+            val dotR = 2.0f * d
+            val gap = r * 0.45f
+            canvas.drawCircle(cx, cy - gap, dotR, dotPaint)
+            canvas.drawCircle(cx, cy, dotR, dotPaint)
+            canvas.drawCircle(cx, cy + gap, dotR, dotPaint)
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 }
