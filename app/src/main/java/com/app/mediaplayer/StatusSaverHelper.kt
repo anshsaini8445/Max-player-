@@ -2,365 +2,285 @@ package com.app.mediaplayer
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
+import android.media.MediaScannerConnection
 import android.os.Environment
-import android.provider.MediaStore
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.util.ArrayList
 import java.util.Locale
 import kotlin.concurrent.thread
 
 object StatusSaverHelper {
 
-    // 100% Background-Threaded Status Scanner: Never freezes or hangs the UI thread!
     fun openWhatsAppStatusSaverDialog(context: Context) {
-        thread {
-            val statusFiles = scanWhatsAppStatusesBackground()
-            val fallbackShorts = if (statusFiles.isEmpty()) {
-                DeepMediaScanner.filterShortsAndStatusVideos(
-                    DeepMediaScanner.scanAllVideosEverywhere(context)
-                )
-            } else {
-                emptyList()
-            }
-
-            (context as? Activity)?.runOnUiThread {
-                if (statusFiles.isNotEmpty()) {
-                    showFastStatusListDialog(context, statusFiles)
-                } else if (fallbackShorts.isNotEmpty()) {
-                    showShortVideosStatusDialog(context, fallbackShorts)
-                } else {
-                    Toast.makeText(
-                        context,
-                        "No recent WhatsApp Statuses found. View a status in WhatsApp first!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-    }
-
-    private fun showFastStatusListDialog(context: Context, statusFiles: List<File>) {
         val d = context.resources.displayMetrics.density
+
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
+            setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (14 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0A0A10"))
-                cornerRadius = 22f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
-            }
-        }
-
-        val header = TextView(context).apply {
-            text = "WhatsApp Status Saver (${statusFiles.size} Ready)"
-            setTextColor(Color.parseColor("#00FFFF"))
-            textSize = 16.5f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, 0, 0, (12 * d).toInt())
-        }
-        root.addView(header)
-
-        val btnPlayAll = TextView(context).apply {
-            text = "▶  Watch All Statuses in Reels Player"
-            setTextColor(Color.parseColor("#0A0A10"))
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (11 * d).toInt(), (14 * d).toInt(), (11 * d).toInt())
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#00FFFF"))
-                cornerRadius = 18f * d
-            }
-            setOnClickListener {
-                val videoPaths = ArrayList(
-                    statusFiles.filter { it.extension.lowercase(Locale.US) == "mp4" }
-                        .map { it.absolutePath }
-                )
-                if (videoPaths.isNotEmpty()) {
-                    context.startActivity(Intent(context, ShortsPlayerActivity::class.java).apply {
-                        putStringArrayListExtra("SHORTS_LIST", videoPaths)
-                    })
-                } else {
-                    Toast.makeText(context, "No video statuses to play", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        root.addView(btnPlayAll)
-
-        val scroll = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (300 * d).toInt()
-            ).apply { topMargin = (12 * d).toInt() }
-        }
-        val listCol = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-
-        for (file in statusFiles) {
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, (9 * d).toInt(), 0, (9 * d).toInt())
-            }
-            val tvName = TextView(context).apply {
-                val kb = (file.length() / 1024L).coerceAtLeast(1L)
-                text = "🎬  ${file.name} (${kb} KB)"
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            val btnSave = TextView(context).apply {
-                text = "Save"
-                setTextColor(Color.parseColor("#0A0A10"))
-                textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#00E676"))
-                    cornerRadius = 14f * d
-                }
-                setOnClickListener {
-                    saveVideoStatusToGallery(context, file.absolutePath)
-                }
-            }
-            row.addView(tvName)
-            row.addView(btnSave)
-            listCol.addView(row)
-        }
-
-        scroll.addView(listCol)
-        root.addView(scroll)
-
-        val dialog = AlertDialog.Builder(context)
-            .setView(root)
-            .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.show()
-    }
-
-    private fun showShortVideosStatusDialog(context: Context, shorts: List<VideoModel>) {
-        val d = context.resources.displayMetrics.density
-        val root = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#0A0A10"))
-                cornerRadius = 22f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#00FFFF"))
+                cornerRadius = 24f * d
+                setStroke((1.5f * d).toInt(), Color.WHITE)
             }
         }
 
         val dialog = AlertDialog.Builder(context).setView(root).create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
-        val topRow = LinearLayout(context).apply {
+        val headerRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, 0, 0, (12 * d).toInt())
         }
-        val header = TextView(context).apply {
-            text = "Status & Short Clips (${shorts.size} Found)"
-            setTextColor(Color.parseColor("#00FFFF"))
-            textSize = 16f
+
+        val tvHeader = TextView(context).apply {
+            text = "WhatsApp & Business Status Saver"
+            setTextColor(Color.WHITE)
+            textSize = 16.5f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
+
         val btnClose = TextView(context).apply {
-            text = "✕"
+            text = "X"
             setTextColor(Color.WHITE)
-            textSize = 16f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#26FFFFFF"))
+                setColor(Color.parseColor("#28FFFFFF"))
             }
             setOnClickListener { dialog.dismiss() }
         }
-        topRow.addView(header)
-        topRow.addView(btnClose)
-        root.addView(topRow)
+        headerRow.addView(tvHeader)
+        headerRow.addView(btnClose)
+        root.addView(headerRow)
 
-        val btnPlayReels = TextView(context).apply {
-            text = "▶  Open Vertical Shorts & Status Player"
-            setTextColor(Color.parseColor("#0A0A10"))
+        val tvEmpty = TextView(context).apply {
+            text = "Scanning WhatsApp Statuses..."
+            setTextColor(Color.parseColor("#B0C4DE"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (11 * d).toInt(), (14 * d).toInt(), (11 * d).toInt())
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#00FFFF"))
-                cornerRadius = 18f * d
-            }
-            setOnClickListener {
-                dialog.dismiss()
-                val paths = ArrayList(shorts.map { it.path })
-                context.startActivity(Intent(context, ShortsPlayerActivity::class.java).apply {
-                    putStringArrayListExtra("SHORTS_LIST", paths)
-                })
-            }
+            setPadding((14 * d).toInt(), (40 * d).toInt(), (14 * d).toInt(), (40 * d).toInt())
         }
-        root.addView(btnPlayReels)
+        root.addView(tvEmpty)
 
-        val scroll = ScrollView(context).apply {
+        val rvStatuses = RecyclerView(context).apply {
+            visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                (260 * d).toInt()
-            ).apply { topMargin = (12 * d).toInt() }
-        }
-        val listCol = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-
-        shorts.take(30).forEachIndexed { index, item ->
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, (9 * d).toInt(), 0, (9 * d).toInt())
-            }
-            val tvTitle = TextView(context).apply {
-                text = "▶  ${item.title}"
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                setOnClickListener {
-                    dialog.dismiss()
-                    val paths = ArrayList(shorts.map { it.path })
-                    context.startActivity(Intent(context, ShortsPlayerActivity::class.java).apply {
-                        putStringArrayListExtra("SHORTS_LIST", paths)
-                        putExtra("START_INDEX", index)
-                    })
-                }
-            }
-            val btnSave = TextView(context).apply {
-                text = "Save Copy"
-                setTextColor(Color.parseColor("#0A0A10"))
-                textSize = 11.5f
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#00E676"))
-                    cornerRadius = 14f * d
-                }
-                setOnClickListener {
-                    saveVideoStatusToGallery(context, item.path)
-                }
-            }
-            row.addView(tvTitle)
-            row.addView(btnSave)
-            listCol.addView(row)
-        }
-
-        scroll.addView(listCol)
-        root.addView(scroll)
-        dialog.show()
-    }
-
-    private fun scanWhatsAppStatusesBackground(): List<File> {
-        val found = mutableListOf<File>()
-        try {
-            val root = Environment.getExternalStorageDirectory() ?: return emptyList()
-            val dirs = listOf(
-                File(root, "Android/media/com.whatsapp/WhatsApp/Media/.Statuses"),
-                File(root, "WhatsApp/Media/.Statuses"),
-                File(root, "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses")
+                (390 * d).toInt()
             )
-            for (d in dirs) {
-                if (d.exists() && d.isDirectory) {
-                    d.listFiles()?.forEach { f ->
-                        val ext = f.extension.lowercase(Locale.US)
-                        if (ext == "mp4" || ext == "jpg" || ext == "jpeg" || ext == "png") {
-                            found.add(f)
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            layoutManager = GridLayoutManager(context, 2)
+            setHasFixedSize(true)
         }
-        return found.sortedByDescending { it.lastModified() }
-    }
+        root.addView(rvStatuses)
 
-    fun saveVideoStatusToGallery(context: Context, sourcePath: String) {
+        dialog.show()
+
         thread {
-            try {
-                val srcFile = File(sourcePath)
-                if (!srcFile.exists()) {
-                    (context as? Activity)?.runOnUiThread {
-                        Toast.makeText(context, "Source file not found", Toast.LENGTH_SHORT).show()
-                    }
-                    return@thread
-                }
-                val isVideo = srcFile.extension.lowercase(Locale.US) == "mp4"
-                val outName = "OG_Status_${System.currentTimeMillis()}.${srcFile.extension.ifEmpty { "mp4" }}"
+            val statusFiles = discoverWhatsAppStatusFiles()
+            (context as? Activity)?.runOnUiThread {
+                if (statusFiles.isEmpty()) {
+                    tvEmpty.text = "No recent WhatsApp video statuses found.\nWatch any status in WhatsApp first and open this tool to save it permanently!"
+                } else {
+                    tvEmpty.visibility = View.GONE
+                    rvStatuses.visibility = View.VISIBLE
+                    rvStatuses.adapter = object : RecyclerView.Adapter<StatusCardVH>() {
+                        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StatusCardVH {
+                            val card = CardView(context).apply {
+                                radius = 14f * d
+                                cardElevation = 4f * d
+                                setCardBackgroundColor(Color.parseColor("#141E30"))
+                                layoutParams = RecyclerView.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT
+                                ).apply {
+                                    setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
+                                }
+                            }
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val resolver = context.contentResolver
-                    val values = ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, outName)
-                        put(MediaStore.MediaColumns.MIME_TYPE, if (isVideo) "video/mp4" else "image/jpeg")
-                        put(
-                            MediaStore.MediaColumns.RELATIVE_PATH,
-                            if (isVideo) "${Environment.DIRECTORY_MOVIES}/OG_Saved_Statuses"
-                            else "${Environment.DIRECTORY_PICTURES}/OG_Saved_Statuses"
-                        )
-                    }
-                    val colUri = if (isVideo) {
-                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                    } else {
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                    }
-                    val targetUri = resolver.insert(colUri, values)
-                    if (targetUri != null) {
-                        resolver.openOutputStream(targetUri)?.use { out ->
-                            FileInputStream(srcFile).use { input ->
-                                input.copyTo(out)
+                            val col = LinearLayout(context).apply {
+                                orientation = LinearLayout.VERTICAL
+                                setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
+                            }
+
+                            val img = ImageView(context).apply {
+                                layoutParams = LinearLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    (105 * d).toInt()
+                                )
+                                scaleType = ImageView.ScaleType.CENTER_CROP
+                            }
+
+                            val tvName = TextView(context).apply {
+                                setTextColor(Color.WHITE)
+                                textSize = 11.5f
+                                typeface = Typeface.DEFAULT_BOLD
+                                maxLines = 1
+                                ellipsize = TextUtils.TruncateAt.END
+                                setPadding(0, (6 * d).toInt(), 0, (6 * d).toInt())
+                            }
+
+                            val actionsRow = LinearLayout(context).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                            }
+
+                            val btnPlay = TextView(context).apply {
+                                text = "Play"
+                                setTextColor(Color.WHITE)
+                                textSize = 11.5f
+                                typeface = Typeface.DEFAULT_BOLD
+                                gravity = Gravity.CENTER
+                                setPadding((8 * d).toInt(), (6 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+                                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                                    marginEnd = (4 * d).toInt()
+                                }
+                                background = GradientDrawable().apply {
+                                    setColor(Color.parseColor("#24FFFFFF"))
+                                    cornerRadius = 10f * d
+                                }
+                            }
+
+                            val btnSave = TextView(context).apply {
+                                text = "Save"
+                                setTextColor(Color.parseColor("#0A0A10"))
+                                textSize = 11.5f
+                                typeface = Typeface.DEFAULT_BOLD
+                                gravity = Gravity.CENTER
+                                setPadding((8 * d).toInt(), (6 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+                                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                                    marginStart = (4 * d).toInt()
+                                }
+                                background = GradientDrawable().apply {
+                                    setColor(Color.WHITE)
+                                    cornerRadius = 10f * d
+                                }
+                            }
+
+                            actionsRow.addView(btnPlay)
+                            actionsRow.addView(btnSave)
+                            col.addView(img)
+                            col.addView(tvName)
+                            col.addView(actionsRow)
+                            card.addView(col)
+                            return StatusCardVH(card, img, tvName, btnPlay, btnSave)
+                        }
+
+                        override fun onBindViewHolder(holder: StatusCardVH, position: Int) {
+                            val file = statusFiles[position]
+                            holder.tvName.text = file.name
+                            VideoAdapter.loadGuaranteedVideoThumbnail(context, file.absolutePath, holder.img)
+
+                            holder.btnPlay.setOnClickListener {
+                                val intent = Intent(context, PlayerActivity::class.java).apply {
+                                    putExtra("VIDEO_PATH", file.absolutePath)
+                                    putExtra("VIDEO_TITLE", file.name)
+                                    addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                }
+                                context.startActivity(intent)
+                            }
+
+                            holder.btnSave.setOnClickListener {
+                                saveStatusFileToGallery(context, file)
                             }
                         }
-                    }
-                } else {
-                    val destDir = File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-                        "OG_Saved_Statuses"
-                    )
-                    if (!destDir.exists()) destDir.mkdirs()
-                    val destFile = File(destDir, outName)
-                    FileInputStream(srcFile).use { input ->
-                        FileOutputStream(destFile).use { out ->
-                            input.copyTo(out)
-                        }
+
+                        override fun getItemCount(): Int = statusFiles.size
                     }
                 }
+            }
+        }
+    }
+
+    private fun discoverWhatsAppStatusFiles(): List<File> {
+        val rootPath = Environment.getExternalStorageDirectory().absolutePath
+        val candidateDirs = listOf(
+            File("$rootPath/Android/media/com.whatsapp/WhatsApp/Media/.Statuses"),
+            File("$rootPath/WhatsApp/Media/.Statuses"),
+            File("$rootPath/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses"),
+            File("$rootPath/WhatsApp Business/Media/.Statuses")
+        )
+
+        val results = mutableListOf<File>()
+        for (dir in candidateDirs) {
+            if (dir.exists() && dir.isDirectory) {
+                dir.listFiles()?.forEach { file ->
+                    val name = file.name.lowercase(Locale.US)
+                    if (file.isFile && (name.endsWith(".mp4") || name.endsWith(".mkv") || name.endsWith(".3gp"))) {
+                        results.add(file)
+                    }
+                }
+            }
+        }
+        return results.sortedByDescending { it.lastModified() }
+    }
+
+    private fun saveStatusFileToGallery(context: Context, sourceFile: File) {
+        thread {
+            try {
+                val destDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                    "HybridStatusSaver"
+                )
+                if (!destDir.exists()) destDir.mkdirs()
+                val destFile = File(destDir, "Status_${sourceFile.name}")
+
+                FileInputStream(sourceFile).use { input ->
+                    FileOutputStream(destFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                MediaScannerConnection.scanFile(
+                    context.applicationContext,
+                    arrayOf(destFile.absolutePath),
+                    arrayOf("video/mp4"),
+                    null
+                )
                 DeepMediaScanner.invalidateCache()
+
                 (context as? Activity)?.runOnUiThread {
                     Toast.makeText(
                         context,
-                        "Saved to Gallery: OG_Saved_Statuses/$outName",
+                        "Status Saved to Gallery: Movies/HybridStatusSaver/${destFile.name}",
                         Toast.LENGTH_LONG
                     ).show()
                 }
             } catch (e: Exception) {
                 (context as? Activity)?.runOnUiThread {
-                    Toast.makeText(context, "Unable to save status: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Unable to save status: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
+    private class StatusCardVH(
+        view: View,
+        val img: ImageView,
+        val tvName: TextView,
+        val btnPlay: TextView,
+        val btnSave: TextView
+    ) : RecyclerView.ViewHolder(view)
 }
