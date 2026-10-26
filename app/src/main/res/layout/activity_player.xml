@@ -98,8 +98,8 @@
 
             <ImageView
                 android:id="@+id/btnPlayerBack"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:padding="10dp"
                 android:src="@android:drawable/ic_menu_revert"
                 android:tint="#FFFFFF" />
@@ -122,13 +122,13 @@
             <FrameLayout
                 android:id="@+id/frameHdrContainer"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="42dp"
                 android:layout_marginEnd="8dp">
 
                 <TextView
                     android:id="@+id/btnHdrMode"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="match_parent"
                     android:gravity="center"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp"
@@ -141,7 +141,7 @@
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardSubtitlesCc"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="42dp"
                 android:layout_marginEnd="8dp"
                 app:cardBackgroundColor="#28FFFFFF"
                 app:cardCornerRadius="12dp"
@@ -162,29 +162,29 @@
 
             <ImageView
                 android:id="@+id/btnBgAudio"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="6dp"
-                android:padding="9dp"
+                android:padding="10dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnVideoQueue"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="6dp"
-                android:padding="9dp"
+                android:padding="10dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnMoreMenu"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:padding="9dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="10dp"
                 android:tint="#FFFFFF" />
         </LinearLayout>
 
-        <!-- LEFT SIDE FLOATING CONTROLS: Lock, Mute, Screenshot (Larger 48dp Modern Circles) -->
+        <!-- LEFT SIDE FLOATING CONTROLS: Lock, Mute, Screenshot (Larger 52dp Modern Circles) -->
         <LinearLayout
             android:id="@+id/leftSideControlsGroup"
             android:layout_width="wrap_content"
@@ -197,29 +197,29 @@
 
             <ImageView
                 android:id="@+id/btnLockScreen"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:layout_marginBottom="14dp"
-                android:padding="11dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnMuteToggle"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:layout_marginBottom="14dp"
-                android:padding="11dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnSideCut"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:padding="11dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
         </LinearLayout>
 
-        <!-- RIGHT SIDE FLOATING CONTROLS: Rotate, Aspect Ratio, PiP (Larger 50dp Modern Circles) -->
+        <!-- RIGHT SIDE FLOATING CONTROLS: Rotate, Aspect Ratio, PiP (Larger 52dp Modern Circles) -->
         <LinearLayout
             android:id="@+id/rightSideControlsGroup"
             android:layout_width="wrap_content"
@@ -232,25 +232,25 @@
 
             <ImageView
                 android:id="@+id/btnRotateScreen"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:layout_marginBottom="14dp"
-                android:padding="11dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnAspectRatio"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:layout_marginBottom="14dp"
-                android:padding="11dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
 
             <ImageView
                 android:id="@+id/btnPipMode"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:padding="11dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:padding="12dp"
                 android:tint="#FFFFFF" />
         </LinearLayout>
 
@@ -306,7 +306,7 @@
                     android:layout_weight="1"
                     android:max="1000"
                     android:progressTint="#FFFFFF"
-                    android:SecondaryProgressTint="#66FFFFFF"
+                    android:secondaryProgressTint="#66FFFFFF"
                     android:thumbTint="#FFFFFF" />
 
                 <TextView
@@ -330,7 +330,7 @@
                 <TextView
                     android:id="@+id/btnPlaybackSpeed"
                     android:layout_width="wrap_content"
-                    android:layout_height="42dp"
+                    android:layout_height="44dp"
                     android:gravity="center"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
@@ -346,17 +346,17 @@
 
                 <ImageView
                     android:id="@+id/btnPlayerPrev"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
                     android:layout_marginEnd="24dp"
-                    android:padding="11dp"
+                    android:padding="12dp"
                     android:src="@android:drawable/ic_media_previous"
                     android:tint="#FFFFFF" />
 
                 <ImageView
                     android:id="@+id/btnPlayerPlayPause"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
+                    android:layout_width="66dp"
+                    android:layout_height="66dp"
                     android:layout_marginEnd="24dp"
                     android:padding="14dp"
                     android:src="@android:drawable/ic_media_pause"
@@ -364,9 +364,9 @@
 
                 <ImageView
                     android:id="@+id/btnPlayerNext"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:padding="11dp"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:padding="12dp"
                     android:src="@android:drawable/ic_media_next"
                     android:tint="#FFFFFF" />
 
@@ -381,11 +381,11 @@
     <!-- 6. Auto-Hiding Screen Lock Button (Pure White Vector on Dark Glass) -->
     <ImageView
         android:id="@+id/btnUnlockOverlay"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="58dp"
+        android:layout_height="58dp"
         android:layout_gravity="start|center_vertical"
         android:layout_marginStart="20dp"
-        android:padding="13dp"
+        android:padding="14dp"
         android:tint="#FFFFFF"
         android:visibility="gone" />
 
@@ -492,15 +492,15 @@
                 <LinearLayout
                     android:id="@+id/optAudioTrack"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_btn_speak_now"
                         android:tint="#FFFFFF" />
 
@@ -518,15 +518,15 @@
                 <LinearLayout
                     android:id="@+id/optEqualizer"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_manage"
                         android:tint="#FFFFFF" />
 
@@ -544,15 +544,15 @@
                 <LinearLayout
                     android:id="@+id/optCast"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_upload_you_tube"
                         android:tint="#FFFFFF" />
 
@@ -570,15 +570,15 @@
                 <LinearLayout
                     android:id="@+id/optShare"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_share"
                         android:tint="#FFFFFF" />
 
@@ -605,15 +605,15 @@
                 <LinearLayout
                     android:id="@+id/optCut"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_crop"
                         android:tint="#FFFFFF" />
 
@@ -631,7 +631,7 @@
                 <LinearLayout
                     android:id="@+id/optFavorite"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
@@ -639,8 +639,8 @@
 
                     <ImageView
                         android:id="@+id/imgFavoriteIcon"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/btn_star_big_off"
                         android:tint="#FFFFFF" />
 
@@ -658,15 +658,15 @@
                 <LinearLayout
                     android:id="@+id/optBookmark"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_save"
                         android:tint="#FFFFFF" />
 
@@ -684,15 +684,15 @@
                 <LinearLayout
                     android:id="@+id/optVrMode"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_compass"
                         android:tint="#FFFFFF" />
 
@@ -719,15 +719,15 @@
                 <LinearLayout
                     android:id="@+id/optAbRepeat"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_rotate"
                         android:tint="#FFFFFF" />
 
@@ -746,15 +746,15 @@
                 <LinearLayout
                     android:id="@+id/optNightMode"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_day"
                         android:tint="#FFFFFF" />
 
@@ -772,16 +772,16 @@
                 <LinearLayout
                     android:id="@+id/optMirrorMode"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:src="@android:drawable/ic_menu_ gallery"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_gallery"
                         android:tint="#FFFFFF" />
 
                     <TextView
@@ -798,15 +798,15 @@
                 <LinearLayout
                     android:id="@+id/optSleepTimer"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_lock_idle_alarm"
                         android:tint="#FFFFFF" />
 
@@ -823,7 +823,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Row 4: Edit Layout, Gestures Guide, File Info, Delete / Sound Lab -->
+            <!-- Row 4: Edit Layout, Gestures Guide, File Info & Delete, Sound Lab -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -834,15 +834,15 @@
                 <LinearLayout
                     android:id="@+id/optEditPlayer"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_edit"
                         android:tint="#FFFFFF" />
 
@@ -860,15 +860,15 @@
                 <LinearLayout
                     android:id="@+id/optTutorials"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_help"
                         android:tint="#FFFFFF" />
 
@@ -886,16 +886,16 @@
                 <LinearLayout
                     android:id="@+id/optFileInfo"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:src="@android:drawable/ic_menu_info_details"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_delete"
                         android:tint="#FFFFFF" />
 
                     <TextView
@@ -903,7 +903,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:gravity="center"
-                        android:text="Info &amp; Delete"
+                        android:text="Delete File"
                         android:textColor="#FFFFFF"
                         android:textSize="12sp"
                         android:textStyle="bold" />
@@ -912,15 +912,15 @@
                 <LinearLayout
                     android:id="@+id/optFeedback"
                     android:layout_width="0dp"
-                    android:layout_height="76dp"
+                    android:layout_height="80dp"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_preferences"
                         android:tint="#FFFFFF" />
 
@@ -948,7 +948,7 @@
                 <TextView
                     android:id="@+id/btnLoopShuffle"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:text="Shuffle"
@@ -959,7 +959,7 @@
                 <TextView
                     android:id="@+id/btnLoopOne"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:text="Repeat 1"
@@ -970,7 +970,7 @@
                 <TextView
                     android:id="@+id/btnLoopAll"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:text="Loop All"
@@ -981,7 +981,7 @@
                 <TextView
                     android:id="@+id/btnLoopOff"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1"
                     android:gravity="center"
                     android:text="Play 1"
@@ -1029,7 +1029,7 @@
                 <TextView
                     android:id="@+id/btnHwDecoder"
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
+                    android:layout_height="44dp"
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:gravity="center"
@@ -1041,7 +1041,7 @@
                 <TextView
                     android:id="@+id/btnSwDecoder"
                     android:layout_width="0dp"
-                    android:layout_height="42dp"
+                    android:layout_height="44dp"
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:gravity="center"
