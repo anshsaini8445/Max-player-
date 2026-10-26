@@ -4,12 +4,11 @@ import android.content.Context
 import android.provider.MediaStore
 import java.io.File
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 object DeepMediaScanner {
 
     private const val SNAPSHOT_PREF = "HYBRID_INSTANT_VIDEO_SNAPSHOT"
-    private const val KEY_SNAPSHOT_DATA = "instant_video_rows_v3"
+    private const val KEY_SNAPSHOT_DATA = "instant_video_rows_v4"
 
     @Volatile
     private var memoryCache: List<VideoModel> = emptyList()
@@ -17,11 +16,6 @@ object DeepMediaScanner {
     @Volatile
     private var lastScanTimestampMs: Long = 0L
 
-    /**
-     * Sub-10ms Instant Loader:
-     * Returns in-memory videos immediately, or restores the persistent snapshot from SharedPreferences
-     * so the Video screen populates in less than 0.1 seconds on app startup.
-     */
     fun getCachedVideosInstant(context: Context? = null): List<VideoModel> {
         if (memoryCache.isNotEmpty()) {
             return memoryCache
@@ -45,6 +39,36 @@ object DeepMediaScanner {
         val deleteSet = deletedPaths.toHashSet()
         memoryCache = memoryCache.filterNot { deleteSet.contains(it.path) }
         saveInstantSnapshotToDisk(context, memoryCache)
+    }
+
+    fun filterShortsAndStatusVideos(videos: List<VideoModel>): List<VideoModel> {
+        val filtered = videos.filter { video ->
+            val durationMs = if (video.duration in 1L..3600L) video.duration * 1000L else video.duration
+            val lowerPath = video.path.lowercase(Locale.US)
+            val lowerTitle = video.title.lowercase(Locale.US)
+            (durationMs in 1000L..180_000L) ||
+                lowerPath.contains(".statuses") ||
+                lowerPath.contains("whatsapp") ||
+                lowerPath.contains("status") ||
+                lowerPath.contains("shorts") ||
+                lowerPath.contains("reels") ||
+                lowerPath.contains("instagram") ||
+                lowerPath.contains("snapchat") ||
+                lowerTitle.contains("shorts") ||
+                lowerTitle.contains("reel") ||
+                lowerTitle.contains("status")
+        }
+        return if (filtered.isNotEmpty()) filtered else videos
+    }
+
+    fun filterShortsAndStatusVideos(context: Context): List<VideoModel> {
+        val allVideos = scanAllVideosEverywhere(context, forceRefresh = false)
+        return filterShortsAndStatusVideos(allVideos)
+    }
+
+    fun filterShortsAndStatusVideos(context: Context, videos: List<VideoModel>): List<VideoModel> {
+        val source = videos.ifEmpty { scanAllVideosEverywhere(context, forceRefresh = false) }
+        return filterShortsAndStatusVideos(source)
     }
 
     fun scanAllVideosEverywhere(
@@ -115,7 +139,7 @@ object DeepMediaScanner {
                         VideoModel(
                             id = id,
                             title = rawTitle,
-                            duration = formatMillisToClock(durationMs),
+                            duration = durationMs,
                             size = sizeBytes,
                             path = path
                         )
@@ -167,13 +191,13 @@ object DeepMediaScanner {
                     if (PermanentDeleteHelper.isMarkedDeleted(context, path)) continue
                     val id = parts[0].toLongOrNull() ?: 0L
                     val title = parts[1]
-                    val dur = parts[2]
+                    val durMs = parts[2].toLongOrNull() ?: 0L
                     val size = parts[3].toLongOrNull() ?: 0L
                     out.add(
                         VideoModel(
                             id = id,
                             title = title,
-                            duration = dur,
+                            duration = durMs,
                             size = size,
                             path = path
                         )
@@ -183,18 +207,5 @@ object DeepMediaScanner {
         } catch (_: Exception) {
         }
         return out
-    }
-
-    private fun formatMillisToClock(millis: Long): String {
-        val safe = millis.coerceAtLeast(0L)
-        val totalSecs = TimeUnit.MILLISECONDS.toSeconds(safe)
-        val hours = totalSecs / 3600
-        val minutes = (totalSecs % 3600) / 60
-        val seconds = totalSecs % 60
-        return if (hours > 0) {
-            String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            String.format(Locale.US, "%02d:%02d", minutes, seconds)
-        }
     }
 }
