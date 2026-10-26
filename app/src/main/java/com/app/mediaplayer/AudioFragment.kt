@@ -24,10 +24,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -62,7 +65,9 @@ class AudioFragment : Fragment() {
         }
     }
 
+    private lateinit var masterHostFrame: FrameLayout
     private lateinit var rootAudioLayout: LinearLayout
+    private lateinit var pullRefreshSpinner: ProgressBar
     private lateinit var topTabsScroll: HorizontalScrollView
     private lateinit var tabSongs: TextView
     private lateinit var tabFolders: TextView
@@ -123,14 +128,35 @@ class AudioFragment : Fragment() {
         val theme = ThemeStudioHelper.getCurrentTheme(ctx)
         accentColor = Color.parseColor(theme.accentHex)
 
-        rootAudioLayout = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor(theme.bgHex))
+        masterHostFrame = FrameLayout(ctx).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(Color.parseColor(theme.bgHex))
         }
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, masterHostFrame)
+
+        rootAudioLayout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        pullRefreshSpinner = ProgressBar(ctx, null, android.R.attr.progressBarStyleSmall).apply {
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                (28 * d).toInt(),
+                (28 * d).toInt()
+            ).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = (6 * d).toInt()
+            }
+        }
+        rootAudioLayout.addView(pullRefreshSpinner)
 
         val topHeaderRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -162,10 +188,10 @@ class AudioFragment : Fragment() {
         topTabsScroll.addView(tabsRow)
 
         val btnSortSongs = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt()).apply {
+            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt()).apply {
                 marginStart = (8 * d).toInt()
             }
-            setPadding((7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt(), (7 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageResource(android.R.drawable.ic_menu_sort_by_size)
             setColorFilter(Color.WHITE)
             setOnClickListener { showAudioSortAndToolsMenu() }
@@ -188,7 +214,7 @@ class AudioFragment : Fragment() {
             typeface = Typeface.DEFAULT_BOLD
             setPadding((16 * d).toInt(), (7 * d).toInt(), (16 * d).toInt(), (7 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(accentColor)
+                setColor(Color.WHITE)
                 cornerRadius = 18f * d
             }
             setOnClickListener {
@@ -222,7 +248,7 @@ class AudioFragment : Fragment() {
 
         val btnBackGroup = TextView(ctx).apply {
             text = "<- Back"
-            setTextColor(accentColor)
+            setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((6 * d).toInt(), (4 * d).toInt(), (16 * d).toInt(), (4 * d).toInt())
@@ -265,7 +291,7 @@ class AudioFragment : Fragment() {
             launchFullAudioPlayer(clickedPos, displayedSongsList)
         }
         rvAudioList.adapter = audioAdapter
-        attachLeftRightSwipeGestureToTabs(ctx)
+        attachPullToRefreshAndSwipeTabs(ctx)
         rootAudioLayout.addView(rvAudioList)
 
         tvEmptyAudio = TextView(ctx).apply {
@@ -301,7 +327,7 @@ class AudioFragment : Fragment() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#121C2C"))
                 cornerRadius = 18f * d
-                setStroke((1.3f * d).toInt(), accentColor)
+                setStroke((1.3f * d).toInt(), Color.parseColor("#44FFFFFF"))
             }
         }
 
@@ -330,7 +356,7 @@ class AudioFragment : Fragment() {
 
         tvMiniArtist = TextView(ctx).apply {
             text = "Hybrid Player Hi-Res Audio"
-            setTextColor(accentColor)
+            setTextColor(Color.parseColor("#B0C4DE"))
             textSize = 11.5f
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -344,7 +370,7 @@ class AudioFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
                 marginEnd = (6 * d).toInt()
             }
-            setImageDrawable(AudioControlVectorIcon("PLAY", d, accentColor))
+            setImageDrawable(AudioControlVectorIcon("PLAY", d, Color.WHITE))
             setOnClickListener {
                 if (allSongsList.isEmpty()) return@setOnClickListener
                 toggleSharedPlaybackFromMiniPlayer(ctx)
@@ -377,16 +403,34 @@ class AudioFragment : Fragment() {
         miniPlayerCard.addView(miniRow)
         rootAudioLayout.addView(miniPlayerCard)
 
+        masterHostFrame.addView(rootAudioLayout)
         updateTabVisuals(d)
         registerMiniReceiver(ctx)
         scanAllSongsInBackground()
 
-        return rootAudioLayout
+        return masterHostFrame
     }
 
     override fun onResume() {
         super.onResume()
+        val ctx = context ?: return
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, masterHostFrame)
         scanAllSongsInBackground()
+        MascotCompanionHelper.attachInteractiveMascot(
+            context = ctx,
+            hostContainer = masterHostFrame,
+            recyclerView = rvAudioList,
+            isVideoScreen = false,
+            isDancingProvider = { isSharedPlayingVal },
+            onHoldItemTriggered = { idx ->
+                if (idx in displayedSongsList.indices) {
+                    currentMiniIndex = idx
+                    isSharedPlayingVal = true
+                    syncMiniBarWithSong(displayedSongsList[idx])
+                    launchFullAudioPlayer(idx, displayedSongsList)
+                }
+            }
+        )
     }
 
     override fun onDestroyView() {
@@ -424,7 +468,7 @@ class AudioFragment : Fragment() {
             AudioControlVectorIcon(
                 if (isSharedPlayingVal) "PAUSE" else "PLAY",
                 d,
-                accentColor
+                Color.WHITE
             )
         )
     }
@@ -470,7 +514,7 @@ class AudioFragment : Fragment() {
             val isSel = idx == activeTab
             tv.setTextColor(if (isSel) Color.parseColor("#0A0A10") else Color.WHITE)
             tv.background = GradientDrawable().apply {
-                setColor(if (isSel) accentColor else Color.parseColor("#182232"))
+                setColor(if (isSel) Color.WHITE else Color.parseColor("#182232"))
                 cornerRadius = 18f * d
             }
             if (isSel) {
@@ -481,7 +525,35 @@ class AudioFragment : Fragment() {
         }
     }
 
-    private fun attachLeftRightSwipeGestureToTabs(context: Context) {
+    private fun attachPullToRefreshAndSwipeTabs(context: Context) {
+        var touchStartY = 0f
+        var canPullRefresh = false
+
+        rvAudioList.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchStartY = e.y
+                        canPullRefresh = !rv.canScrollVertically(-1)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (canPullRefresh && (e.y - touchStartY) > 90f) {
+                            pullRefreshSpinner.visibility = View.VISIBLE
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (pullRefreshSpinner.visibility == View.VISIBLE) {
+                            pullRefreshSpinner.visibility = View.GONE
+                            scanAllSongsInBackground()
+                            Toast.makeText(context, "Audio Library Refreshed!", Toast.LENGTH_SHORT).show()
+                        }
+                        canPullRefresh = false
+                    }
+                }
+                return false
+            }
+        })
+
         val swipeDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -522,11 +594,6 @@ class AudioFragment : Fragment() {
                 return false
             }
         })
-
-        rootAudioLayout.setOnTouchListener { _, event ->
-            swipeDetector.onTouchEvent(event)
-            true
-        }
     }
 
     private fun scanAllSongsInBackground() {
@@ -721,7 +788,7 @@ class AudioFragment : Fragment() {
                 }
 
                 val tvCount = TextView(ctx).apply {
-                    setTextColor(accentColor)
+                    setTextColor(Color.parseColor("#B0C4DE"))
                     textSize = 12f
                     typeface = Typeface.DEFAULT_BOLD
                     setPadding(0, (3 * d).toInt(), 0, 0)
@@ -729,7 +796,7 @@ class AudioFragment : Fragment() {
 
                 val tvArrow = TextView(ctx).apply {
                     text = ">"
-                    setTextColor(accentColor)
+                    setTextColor(Color.WHITE)
                     textSize = 17f
                     typeface = Typeface.DEFAULT_BOLD
                 }
@@ -744,7 +811,6 @@ class AudioFragment : Fragment() {
             }
 
             override fun onBindViewHolder(holder: AudioGroupVH, position: Int) {
-                InShotScrollAnimator.animateRowOnBind(holder.itemView)
                 val entry = groups[position]
                 val rawKey = entry.key
                 val songs = entry.value
