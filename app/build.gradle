@@ -9,30 +9,34 @@ android {
 
     defaultConfig {
         applicationId "com.app.mediaplayer"
-        minSdk 23
+        minSdk 24
         targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        versionCode 35
+        versionName "3.5.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Restrict to essential mobile architectures to keep APK size lightweight (~35-40 MB)
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
         debug {
             minifyEnabled false
             shrinkResources false
         }
-        release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
     }
 
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-        resources {
-            excludes += ['/META-INF/{AL2.0,LGPL2.1}', 'META-INF/DEPENDENCIES', 'META-INF/LICENSE*']
-        }
+    buildFeatures {
+        dataBinding true
+        viewBinding true
     }
 
     compileOptions {
@@ -44,9 +48,16 @@ android {
         jvmTarget = '17'
     }
 
-    buildFeatures {
-        viewBinding true
-        dataBinding true
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += 'META-INF/DEPENDENCIES'
+            excludes += 'META-INF/LICENSE*'
+            excludes += 'META-INF/NOTICE*'
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -58,16 +69,16 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.cardview:cardview:1.0.0'
 
-    // Google Media3 (ExoPlayer)
-    implementation 'androidx.media3:media3-exoplayer:1.2.0'
-    implementation 'androidx.media3:media3-ui:1.2.0'
-    implementation 'androidx.media3:media3-common:1.2.0'
+    // Lightweight Media3 8K / 4K / All-Format ExoPlayer Engine
+    def media3_version = "1.2.1"
+    implementation "androidx.media3:media3-exoplayer:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-dash:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+    implementation "androidx.media3:media3-ui:$media3_version"
+    implementation "androidx.media3:media3-session:$media3_version"
+    implementation "androidx.media3:media3-common:$media3_version"
+    implementation "androidx.media3:media3-extractor:$media3_version"
 
-    // Glide - Fast Image Loading
+    // Ultra-Fast Hardware Thumbnail & Image Caching
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-
-    // FFmpeg from the Backup Server with required dependencies
-    implementation 'com.arthenica:ffmpeg-kit-full-gpl:6.0-2.LTS'
-    implementation 'com.arthenica:smart-exception-java:0.2.1'
 }
