@@ -66,8 +66,8 @@ class SearchFragment : Fragment() {
             )
             setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
         }
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, rootSearchLayout)
 
-        // 1. Top/Center Results List (Takes full available height above bottom-docked controls)
         rvSearchResults = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -76,7 +76,8 @@ class SearchFragment : Fragment() {
             )
             layoutManager = LinearLayoutManager(ctx)
             setHasFixedSize(true)
-            setItemViewCacheSize(24)
+            setItemViewCacheSize(28)
+            itemAnimator = null
         }
         videoAdapter = VideoAdapter(ctx, filteredVideos)
         audioAdapter = AudioAdapter(ctx, filteredSongs)
@@ -99,7 +100,6 @@ class SearchFragment : Fragment() {
         }
         rootSearchLayout.addView(tvEmptySearch)
 
-        // 2. Bottom-Docked Category Toggle Pills (Videos vs Music/Audio) right above the Search Bar
         val bottomDockContainer = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((4 * d).toInt(), (8 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
@@ -154,7 +154,6 @@ class SearchFragment : Fragment() {
         pillsRow.addView(pillSearchAudio)
         bottomDockContainer.addView(pillsRow)
 
-        // 3. Bottom Live Search Input Bar (Filters instantaneously on every keystroke)
         val searchBoxRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -166,7 +165,7 @@ class SearchFragment : Fragment() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#101826"))
                 cornerRadius = 24f * d
-                setStroke((1.6f * d).toInt(), accentColor)
+                setStroke((1.5f * d).toInt(), Color.WHITE)
             }
         }
 
@@ -182,7 +181,7 @@ class SearchFragment : Fragment() {
 
         val btnClearSearch = TextView(ctx).apply {
             text = "X"
-            setTextColor(accentColor)
+            setTextColor(Color.WHITE)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((10 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
@@ -210,7 +209,7 @@ class SearchFragment : Fragment() {
 
         updateTabPillVisuals(d)
 
-        val cachedVids = DeepMediaScanner.getCachedVideosInstant()
+        val cachedVids = DeepMediaScanner.getCachedVideosInstant(ctx)
         if (cachedVids.isNotEmpty()) {
             allVideos.clear()
             allVideos.addAll(cachedVids)
@@ -223,6 +222,8 @@ class SearchFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        val ctx = context ?: return
+        ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, rootSearchLayout)
         loadVideosAndAudioInBackground()
     }
 
@@ -268,7 +269,7 @@ class SearchFragment : Fragment() {
             if (isVideoTabActive) Color.parseColor("#0A0A10") else Color.WHITE
         )
         pillSearchVideos.background = GradientDrawable().apply {
-            setColor(if (isVideoTabActive) accentColor else Color.parseColor("#182232"))
+            setColor(if (isVideoTabActive) Color.WHITE else Color.parseColor("#182232"))
             cornerRadius = 20f * d
         }
 
@@ -276,7 +277,7 @@ class SearchFragment : Fragment() {
             if (!isVideoTabActive) Color.parseColor("#0A0A10") else Color.WHITE
         )
         pillSearchAudio.background = GradientDrawable().apply {
-            setColor(if (!isVideoTabActive) accentColor else Color.parseColor("#182232"))
+            setColor(if (!isVideoTabActive) Color.WHITE else Color.parseColor("#182232"))
             cornerRadius = 20f * d
         }
     }
@@ -403,7 +404,6 @@ class SearchFragment : Fragment() {
                     val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
                         ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Audio"
 
-                    // Uses exact 5-parameter constructor from Models.kt
                     list.add(
                         AudioModel(
                             id = id,
