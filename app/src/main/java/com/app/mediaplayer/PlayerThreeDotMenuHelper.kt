@@ -90,10 +90,37 @@ object PlayerThreeDotMenuHelper {
     ) {
         val d = context.resources.displayMetrics.density
 
+        // Elevate and isolate touch events so ScrollView scrolls smoothly and children receive all clicks
+        layoutAdvancedSettings.isClickable = true
+        layoutAdvancedSettings.isFocusable = true
+        layoutAdvancedSettings.isFocusableInTouchMode = true
+        layoutAdvancedSettings.isFillViewport = true
+        layoutAdvancedSettings.isSmoothScrollingEnabled = true
+        layoutAdvancedSettings.isVerticalScrollBarEnabled = true
+        layoutAdvancedSettings.elevation = 42f * d
+        layoutAdvancedSettings.translationZ = 42f * d
         layoutAdvancedSettings.background = GradientDrawable().apply {
             setColor(Color.parseColor("#F50A0A10"))
             cornerRadius = 24f * d
             setStroke((1.5f * d).toInt(), Color.parseColor("#44FFFFFF"))
+        }
+
+        layoutAdvancedSettings.setOnTouchListener { v, event ->
+            v.parent?.requestDisallowInterceptTouchEvent(true)
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                v.performClick()
+            }
+            false
+        }
+
+        (layoutAdvancedSettings.getChildAt(0) as? LinearLayout)?.let { innerCol ->
+            innerCol.isClickable = false
+            innerCol.setPadding(
+                innerCol.paddingLeft,
+                innerCol.paddingTop,
+                innerCol.paddingRight,
+                (32 * d).toInt()
+            )
         }
 
         layoutAdvancedSettings.findViewById<TextView>(R.id.btnCloseSettings)?.apply {
@@ -102,6 +129,8 @@ object PlayerThreeDotMenuHelper {
             textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#28FFFFFF"))
@@ -133,6 +162,8 @@ object PlayerThreeDotMenuHelper {
 
         for ((viewId, iconType) in tileSpecs) {
             val tile = layoutAdvancedSettings.findViewById<LinearLayout>(viewId) ?: continue
+            tile.isClickable = true
+            tile.isFocusable = true
             tile.background = GradientDrawable().apply {
                 setColor(Color.parseColor("#18FFFFFF"))
                 cornerRadius = 16f * d
@@ -141,7 +172,10 @@ object PlayerThreeDotMenuHelper {
             tile.setPadding((6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt())
 
             for (i in 0 until tile.childCount) {
-                when (val child = tile.getChildAt(i)) {
+                val child = tile.getChildAt(i)
+                child.isClickable = false
+                child.isFocusable = false
+                when (child) {
                     is ImageView -> {
                         child.clearColorFilter()
                         child.layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
@@ -159,6 +193,8 @@ object PlayerThreeDotMenuHelper {
         imgFavoriteIcon.setImageDrawable(PlayerVectorIconDrawable("STAR_FAV", d, Color.WHITE))
 
         listOf(btnLoopShuffle, btnLoopOne, btnLoopAll, btnLoopOff, btnHwDecoder, btnSwDecoder).forEach { btn ->
+            btn.isClickable = true
+            btn.isFocusable = true
             btn.setTextColor(Color.WHITE)
             btn.background = GradientDrawable().apply {
                 setColor(Color.parseColor("#18FFFFFF"))
@@ -179,6 +215,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optCast)?.setOnClickListener {
+            callbacks.closeAllPanels()
             try {
                 context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS))
             } catch (_: Exception) {
@@ -187,6 +224,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optShare)?.setOnClickListener {
+            callbacks.closeAllPanels()
             try {
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "video/*"
@@ -230,6 +268,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optBookmark)?.setOnClickListener {
+            callbacks.closeAllPanels()
             val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
             val path = callbacks.getVideoPath()
             val title = callbacks.getVideoTitle()
@@ -278,6 +317,7 @@ object PlayerThreeDotMenuHelper {
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optVrMode)?.setOnClickListener {
             callbacks.onVrModeToggled()
+            callbacks.closeAllPanels()
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optAbRepeat)?.setOnClickListener {
@@ -286,20 +326,40 @@ object PlayerThreeDotMenuHelper {
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optNightMode)?.setOnClickListener {
             callbacks.onNightModeToggled()
+            callbacks.closeAllPanels()
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optMirrorMode)?.setOnClickListener {
             callbacks.onMirrorModeToggled()
+            callbacks.closeAllPanels()
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optSleepTimer)?.setOnClickListener {
+            callbacks.closeAllPanels()
             callbacks.onOpenSleepTimer()
         }
 
-        btnLoopShuffle.setOnClickListener { callbacks.onLoopModeSelected(0) }
-        btnLoopOne.setOnClickListener { callbacks.onLoopModeSelected(1) }
-        btnLoopAll.setOnClickListener { callbacks.onLoopModeSelected(2) }
-        btnLoopOff.setOnClickListener { callbacks.onLoopModeSelected(3) }
+        btnLoopShuffle.setOnClickListener {
+            callbacks.onLoopModeSelected(0)
+            Toast.makeText(context, "Shuffle Loop Enabled", Toast.LENGTH_SHORT).show()
+        }
+        btnLoopOne.setOnClickListener {
+            callbacks.onLoopModeSelected(1)
+            Toast.makeText(context, "Repeat Current Video Enabled", Toast.LENGTH_SHORT).show()
+        }
+        btnLoopAll.setOnClickListener {
+            callbacks.onLoopModeSelected(2)
+            Toast.makeText(context, "Loop All Videos Enabled", Toast.LENGTH_SHORT).show()
+        }
+        btnLoopOff.setOnClickListener {
+            callbacks.onLoopModeSelected(3)
+            Toast.makeText(context, "Play Single Video (Stop After Current)", Toast.LENGTH_SHORT).show()
+        }
+
+        seekBarBrightness.setOnTouchListener { v, _ ->
+            v.parent?.requestDisallowInterceptTouchEvent(true)
+            false
+        }
 
         seekBarBrightness.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -312,20 +372,24 @@ object PlayerThreeDotMenuHelper {
         })
 
         btnHwDecoder.setOnClickListener {
+            callbacks.closeAllPanels()
             callbacks.onDecoderModeChanged(0)
             Toast.makeText(context, "Active: Hardware (HW+) 8K Engine", Toast.LENGTH_SHORT).show()
         }
 
         btnSwDecoder.setOnClickListener {
+            callbacks.closeAllPanels()
             callbacks.onDecoderModeChanged(1)
             Toast.makeText(context, "Active: Software Compatibility Engine", Toast.LENGTH_SHORT).show()
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optEditPlayer)?.setOnClickListener {
+            callbacks.closeAllPanels()
             showCustomizePlayerLayoutDialog(context, callbacks)
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optTutorials)?.setOnClickListener {
+            callbacks.closeAllPanels()
             AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Player Gestures Guide")
                 .setMessage(
@@ -340,6 +404,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optFileInfo)?.setOnClickListener {
+            callbacks.closeAllPanels()
             val path = callbacks.getVideoPath()
             val title = callbacks.getVideoTitle()
             val options = arrayOf(
@@ -367,6 +432,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         layoutAdvancedSettings.findViewById<LinearLayout>(R.id.optFeedback)?.setOnClickListener {
+            callbacks.closeAllPanels()
             AudioPitchHelper.showSoundAndPitchLabDialog(context, callbacks.getExoPlayer())
         }
     }
@@ -392,6 +458,8 @@ object PlayerThreeDotMenuHelper {
             }
 
             val langCard = LinearLayout(context).apply {
+                isClickable = true
+                isFocusable = true
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding((12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt())
@@ -410,6 +478,8 @@ object PlayerThreeDotMenuHelper {
             }
 
             val langIcon = ImageView(context).apply {
+                isClickable = false
+                isFocusable = false
                 layoutParams = LinearLayout.LayoutParams((28 * d).toInt(), (28 * d).toInt()).apply {
                     marginEnd = (8 * d).toInt()
                 }
@@ -417,6 +487,8 @@ object PlayerThreeDotMenuHelper {
             }
 
             val tvLangLabel = TextView(context).apply {
+                isClickable = false
+                isFocusable = false
                 text = "Audio Track\n(Hindi / English)"
                 setTextColor(Color.WHITE)
                 textSize = 12.5f
@@ -426,6 +498,8 @@ object PlayerThreeDotMenuHelper {
             langCard.addView(tvLangLabel)
 
             val deleteCard = LinearLayout(context).apply {
+                isClickable = true
+                isFocusable = true
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding((12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt())
@@ -443,6 +517,8 @@ object PlayerThreeDotMenuHelper {
             }
 
             val delIcon = ImageView(context).apply {
+                isClickable = false
+                isFocusable = false
                 layoutParams = LinearLayout.LayoutParams((28 * d).toInt(), (28 * d).toInt()).apply {
                     marginEnd = (8 * d).toInt()
                 }
@@ -450,6 +526,8 @@ object PlayerThreeDotMenuHelper {
             }
 
             val tvDelLabel = TextView(context).apply {
+                isClickable = false
+                isFocusable = false
                 text = "Delete Video\n(From Phone)"
                 setTextColor(Color.WHITE)
                 textSize = 12.5f
@@ -701,6 +779,7 @@ object PlayerThreeDotMenuHelper {
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
+            parent?.requestDisallowInterceptTouchEvent(true)
             when (event.action) {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
                     val padX = 16f * density
