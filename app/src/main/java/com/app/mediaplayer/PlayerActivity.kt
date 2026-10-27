@@ -373,6 +373,9 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             callbacks = this
         )
 
+        // Ensure 3-Dot menu is elevated above dynamically added scrims
+        layoutAdvancedSettings.bringToFront()
+
         applyPlayerCustomizationPreferences()
         extractIntentData(intent)
         initializePlayer(startPositionOverrideMs = -1L)
@@ -720,6 +723,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setBackgroundColor(Color.parseColor("#66000000"))
+            elevation = 12f * d
             visibility = View.GONE
             setOnClickListener { closeAllModularPanels() }
         }
@@ -728,7 +732,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         panelVisualEnhancer = CardView(this).apply {
             setCardBackgroundColor(Color.parseColor("#F50A0A10"))
             radius = 22f * d
-            cardElevation = 24f * d
+            cardElevation = 40f * d
             visibility = View.GONE
         }
         val veScroll = ScrollView(this)
@@ -835,7 +839,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         panelSubtitles = CardView(this).apply {
             setCardBackgroundColor(Color.parseColor("#F50A0A10"))
             radius = 22f * d
-            cardElevation = 24f * d
+            cardElevation = 40f * d
             visibility = View.GONE
         }
         rootPlayerFrame.addView(panelSubtitles)
@@ -843,7 +847,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         panelPlayingQueue = CardView(this).apply {
             setCardBackgroundColor(Color.parseColor("#F50A0A10"))
             radius = 22f * d
-            cardElevation = 24f * d
+            cardElevation = 40f * d
             visibility = View.GONE
         }
         val queueRoot = LinearLayout(this).apply {
@@ -900,7 +904,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         panelSpeedRuler = CardView(this).apply {
             setCardBackgroundColor(Color.parseColor("#F210141E"))
             radius = 22f * d
-            cardElevation = 26f * d
+            cardElevation = 42f * d
             visibility = View.GONE
             layoutParams = FrameLayout.LayoutParams(
                 (340 * d).toInt(),
@@ -1004,6 +1008,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setBackgroundColor(Color.parseColor("#78000000"))
+            elevation = 45f * d
             visibility = View.GONE
         }
 
@@ -1231,10 +1236,19 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         rootPlayerFrame.addView(panelBgAudioScreen)
     }
 
+    /**
+     * Brings `panelOverlayScrim` to the front first and then brings `targetPanel` (such as `layoutAdvancedSettings`)
+     * directly above it with 48dp elevation so that all scrolling and child button clicks work 100% reliably.
+     */
     private fun openHalfScreenPanel(targetPanel: View) {
+        val d = resources.displayMetrics.density
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
+
+        panelOverlayScrim.elevation = 12f * d
+        panelOverlayScrim.translationZ = 12f * d
         panelOverlayScrim.visibility = View.VISIBLE
+        panelOverlayScrim.bringToFront()
 
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val screenW = resources.displayMetrics.widthPixels
@@ -1242,21 +1256,25 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
         val lp = if (isLandscape) {
             FrameLayout.LayoutParams(
-                (screenW * 0.54f).toInt(),
+                (screenW * 0.56f).toInt(),
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 Gravity.END
             )
         } else {
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                (screenH * 0.60f).toInt(),
+                (screenH * 0.64f).toInt(),
                 Gravity.BOTTOM
             )
         }
         targetPanel.layoutParams = lp
-        targetPanel.alpha = 0f
+        targetPanel.elevation = 48f * d
+        targetPanel.translationZ = 48f * d
+        targetPanel.alpha = 1f
         targetPanel.visibility = View.VISIBLE
-        targetPanel.animate().alpha(1f).setDuration(200L).start()
+        targetPanel.bringToFront()
+        rootPlayerFrame.requestLayout()
+        rootPlayerFrame.invalidate()
     }
 
     private fun closeAllModularPanels() {
@@ -1684,9 +1702,12 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     }
 
     private fun activateBackgroundAudioMode() {
+        val d = resources.displayMetrics.density
         isBgAudioEnabled = true
         layoutAllControls.visibility = View.GONE
+        panelBgAudioScreen.elevation = 48f * d
         panelBgAudioScreen.visibility = View.VISIBLE
+        panelBgAudioScreen.bringToFront()
         syncBackgroundAudioUiAndService()
     }
 
@@ -1697,7 +1718,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 showAutoHidingLockIconFor3Seconds()
                 Toast.makeText(this, "Tap the Lock icon to unlock screen", Toast.LENGTH_SHORT).show()
             }
-            panelOverlayScrim.visibility == View.VISIBLE -> {
+            panelOverlayScrim.visibility == View.VISIBLE || layoutAdvancedSettings.visibility == View.VISIBLE -> {
                 closeAllModularPanels()
                 layoutAllControls.visibility = View.VISIBLE
             }
@@ -1771,6 +1792,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         btnUnlockOverlay.animate().cancel()
         btnUnlockOverlay.alpha = 1f
         btnUnlockOverlay.visibility = View.VISIBLE
+        btnUnlockOverlay.bringToFront()
         handler.removeCallbacks(autoHideLockIconRunnable)
         handler.postDelayed(autoHideLockIconRunnable, 3000L)
     }
@@ -2280,10 +2302,17 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         })
 
         btnPlaybackSpeed.setOnClickListener {
+            val d = resources.displayMetrics.density
             closeAllModularPanels()
             layoutAllControls.visibility = View.GONE
+            panelOverlayScrim.elevation = 12f * d
             panelOverlayScrim.visibility = View.VISIBLE
+            panelOverlayScrim.bringToFront()
+
+            panelSpeedRuler.elevation = 48f * d
+            panelSpeedRuler.translationZ = 48f * d
             panelSpeedRuler.visibility = View.VISIBLE
+            panelSpeedRuler.bringToFront()
             speedRulerView.setSpeedValue(currentSpeed)
             tvSpeedRulerValue.text = String.format(Locale.US, "%.2f X", currentSpeed)
         }
@@ -2597,6 +2626,14 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         })
 
         rootPlayerFrame.setOnTouchListener { _, event ->
+            // Do not intercept or block touches when any modular panel or 3-dot menu is open
+            if (layoutAdvancedSettings.visibility == View.VISIBLE ||
+                panelOverlayScrim.visibility == View.VISIBLE ||
+                panelBgAudioScreen.visibility == View.VISIBLE
+            ) {
+                return@setOnTouchListener false
+            }
+
             scaleGestureDetector.onTouchEvent(event)
             if (!scaleGestureDetector.isInProgress) {
                 gestureDetector.onTouchEvent(event)
