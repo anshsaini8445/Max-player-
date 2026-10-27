@@ -111,7 +111,7 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
     private var isFavorite = false
     private var isSuperLoud200Boost = true
     private var currentSpeed = 1.0f
-    private var loopMode = 2 // 0 = Shuffle, 1 = Repeat 1, 2 = Loop All, 3 = Play 1
+    private var loopMode = 2
     private var stopAfterCurrentTrack = false
 
     private var pointAMs = -1L
@@ -232,7 +232,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
             setPadding((18 * d).toInt(), (16 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
         }
 
-        // 1. TOP BAR: Larger Pure-White Back, Studio Title, Equalizer & 3-Dot Menu
         val topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -308,7 +307,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         topBar.addView(btnTopThreeDots)
         mainColumn.addView(topBar)
 
-        // 2. CENTER ALBUM PHOTO BOX / ROTATING VINYL DISC (Swipe Left/Right to Change Song)
         val coverWrapperFrame = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -357,7 +355,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         attachCoverSwipeAndTapGestures(coverWrapperFrame)
         mainColumn.addView(coverWrapperFrame)
 
-        // 3. SONG TITLE, ARTIST & LARGER PURE-WHITE FAVORITE HEART ROW
         val titleRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -411,7 +408,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         titleRow.addView(btnFavoriteHeart)
         mainColumn.addView(titleRow)
 
-        // 4. QUICK PURE-WHITE STUDIO PILLS (Speed, 200% Boost, Lofi Pitch Lab, AB Repeat, Sleep Timer)
         val quickPillsScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(
@@ -461,7 +457,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         quickPillsScroll.addView(quickPillsRow)
         mainColumn.addView(quickPillsScroll)
 
-        // 5. PURE-WHITE ANIMATED STUDIO WAVEFORM & SEEKBAR
         waveformVisualizerView = PureWhiteWaveformView(this, d).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -520,7 +515,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         seekRow.addView(tvTotalTime)
         mainColumn.addView(seekRow)
 
-        // 6. LARGER PURE-WHITE MAIN TRANSPORT CONTROLS (Shuffle/Loop, Prev, Play/Pause, Next, Queue)
         val transportRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -591,7 +585,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         transportRow.addView(btnOpenQueue)
         mainColumn.addView(transportRow)
 
-        // 7. BOTTOM UP-NEXT BAR WITH 3-DOT ("...") BUTTON INSTEAD OF ANY CROSS ("X")
         val bottomDockCard = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -959,7 +952,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
             .getBoolean("super_loud_200_boost", true)
         pillBoostQuick.text = if (isSuperLoud200Boost) "200% Boost: ON" else "200% Boost: OFF"
 
-        // Guaranteed immediate album art / cover photo loading
         AudioAdapter.loadAlbumArtOrFallbackInto(this, currentPath, currentTitle, imgMainSongCover)
         updateUpNextBarUi()
 
@@ -1155,8 +1147,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
             discRotationAnimator?.pause()
         }
     }
-
-    // --- AudioThreeDotMenuHelper.AudioPlayerCallbacks Implementation ---
 
     override fun getExoPlayer(): ExoPlayer? = sharedExoPlayer
     override fun getAudioSessionId(): Int = sharedExoPlayer?.audioSessionId ?: 0
@@ -1375,7 +1365,7 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         val mins = (totalSecs % 3600) / 60
         val secs = totalSecs % 60
         return if (hrs > 0) {
-            String.format(Locale.US, "%02d:%02d:%02d", hrs, minutes = mins, seconds = secs)
+            String.format(Locale.US, "%02d:%02d:%02d", hrs, mins, secs)
         } else {
             String.format(Locale.US, "%02d:%02d", mins, secs)
         }
@@ -1394,10 +1384,6 @@ class AudioPlayerActivity : AppCompatActivity(), AudioThreeDotMenuHelper.AudioPl
         }
     }
 
-    /**
-     * Pure-White Studio Waveform Bar Visualizer:
-     * Renders 36 crisp white bars that animate smoothly to the beat when music is playing.
-     */
     private class PureWhiteWaveformView(
         context: Context,
         private val d: Float
