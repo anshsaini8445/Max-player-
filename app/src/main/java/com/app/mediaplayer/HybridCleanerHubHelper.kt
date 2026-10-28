@@ -26,7 +26,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
-import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -71,7 +70,7 @@ object HybridCleanerHubHelper {
     fun readDeviceStorageMetrics(context: Context): StorageMetrics {
         return try {
             val stat = StatFs(Environment.getExternalStorageDirectory().path)
-            val total = stat.totalBlocksLong * stat.blockSizeLong
+            val total = stat.blockCountLong * stat.blockSizeLong
             val free = stat.availableBlocksLong * stat.blockSizeLong
             val used = (total - free).coerceAtLeast(0L)
 
@@ -563,9 +562,6 @@ object HybridCleanerHubHelper {
         }
     }
 
-    /**
-     * Custom Canvas Radial Gauge + Tilted Coral-Red Broom with Sparkles matching Screenshot 1000069542.jpg.
-     */
     private class CleanJunkRadialGaugeView(
         context: Context,
         private val d: Float,
@@ -637,7 +633,6 @@ object HybridCleanerHubHelper {
             val cy = h / 2f
             val maxR = w.coerceAtMost(h) * 0.48f
 
-            // 1. Outer Radial Ticks Ring
             val tickInnerR = maxR * 0.80f
             val tickOuterR = maxR * 0.98f
             for (deg in 0 until 360 step 4) {
@@ -649,16 +644,13 @@ object HybridCleanerHubHelper {
                 canvas.drawLine(x1, y1, x2, y2, tickPaint)
             }
 
-            // 2. Main Gauge Ring (Dark Green Track + Coral-Red Progress Arc)
             val ringR = maxR * 0.68f
             val ringRect = RectF(cx - ringR, cy - ringR, cx + ringR, cy + ringR)
             canvas.drawOval(ringRect, outerDarkRingPaint)
             canvas.drawArc(ringRect, -95f, 360f * usedFraction, false, redArcPaint)
 
-            // 3. Inner Dark Disc
             canvas.drawCircle(cx, cy, ringR * 0.82f, innerCirclePaint)
 
-            // 4. Tilted Coral-Red Broom Icon in Center
             canvas.save()
             canvas.rotate(32f, cx, cy)
 
@@ -672,15 +664,12 @@ object HybridCleanerHubHelper {
                 Shader.TileMode.CLAMP
             )
 
-            // Broom Handle
             canvas.drawLine(cx, cy - 36f * d, cx, cy - 4f * d, broomHandlePaint)
 
-            // Broom Collar
             val collarRect = RectF(cx - 12f * d, cy - 8f * d, cx + 12f * d, cy + 4f * d)
             canvas.drawRoundRect(collarRect, 5f * d, 5f * d, broomHeadPaint)
             canvas.drawLine(cx - 11f * d, cy + 1f * d, cx + 11f * d, cy + 1f * d, broomBandPaint)
 
-            // Flared Broom Bristles
             val bristlePath = Path().apply {
                 moveTo(cx - 12f * d, cy + 3f * d)
                 lineTo(cx - 24f * d, cy + 28f * d)
@@ -690,11 +679,9 @@ object HybridCleanerHubHelper {
             }
             canvas.drawPath(bristlePath, broomHeadPaint)
 
-            // White Sparkle on Bristles
             canvas.drawCircle(cx - 8f * d, cy + 20f * d, 3.2f * d, whiteShinePaint)
             canvas.restore()
 
-            // Decorative Sparkle Stars around Broom
             canvas.drawCircle(cx - 26f * d, cy - 6f * d, 2.5f * d, sparklePaint)
             canvas.drawCircle(cx - 8f * d, cy - 28f * d, 2.2f * d, sparklePaint)
             canvas.drawCircle(cx + 25f * d, cy - 4f * d, 2.0f * d, sparklePaint)
