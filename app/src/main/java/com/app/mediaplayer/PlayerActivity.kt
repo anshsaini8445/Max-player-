@@ -28,12 +28,16 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
 import android.text.TextUtils
 import android.util.Rational
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -91,6 +95,10 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         private const val REQ_PICK_SUBTITLE = 6101
         private const val ACTION_PIP_MUTE = "com.app.mediaplayer.ACTION_PIP_MUTE"
         private const val ACTION_PIP_CLOSE = "com.app.mediaplayer.ACTION_PIP_CLOSE"
+        private const val CONTROLS_AUTO_HIDE_DELAY_MS = 3000L
+
+        private var sharedBackgroundPlayer: ExoPlayer? = null
+        private var sharedBackgroundPath: String = ""
     }
 
     private var exoPlayer: ExoPlayer? = null
@@ -201,6 +209,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     private var currentZoomScale = 1.0f
     private var isPinchZooming = false
     private var currentBrightnessPercent = 75f
+    private var lastHapticThresholdValue = -1
 
     private var lockedSwipeDirection = 0
     private var touchStartX = 0f
@@ -223,7 +232,33 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     private lateinit var scaleGestureDetector: ScaleGestureDetector
 
     private val hideGestureRunnable = Runnable {
-        cardGestureFeedback.visibility = View.GONE
+        cardGestureFeedback.animate()
+            .alpha(0f)
+            .setDuration(160L)
+            .withEndAction {
+                cardGestureFeedback.visibility = View.GONE
+                cardGestureFeedback.alpha = 1f
+            }
+            .start()
+    }
+
+    private val autoHideControlsRunnable = Runnable {
+        if (!isScreenLocked &&
+            isPlayingUnified() &&
+            panelOverlayScrim.visibility != View.VISIBLE &&
+            layoutAdvancedSettings.visibility != View.VISIBLE &&
+            panelBgAudioScreen.visibility != View.VISIBLE
+        ) {
+            layoutAllControls.animate()
+                .alpha(0f)
+                .setDuration(220L)
+                .withEndAction {
+                    layoutAllControls.visibility = View.GONE
+                    layoutAllControls.alpha = 1f
+                    enterFullImmersiveMode()
+                }
+                .start()
+        }
     }
 
     private val autoHideZoomPillRunnable = Runnable {
@@ -248,7 +283,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 player.playbackParameters = PlaybackParameters(dynamicHoldSpeed)
                 tvSpeedBoostBadge.text = String.format(
                     Locale.US,
-                    "%.2fx Speed (Slide Left 0.25x <-> Right 8.0x)",
+                    "%.2fx Speed  •  Slide Left / Right",
                     dynamicHoldSpeed
                 )
                 cardSpeedBoostBadge.visibility = View.VISIBLE
@@ -333,11 +368,14 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        overridePendingTransition(0, 0)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
 
         setContentView(R.layout.activity_player)
 
@@ -354,7 +392,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             playerVolumeSetter = { vol -> exoPlayer?.volume = vol }
         )
 
-        setupUnifiedAllWhiteModernIcons()
+        setupSleekMinimalModernIcons()
         restorePersistentBrightnessAndVisuals()
         buildModularOverlayPanels()
 
@@ -373,16 +411,16 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             callbacks = this
         )
 
-        // Ensure 3-Dot menu is elevated above dynamically added scrims
         layoutAdvancedSettings.bringToFront()
 
         applyPlayerCustomizationPreferences()
         extractIntentData(intent)
-        initializePlayer(startPositionOverrideMs = -1L)
+        initializeOrAttachSeamlessPlayer(startPositionOverrideMs = -1L)
         setupTopAndSideControls()
         setupBottomControls()
         setupDirectionLockedTouchAndGestures()
         enterFullImmersiveMode()
+        scheduleControlsAutoHide()
 
         smartIdlePauseHelper = SmartIdlePauseHelper(
             context = this,
@@ -392,6 +430,42 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
         if (intent?.getBooleanExtra("START_BG_AUDIO", false) == true) {
             activateBackgroundAudioMode()
+        }
+    }
+
+    private fun scheduleControlsAutoHide() {
+        handler.removeCallbacks(autoHideControlsRunnable)
+        if (!isScreenLocked && layoutAllControls.visibility == View.VISIBLE) {
+            handler.postDelayed(autoHideControlsRunnable, CONTROLS_AUTO_HIDE_DELAY_MS)
+        }
+    }
+
+    private fun triggerBoundaryHapticPulse(isStrongLimit: Boolean = false) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator?.vibrate(
+                    VibrationEffect.createOneShot(
+                        if (isStrongLimit) 32L else 18L,
+                        if (isStrongLimit) 220 else 130
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vib?.vibrate(
+                        VibrationEffect.createOneShot(
+                            if (isStrongLimit) 32L else 18L,
+                            VibrationEffect.DEFAULT_AMPLITUDE
+                        )
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    vib?.vibrate(if (isStrongLimit) 30L else 16L)
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 
@@ -444,7 +518,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     override fun onDecoderModeChanged(stage: Int) {
         fallbackStage = stage
         val pos = getCurrentPositionUnified()
-        initializePlayer(startPositionOverrideMs = pos)
+        initializeOrAttachSeamlessPlayer(startPositionOverrideMs = pos, forceRebuild = true)
     }
 
     override fun onLayoutPreferencesChanged() = applyPlayerCustomizationPreferences()
@@ -501,6 +575,11 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         )
         mediaSessionManager?.updatePlaybackState()
         syncBackgroundAudioUiAndService()
+        if (playing) {
+            scheduleControlsAutoHide()
+        } else {
+            handler.removeCallbacks(autoHideControlsRunnable)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -539,6 +618,8 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         rootPlayerFrame.clipToPadding = false
         playerView.clipChildren = false
         playerView.clipToPadding = false
+        playerView.setShutterBackgroundColor(Color.TRANSPARENT)
+        playerView.keepScreenOn = true
         for (i in 0 until playerView.childCount) {
             val child = playerView.getChildAt(i)
             if (child is ViewGroup) {
@@ -550,14 +631,20 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        overridePendingTransition(0, 0)
         if (intent != null) {
             val newPath = intent.getStringExtra("VIDEO_PATH") ?: ""
             if (newPath.isNotEmpty() && newPath != videoPath) {
                 extractIntentData(intent)
-                initializePlayer(startPositionOverrideMs = -1L)
+                initializeOrAttachSeamlessPlayer(startPositionOverrideMs = -1L, forceRebuild = true)
             } else {
+                // Zero-blink instant return from Background Audio to Video Surface
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
+                if (exoPlayer != null && playerView.player !== exoPlayer) {
+                    playerView.player = exoPlayer
+                }
+                scheduleControlsAutoHide()
                 enterFullImmersiveMode()
             }
         }
@@ -636,35 +723,64 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         btnHwDecoder = findViewById(R.id.btnHwDecoder)
         btnSwDecoder = findViewById(R.id.btnSwDecoder)
 
+        // Upgrade gesture feedback card into a sleek curved modern pill
+        val d = resources.displayMetrics.density
+        cardGestureFeedback.radius = 24f * d
+        cardGestureFeedback.cardElevation = 16f * d
+        cardGestureFeedback.setCardBackgroundColor(Color.parseColor("#D80A0E17"))
+
         cardZoomResetPill.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             applyVideoZoom(1.0f)
             cardZoomResetPill.visibility = View.GONE
             Toast.makeText(this, "Zoom Reset to 100%", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun setupUnifiedAllWhiteModernIcons() {
+    private fun setupSleekMinimalModernIcons() {
         val d = resources.displayMetrics.density
         val pureWhite = Color.WHITE
 
+        // Borderless translucent circles so video controls look ultra-clean like MX Player Pro
+        val subtleCircle = {
+            GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#33000000"))
+            }
+        }
+
+        val subtlePill = {
+            GradientDrawable().apply {
+                cornerRadius = 16f * d
+                setColor(Color.parseColor("#38000000"))
+            }
+        }
+
         val allIconViews = listOf(
             btnBgAudio, btnVideoQueue, btnMoreMenu, btnMuteToggle,
-            btnLockScreen, btnUnlockOverlay, btnSideCut, btnRotateScreen,
-            btnAspectRatio, btnPipMode, btnPlayerPrev, btnPlayerPlayPause, btnPlayerNext
+            btnLockScreen, btnSideCut, btnRotateScreen,
+            btnAspectRatio, btnPipMode, btnPlayerPrev, btnPlayerNext
         )
         allIconViews.forEach {
             it.clearColorFilter()
-            it.background = PlayerThreeDotMenuHelper.makeFrostedCircle(d)
+            it.background = subtleCircle()
+        }
+
+        btnPlayerPlayPause.clearColorFilter()
+        btnPlayerPlayPause.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor("#44000000"))
+            setStroke((1.5f * d).toInt(), Color.parseColor("#88FFFFFF"))
         }
 
         findViewById<ImageView>(R.id.btnPlayerBack)?.apply {
             clearColorFilter()
-            background = PlayerThreeDotMenuHelper.makeFrostedCircle(d)
+            background = subtleCircle()
             setImageDrawable(PlayerThreeDotMenuHelper.PlayerVectorIconDrawable("BACK_ARROW", d, pureWhite))
         }
 
         btnHdrMode.setTextColor(pureWhite)
-        btnHdrMode.background = PlayerThreeDotMenuHelper.makeFrostedPill(d)
+        btnHdrMode.background = subtlePill()
         if (frameHdrContainer.childCount > 1) {
             frameHdrContainer.getChildAt(1).visibility = View.GONE
         }
@@ -672,10 +788,10 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         cardSubtitlesCc.setCardBackgroundColor(Color.TRANSPARENT)
         cardSubtitlesCc.cardElevation = 0f
         btnSubtitlesCc.setTextColor(pureWhite)
-        btnSubtitlesCc.background = PlayerThreeDotMenuHelper.makeFrostedPill(d)
+        btnSubtitlesCc.background = subtlePill()
 
         btnPlaybackSpeed.setTextColor(pureWhite)
-        btnPlaybackSpeed.background = PlayerThreeDotMenuHelper.makeFrostedPill(d)
+        btnPlaybackSpeed.background = subtlePill()
 
         btnBgAudio.setImageDrawable(PlayerThreeDotMenuHelper.PlayerVectorIconDrawable("HEADPHONES", d, pureWhite))
         btnVideoQueue.setImageDrawable(PlayerThreeDotMenuHelper.PlayerVectorIconDrawable("QUEUE_LIST", d, pureWhite))
@@ -693,8 +809,8 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
         btnUnlockOverlay.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.parseColor("#E610141E"))
-            setStroke((1.8f * d).toInt(), pureWhite)
+            setColor(Color.parseColor("#D810141E"))
+            setStroke((1.5f * d).toInt(), pureWhite)
         }
         btnUnlockOverlay.setImageDrawable(PlayerThreeDotMenuHelper.PlayerVectorIconDrawable("LOCK_CLOSED", d, pureWhite))
     }
@@ -1028,11 +1144,12 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#E6141E30"))
                 cornerRadius = 26f * d
-                setStroke((1.8f * d).toInt(), Color.WHITE)
+                setStroke((1.5f * d).toInt(), Color.WHITE)
             }
             setOnClickListener {
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
+                scheduleControlsAutoHide()
             }
         }
         panelBgAudioScreen.addView(btnBgCenterBackToVideo)
@@ -1056,7 +1173,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#F50D131F"))
                 cornerRadius = 24f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#4DFFFFFF"))
+                setStroke((1.2f * d).toInt(), Color.parseColor("#33FFFFFF"))
             }
         }
 
@@ -1073,6 +1190,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             setOnClickListener {
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
+                scheduleControlsAutoHide()
             }
         }
 
@@ -1220,8 +1338,11 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             }
             setOnClickListener {
                 isBgAudioEnabled = true
+                sharedBackgroundPlayer = exoPlayer
+                sharedBackgroundPath = videoPath
                 syncBackgroundAudioUiAndService()
                 moveTaskToBack(true)
+                overridePendingTransition(0, 0)
             }
         }
 
@@ -1236,12 +1357,9 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         rootPlayerFrame.addView(panelBgAudioScreen)
     }
 
-    /**
-     * Brings `panelOverlayScrim` to the front first and then brings `targetPanel` (such as `layoutAdvancedSettings`)
-     * directly above it with 48dp elevation so that all scrolling and child button clicks work 100% reliably.
-     */
     private fun openHalfScreenPanel(targetPanel: View) {
         val d = resources.displayMetrics.density
+        handler.removeCallbacks(autoHideControlsRunnable)
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
 
@@ -1429,9 +1547,37 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         }
     }
 
-    private fun initializePlayer(startPositionOverrideMs: Long = -1L) {
+    /**
+     * Zero-Blink Seamless Player Initialization:
+     * If returning from Background Audio for the same video path, re-attaches the existing live ExoPlayer
+     * directly to `playerView` in 0ms without re-buffering or black screen flash.
+     */
+    private fun initializeOrAttachSeamlessPlayer(
+        startPositionOverrideMs: Long = -1L,
+        forceRebuild: Boolean = false
+    ) {
         try {
             val d = resources.displayMetrics.density
+
+            if (!forceRebuild &&
+                sharedBackgroundPlayer != null &&
+                sharedBackgroundPath == videoPath &&
+                videoPath.isNotEmpty()
+            ) {
+                exoPlayer = sharedBackgroundPlayer
+                isUsingNativeFallback = false
+                playerView.visibility = View.VISIBLE
+                playerView.player = exoPlayer
+                disableClippingForFullScreenZoom()
+                val dur = (exoPlayer?.duration ?: 1000L).coerceAtLeast(1L)
+                seekBarPlayer.max = dur.toInt()
+                sbBgBottomSeek.max = dur.toInt()
+                tvPlayerTotalTime.text = formatDuration(dur)
+                handler.removeCallbacks(updateProgressAction)
+                handler.post(updateProgressAction)
+                return
+            }
+
             val resumePos = if (startPositionOverrideMs >= 0L) {
                 startPositionOverrideMs
             } else {
@@ -1447,21 +1593,28 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             isUsingNativeFallback = false
             playerView.visibility = View.VISIBLE
 
+            if (sharedBackgroundPlayer !== exoPlayer) {
+                sharedBackgroundPlayer?.release()
+                sharedBackgroundPlayer = null
+            }
             exoPlayer?.release()
 
-            val renderersFactory = DefaultRenderersFactory(this).apply {
+            val renderersFactory = DefaultRenderersFactory(applicationContext).apply {
                 setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 setEnableDecoderFallback(true)
             }
 
             val fastLoadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(2000, 35000, 150, 300)
+                .setBufferDurationsMs(1500, 35000, 120, 250)
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .build()
 
-            exoPlayer = ExoPlayer.Builder(this, renderersFactory)
+            exoPlayer = ExoPlayer.Builder(applicationContext, renderersFactory)
                 .setLoadControl(fastLoadControl)
                 .build().also { player ->
+                    sharedBackgroundPlayer = player
+                    sharedBackgroundPath = videoPath
+
                     player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
 
                     if (fallbackStage >= 1) {
@@ -1552,7 +1705,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                             val savedPos = player.currentPosition.coerceAtLeast(0L)
                             if (fallbackStage == 0) {
                                 fallbackStage = 1
-                                initializePlayer(startPositionOverrideMs = savedPos)
+                                initializeOrAttachSeamlessPlayer(startPositionOverrideMs = savedPos, forceRebuild = true)
                             } else if (fallbackStage == 1) {
                                 fallbackStage = 2
                                 activateNativeVideoViewFallback(savedPos)
@@ -1567,6 +1720,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                             if (index in videoList.indices) {
                                 currentPositionIndex = index
                                 videoPath = videoList[index]
+                                sharedBackgroundPath = videoPath
                                 videoTitle = File(videoPath).name
                                 tvPlayerTitle.text = videoTitle
                                 tvBgBottomTitle.text = videoTitle
@@ -1615,6 +1769,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             val d = resources.displayMetrics.density
             exoPlayer?.release()
             exoPlayer = null
+            sharedBackgroundPlayer = null
             isUsingNativeFallback = true
             playerView.visibility = View.GONE
 
@@ -1704,6 +1859,9 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     private fun activateBackgroundAudioMode() {
         val d = resources.displayMetrics.density
         isBgAudioEnabled = true
+        sharedBackgroundPlayer = exoPlayer
+        sharedBackgroundPath = videoPath
+        handler.removeCallbacks(autoHideControlsRunnable)
         layoutAllControls.visibility = View.GONE
         panelBgAudioScreen.elevation = 48f * d
         panelBgAudioScreen.visibility = View.VISIBLE
@@ -1721,43 +1879,56 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             panelOverlayScrim.visibility == View.VISIBLE || layoutAdvancedSettings.visibility == View.VISIBLE -> {
                 closeAllModularPanels()
                 layoutAllControls.visibility = View.VISIBLE
+                scheduleControlsAutoHide()
             }
             panelBgAudioScreen.visibility == View.VISIBLE -> {
                 panelBgAudioScreen.visibility = View.GONE
                 layoutAllControls.visibility = View.VISIBLE
+                scheduleControlsAutoHide()
             }
             isBgAudioEnabled && isPlayingUnified() -> {
+                sharedBackgroundPlayer = exoPlayer
+                sharedBackgroundPath = videoPath
                 syncBackgroundAudioUiAndService()
                 moveTaskToBack(true)
+                overridePendingTransition(0, 0)
             }
             else -> {
+                isBgAudioEnabled = false
+                VideoFragment.updateBackgroundBarState(false, "", "", false, 0L, 1000L)
                 super.onBackPressed()
+                overridePendingTransition(0, 0)
             }
         }
     }
 
     private fun setupTopAndSideControls() {
         findViewById<ImageView>(R.id.btnPlayerBack).setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             onBackPressed()
         }
 
         val hdrClick = View.OnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             openHalfScreenPanel(panelVisualEnhancer)
         }
         btnHdrMode.setOnClickListener(hdrClick)
         frameHdrContainer.setOnClickListener(hdrClick)
 
         val ccClick = View.OnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             populateAndOpenSubtitlePanel()
         }
         btnSubtitlesCc.setOnClickListener(ccClick)
         cardSubtitlesCc.setOnClickListener(ccClick)
 
         btnBgAudio.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             activateBackgroundAudioMode()
         }
 
         btnVideoQueue.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             updateQueueHeaderTitle()
             rvQueueList.adapter?.notifyDataSetChanged()
             openHalfScreenPanel(panelPlayingQueue)
@@ -1765,13 +1936,22 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         }
 
         btnMoreMenu.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             openHalfScreenPanel(layoutAdvancedSettings)
         }
 
-        btnMuteToggle.setOnClickListener { toggleMuteNow() }
-        btnLockScreen.setOnClickListener { lockScreenNow() }
+        btnMuteToggle.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            toggleMuteNow()
+            scheduleControlsAutoHide()
+        }
+        btnLockScreen.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            lockScreenNow()
+        }
 
         btnUnlockOverlay.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             val d = resources.displayMetrics.density
             isScreenLocked = false
             handler.removeCallbacks(autoHideLockIconRunnable)
@@ -1780,12 +1960,21 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 PlayerThreeDotMenuHelper.PlayerVectorIconDrawable("LOCK_OPEN", d, Color.WHITE)
             )
             layoutAllControls.visibility = View.VISIBLE
+            scheduleControlsAutoHide()
             enterFullImmersiveMode()
             Toast.makeText(this, "Screen Unlocked", Toast.LENGTH_SHORT).show()
         }
 
-        btnSideCut.setOnClickListener { captureVideoScreenshotNow() }
-        btnRotateScreen.setOnClickListener { toggleRotationNow() }
+        btnSideCut.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            captureVideoScreenshotNow()
+            scheduleControlsAutoHide()
+        }
+        btnRotateScreen.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            toggleRotationNow()
+            scheduleControlsAutoHide()
+        }
     }
 
     private fun showAutoHidingLockIconFor3Seconds() {
@@ -2072,7 +2261,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 val isPlayingNow = position == currentPositionIndex
 
                 holder.tvTitle.text = if (isPlayingNow) "Playing: $name" else name
-                holder.tvTitle.setTextColor(Color.WHITE)
+                holder.tvTitle.setTextColor(if (isPlayingNow) Color.parseColor("#00E5FF") else Color.WHITE)
 
                 val sizeBytes = if (file.exists()) file.length() else 0L
                 val sizeMb = sizeBytes / (1024.0 * 1024.0)
@@ -2097,7 +2286,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                         videoPath = videoList[pos]
                         videoTitle = File(videoPath).name
                         if (isUsingNativeFallback) {
-                            initializePlayer(startPositionOverrideMs = 0L)
+                            initializeOrAttachSeamlessPlayer(startPositionOverrideMs = 0L, forceRebuild = true)
                         } else {
                             exoPlayer?.seekToDefaultPosition(pos)
                             exoPlayer?.play()
@@ -2193,6 +2382,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     private fun lockScreenNow() {
         val d = resources.displayMetrics.density
         isScreenLocked = true
+        handler.removeCallbacks(autoHideControlsRunnable)
         closeAllModularPanels()
         layoutAllControls.visibility = View.GONE
         cardZoomResetPill.visibility = View.GONE
@@ -2202,7 +2392,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         )
         showAutoHidingLockIconFor3Seconds()
         enterFullImmersiveMode()
-        Toast.makeText(this, "Screen Locked (Auto-hides in 3s)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Screen Locked", Toast.LENGTH_SHORT).show()
     }
 
     private fun captureVideoScreenshotNow() {
@@ -2284,11 +2474,20 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
 
     private fun setupBottomControls() {
         btnPlayerPlayPause.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             togglePlayPauseUnified()
         }
 
-        btnPlayerPrev.setOnClickListener { playPreviousVideo() }
-        btnPlayerNext.setOnClickListener { playNextVideo() }
+        btnPlayerPrev.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            playPreviousVideo()
+            scheduleControlsAutoHide()
+        }
+        btnPlayerNext.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            playNextVideo()
+            scheduleControlsAutoHide()
+        }
 
         seekBarPlayer.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -2297,12 +2496,18 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                     tvPlayerCurrentTime.text = formatDuration(progress.toLong())
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                handler.removeCallbacks(autoHideControlsRunnable)
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                scheduleControlsAutoHide()
+            }
         })
 
         btnPlaybackSpeed.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             val d = resources.displayMetrics.density
+            handler.removeCallbacks(autoHideControlsRunnable)
             closeAllModularPanels()
             layoutAllControls.visibility = View.GONE
             panelOverlayScrim.elevation = 12f * d
@@ -2318,6 +2523,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         }
 
         btnAspectRatio.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             val d = resources.displayMetrics.density
             resizeModeIndex = (resizeModeIndex + 1) % 4
             val mirror = if (isMirrorMode) -1f else 1f
@@ -2361,9 +2567,11 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                     Toast.makeText(this, "Aspect Ratio: 16:9 Cinema", Toast.LENGTH_SHORT).show()
                 }
             }
+            scheduleControlsAutoHide()
         }
 
         btnPipMode.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             enterPipModeSafely()
         }
     }
@@ -2374,7 +2582,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             videoPath = videoList[currentPositionIndex]
             videoTitle = File(videoPath).name
             tvPlayerTitle.text = videoTitle
-            initializePlayer(startPositionOverrideMs = 0L)
+            initializeOrAttachSeamlessPlayer(startPositionOverrideMs = 0L, forceRebuild = true)
             return
         }
         exoPlayer?.let { player ->
@@ -2393,7 +2601,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             videoPath = videoList[currentPositionIndex]
             videoTitle = File(videoPath).name
             tvPlayerTitle.text = videoTitle
-            initializePlayer(startPositionOverrideMs = 0L)
+            initializeOrAttachSeamlessPlayer(startPositionOverrideMs = 0L, forceRebuild = true)
             return
         }
         exoPlayer?.let { player ->
@@ -2410,7 +2618,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     private fun applySpeedDirect(targetSpeed: Float) {
         currentSpeed = targetSpeed.coerceIn(0.25f, 8.0f)
         exoPlayer?.playbackParameters = PlaybackParameters(currentSpeed)
-        btnPlaybackSpeed.text = String.format(Locale.US, "%.1fx Speed", currentSpeed)
+        btnPlaybackSpeed.text = String.format(Locale.US, "%.1fx", currentSpeed)
         tvSpeedRulerValue.text = String.format(Locale.US, "%.2f X", currentSpeed)
         speedRulerView.setSpeedValue(currentSpeed)
     }
@@ -2594,13 +2802,20 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                     closeAllModularPanels()
                     return true
                 }
-                layoutAllControls.visibility =
-                    if (layoutAllControls.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                if (layoutAllControls.visibility == View.VISIBLE) {
+                    handler.removeCallbacks(autoHideControlsRunnable)
+                    layoutAllControls.visibility = View.GONE
+                } else {
+                    layoutAllControls.alpha = 1f
+                    layoutAllControls.visibility = View.VISIBLE
+                    scheduleControlsAutoHide()
+                }
                 return true
             }
 
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 if (isScreenLocked) return true
+                triggerBoundaryHapticPulse(isStrongLimit = false)
                 val screenWidth = resources.displayMetrics.widthPixels
                 val cur = getCurrentPositionUnified()
                 val dur = getDurationUnified()
@@ -2617,16 +2832,16 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             override fun onLongPress(e: MotionEvent) {
                 if (isScreenLocked || isPinchZooming || lockedSwipeDirection != 0) return
                 if (isPlayingUnified()) {
+                    triggerBoundaryHapticPulse(isStrongLimit = false)
                     isLongPressSpeedActive = true
                     longPressStartX = e.x
-                    dynamicHoldSpeed = 0.25f
+                    dynamicHoldSpeed = 2.0f
                     handler.post(dynamicSpeedRampRunnable)
                 }
             }
         })
 
         rootPlayerFrame.setOnTouchListener { _, event ->
-            // Do not intercept or block touches when any modular panel or 3-dot menu is open
             if (layoutAdvancedSettings.visibility == View.VISIBLE ||
                 panelOverlayScrim.visibility == View.VISIBLE ||
                 panelBgAudioScreen.visibility == View.VISIBLE
@@ -2649,6 +2864,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                     lastMoveX = event.x
                     lastMoveY = event.y
                     lockedSwipeDirection = 0
+                    lastHapticThresholdValue = -1
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (isScreenLocked || isPinchZooming || event.pointerCount > 1) {
@@ -2659,15 +2875,16 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                         val deltaHoldX = event.x - longPressStartX
                         val normSlide = (deltaHoldX / (screenW * 0.65f)).coerceIn(-0.5f, 1.0f)
                         dynamicHoldSpeed = when {
-                            normSlide <= 0.05f -> 0.25f
-                            else -> (0.25f + normSlide * 7.75f).coerceIn(0.25f, 8.0f)
+                            normSlide <= -0.15f -> 0.25f
+                            normSlide < 0.05f -> 2.0f
+                            else -> (2.0f + normSlide * 6.0f).coerceIn(0.25f, 8.0f)
                         }
                         val roundedSpeed = (dynamicHoldSpeed * 4f).roundToInt() / 4f
                         dynamicHoldSpeed = roundedSpeed.coerceIn(0.25f, 8.0f)
                         exoPlayer?.playbackParameters = PlaybackParameters(dynamicHoldSpeed)
                         tvSpeedBoostBadge.text = String.format(
                             Locale.US,
-                            "%.2fx Speed (Slide Left 0.25x <-> Right 8.0x)",
+                            "%.2fx Speed  •  Slide Left / Right",
                             dynamicHoldSpeed
                         )
                         cardSpeedBoostBadge.visibility = View.VISIBLE
@@ -2699,6 +2916,10 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                             window.attributes = lp
 
                             val pctInt = currentBrightnessPercent.roundToInt()
+                            if ((pctInt == 100 || pctInt == 2) && lastHapticThresholdValue != pctInt) {
+                                lastHapticThresholdValue = pctInt
+                                triggerBoundaryHapticPulse(isStrongLimit = true)
+                            }
                             findViewById<SeekBar>(R.id.seekBarBrightness)?.progress = pctInt
                             getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
                                 .edit()
@@ -2711,6 +2932,10 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                             val currentVol = volumeHudHelper?.getCurrentVolumePercent() ?: 80
                             val deltaVolPct = ((-stepDy / screenH) * 150f).roundToInt()
                             val newVol = (currentVol + deltaVolPct).coerceIn(0, 200)
+                            if ((newVol == 100 || newVol == 200 || newVol == 0) && lastHapticThresholdValue != newVol) {
+                                lastHapticThresholdValue = newVol
+                                triggerBoundaryHapticPulse(isStrongLimit = newVol >= 100)
+                            }
                             cardGestureFeedback.visibility = View.GONE
                             volumeHudHelper?.applyVolumePercent(newVol, showHud = true)
                         }
@@ -2730,6 +2955,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     lockedSwipeDirection = 0
+                    lastHapticThresholdValue = -1
                     if (isLongPressSpeedActive) {
                         isLongPressSpeedActive = false
                         handler.removeCallbacks(dynamicSpeedRampRunnable)
@@ -2763,6 +2989,8 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         } else {
             pbGestureLevel.visibility = View.GONE
         }
+        cardGestureFeedback.animate().cancel()
+        cardGestureFeedback.alpha = 1f
         cardGestureFeedback.visibility = View.VISIBLE
         handler.removeCallbacks(hideGestureRunnable)
         handler.postDelayed(hideGestureRunnable, 850)
@@ -2838,6 +3066,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (isInPictureInPictureMode) {
+            handler.removeCallbacks(autoHideControlsRunnable)
             closeAllModularPanels()
             layoutAllControls.visibility = View.GONE
             cardZoomResetPill.visibility = View.GONE
@@ -2845,6 +3074,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
             layoutAllControls.visibility = View.VISIBLE
             exoPlayer?.play()
             nativeFallbackVideoView?.start()
+            scheduleControlsAutoHide()
             enterFullImmersiveMode()
         }
     }
@@ -2879,6 +3109,7 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
         mediaSessionManager?.release()
         handler.removeCallbacks(updateProgressAction)
         handler.removeCallbacks(hideGestureRunnable)
+        handler.removeCallbacks(autoHideControlsRunnable)
         handler.removeCallbacks(autoHideZoomPillRunnable)
         handler.removeCallbacks(autoHideLockIconRunnable)
         handler.removeCallbacks(dynamicSpeedRampRunnable)
@@ -2887,13 +3118,22 @@ class PlayerActivity : AppCompatActivity(), PlayerThreeDotMenuHelper.PlayerMenuC
                 unregisterReceiver(pipAndNotifReceiver)
                 isPipReceiverRegistered = false
             }
-            loudnessEnhancer?.release()
-            loudnessEnhancer = null
         } catch (_: Exception) {
         }
-        nativeFallbackVideoView?.stopPlayback()
-        nativeFallbackVideoView = null
-        exoPlayer?.release()
-        exoPlayer = null
+        if (!isBgAudioEnabled) {
+            try {
+                loudnessEnhancer?.release()
+                loudnessEnhancer = null
+            } catch (_: Exception) {
+            }
+            nativeFallbackVideoView?.stopPlayback()
+            nativeFallbackVideoView = null
+            if (sharedBackgroundPlayer === exoPlayer) {
+                sharedBackgroundPlayer = null
+                sharedBackgroundPath = ""
+            }
+            exoPlayer?.release()
+            exoPlayer = null
+        }
     }
 }
