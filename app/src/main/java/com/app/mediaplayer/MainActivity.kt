@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
@@ -54,7 +55,7 @@ class MainActivity : AppCompatActivity() {
     private var meFragment: MeFragment? = null
 
     private var activeTabIndex = 0
-    private var activeAccentColor = Color.parseColor("#5CE1E6")
+    private var activeAccentColor = Color.parseColor("#00FFFF")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -127,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                 .show()
             true
         }
+
         tvAppBrandName.setOnLongClickListener(brandEditClick)
         imgBrandStarBadge.setOnLongClickListener(brandEditClick)
     }
@@ -141,20 +143,32 @@ class MainActivity : AppCompatActivity() {
         Handler(Looper.getMainLooper()).postDelayed({
             layoutOpeningSplash.animate()
                 .alpha(0f)
-                .setDuration(360)
+                .setDuration(280)
                 .withEndAction {
                     layoutOpeningSplash.visibility = View.GONE
                     layoutOpeningSplash.alpha = 1f
                 }
                 .start()
-        }, 1250)
+        }, 900)
     }
 
     private fun setupBottomNavigation() {
-        navTabVideo.setOnClickListener { switchTab(0) }
-        navTabAudio.setOnClickListener { switchTab(1) }
-        navTabSearch.setOnClickListener { switchTab(2) }
-        navTabMe.setOnClickListener { switchTab(3) }
+        navTabVideo.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            switchTab(0)
+        }
+        navTabAudio.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            switchTab(1)
+        }
+        navTabSearch.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            switchTab(2)
+        }
+        navTabMe.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            switchTab(3)
+        }
     }
 
     fun switchTab(index: Int) {
@@ -179,7 +193,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            topBrandBar.visibility = if (index == 3) View.GONE else View.VISIBLE
+            // Hide bulky top brand bar on Music, Search, and Me tabs to maximize list space
+            topBrandBar.visibility = if (index == 0) View.VISIBLE else View.GONE
 
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragmentContainer, targetFragment)
@@ -194,10 +209,9 @@ class MainActivity : AppCompatActivity() {
     fun applySavedThemeColors() {
         try {
             val prefs = getSharedPreferences("MAX_THEME_PREFS", Context.MODE_PRIVATE)
-            // Default theme is the new OG Crystal Ice Blue combination matching the icon
-            val bgHex = prefs.getString("app_bg_color", "#0D1B2A") ?: "#0D1B2A"
-            val navHex = prefs.getString("app_nav_color", "#13263B") ?: "#13263B"
-            val accentHex = prefs.getString("app_accent_color", "#5CE1E6") ?: "#5CE1E6"
+            val bgHex = prefs.getString("app_bg_color", "#0A0A10") ?: "#0A0A10"
+            val navHex = prefs.getString("app_nav_color", "#121622") ?: "#121622"
+            val accentHex = prefs.getString("app_accent_color", "#00FFFF") ?: "#00FFFF"
 
             val bgColor = Color.parseColor(bgHex)
             val navColor = Color.parseColor(navHex)
@@ -211,15 +225,15 @@ class MainActivity : AppCompatActivity() {
 
             window.statusBarColor = bgColor
             window.navigationBarColor = navColor
+
             updateBottomNavVisuals()
         } catch (e: Exception) {
-            activeAccentColor = Color.parseColor("#5CE1E6")
+            activeAccentColor = Color.parseColor("#00FFFF")
         }
     }
 
     private fun updateBottomNavVisuals() {
-        val inactiveColor = Color.parseColor("#99AACC")
-
+        val inactiveColor = Color.parseColor("#8A99B5")
         val vColor = if (activeTabIndex == 0) activeAccentColor else inactiveColor
         val aColor = if (activeTabIndex == 1) activeAccentColor else inactiveColor
         val sColor = if (activeTabIndex == 2) activeAccentColor else inactiveColor
@@ -261,7 +275,6 @@ class MainActivity : AppCompatActivity() {
                     permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
             }
-
             if (permissionsToRequest.isNotEmpty()) {
                 ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1001)
             }
