@@ -8,15 +8,26 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
 import android.media.MediaMetadataRetriever
+import android.media.ThumbnailUtils
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextUtils
+import android.text.style.ForegroundColorSpan
 import android.util.LruCache
-import android.view.Gravity
+import android.util.Size
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -29,12 +40,14 @@ import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 class VideoAdapter(
     private val context: Context,
@@ -43,27 +56,35 @@ class VideoAdapter(
 ) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
     companion object {
-        private val frameMemoryCache = object : LruCache<String, Bitmap>(120) {}
+        private val frameMemoryCache = object : LruCache<String, Bitmap>(160) {}
         private val frameExtractorPool = Executors.newFixedThreadPool(4)
 
         /**
-         * Ultra-Fast Guaranteed Thumbnail Loader for 360p, 720p, 1080p, 2K, 4K, and 8K videos:
-         * 1. Instant RAM hit from LruCache (< 1ms).
-         * 2. Hardware-decoded Glide thumbnail with ALL disk caching so subsequent app opens are instant.
-         * 3. Multi-threaded MediaMetadataRetriever fallback for 8K/4K/MKV files.
+         * 4-Stage Guaranteed Video Frame Photo Loader:
+         * 1. Instant LruCache RAM hit (< 1ms).
+         * 2. Immediate HD Cinema Placeholder so no card ever flashes dark/empty while scrolling.
+         * 3. Glide Hardware Video Frame decoding at 1.5s offset.
+         * 4. Multi-stage MediaMetadataRetriever + Android ThumbnailUtils fallback for MKV/HEVC/10-bit/8K videos.
          */
         fun loadGuaranteedVideoThumbnail(
             context: Context,
             path: String,
             imageView: ImageView
         ) {
-            imageView.tag = path
-            val cached = frameMemoryCache.get(path)
+            val safeKey = path.ifEmpty { "default_video" }
+            imageView.tag = safeKey
+            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+
+            val cached = frameMemoryCache.get(safeKey)
             if (cached != null && !cached.isRecycled) {
-                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
                 imageView.setImageBitmap(cached)
                 return
             }
+
+            val fallbackBmp = createCinemaPosterFallbackBitmap(File(path).name.ifEmpty { "Video" })
+            imageView.setImageBitmap(fallbackBmp)
+
+            if (path.isEmpty()) return
 
             val model: Any = if (path.startsWith("content://") || path.startsWith("http")) {
                 Uri.parse(path)
@@ -71,43 +92,60 @@ class VideoAdapter(
                 File(path)
             }
 
-            Glide.with(context)
-                .load(model)
+            val options = RequestOptions()
+                .frame(1500000L)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .override(320, 180)
-                .dontAnimate()
+                .override(360, 202)
                 .centerCrop()
-                .listener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(
-                        e: GlideException?,
-                        model: Any?,
-                        target: Target<Drawable>,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        extractFallbackFrameInBackground(context, path, imageView)
-                        return false
-                    }
+                .dontAnimate()
 
-                    override fun onResourceReady(
-                        resource: Drawable,
-                        model: Any,
-                        target: Target<Drawable>?,
-                        dataSource: DataSource,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        return false
-                    }
-                })
-                .into(imageView)
+            try {
+                Glide.with(context.applicationContext)
+                    .asBitmap()
+                    .load(model)
+                    .apply(options)
+                    .listener(object : RequestListener<Bitmap> {
+                        override fun onLoadFailed(
+                            e: GlideException?,
+                            model: Any?,
+                            target: Target<Bitmap>,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            extractFallbackFrameInBackground(context, path, fallbackBmp, imageView)
+                            return true
+                        }
+
+                        override fun onResourceReady(
+                            resource: Bitmap,
+                            model: Any,
+                            target: Target<Bitmap>?,
+                            dataSource: DataSource,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            frameMemoryCache.put(safeKey, resource)
+                            if (imageView.tag == safeKey) {
+                                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                                imageView.setImageBitmap(resource)
+                            }
+                            return true
+                        }
+                    })
+                    .preload()
+            } catch (_: Exception) {
+                extractFallbackFrameInBackground(context, path, fallbackBmp, imageView)
+            }
         }
 
         private fun extractFallbackFrameInBackground(
             context: Context,
             path: String,
+            fallbackBmp: Bitmap,
             targetView: ImageView
         ) {
             frameExtractorPool.execute {
                 var bmp: Bitmap? = null
+
+                // Stage A: MediaMetadataRetriever across multiple timestamps
                 val retriever = MediaMetadataRetriever()
                 try {
                     if (path.startsWith("content://")) {
@@ -115,13 +153,10 @@ class VideoAdapter(
                     } else {
                         retriever.setDataSource(path)
                     }
-                    bmp = retriever.getFrameAtTime(1000000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                        ?: retriever.getFrameAtTime(0L)
-                    if (bmp != null) {
-                        val scaled = Bitmap.createScaledBitmap(bmp, 320, 180, true)
-                        frameMemoryCache.put(path, scaled)
-                        bmp = scaled
-                    }
+                    bmp = retriever.getFrameAtTime(2000000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.getFrameAtTime(500000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.frameAtTime
                 } catch (_: Exception) {
                 } finally {
                     try {
@@ -130,21 +165,90 @@ class VideoAdapter(
                     }
                 }
 
-                if (bmp != null) {
-                    (context as? Activity)?.runOnUiThread {
-                        if (targetView.tag == path) {
-                            targetView.scaleType = ImageView.ScaleType.CENTER_CROP
-                            targetView.setImageBitmap(bmp)
+                // Stage B: Native OS ThumbnailUtils fallback for stubborn HEVC/MKV files
+                if (bmp == null && !path.startsWith("content://")) {
+                    try {
+                        val file = File(path)
+                        if (file.exists()) {
+                            bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                ThumbnailUtils.createVideoThumbnail(file, Size(360, 202), null)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
+                            }
                         }
+                    } catch (_: Exception) {
+                    }
+                }
+
+                val finalBitmap = if (bmp != null) {
+                    try {
+                        Bitmap.createScaledBitmap(bmp, 360, 202, true)
+                    } catch (_: Exception) {
+                        bmp
+                    }
+                } else {
+                    fallbackBmp
+                }
+
+                frameMemoryCache.put(path, finalBitmap)
+                (context as? Activity)?.runOnUiThread {
+                    if (targetView.tag == path) {
+                        targetView.scaleType = ImageView.ScaleType.CENTER_CROP
+                        targetView.setImageBitmap(finalBitmap)
                     }
                 }
             }
         }
 
+        private fun createCinemaPosterFallbackBitmap(title: String): Bitmap {
+            val w = 320
+            val h = 180
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+
+            val palettes = arrayOf(
+                intArrayOf(Color.parseColor("#0F2027"), Color.parseColor("#203A43"), Color.parseColor("#2C5364")),
+                intArrayOf(Color.parseColor("#141E30"), Color.parseColor("#243B55"), Color.parseColor("#1B3B6F")),
+                intArrayOf(Color.parseColor("#1F1C2C"), Color.parseColor("#4A4063"), Color.parseColor("#2C3E50")),
+                intArrayOf(Color.parseColor("#093028"), Color.parseColor("#1B4332"), Color.parseColor("#2D6A4F"))
+            )
+            val colors = palettes[abs(title.hashCode()) % palettes.size]
+
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(
+                    0f, 0f, w.toFloat(), h.toFloat(),
+                    colors, null, Shader.TileMode.CLAMP
+                )
+            }
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
+
+            val cx = w / 2f
+            val cy = h / 2f
+            val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = Color.parseColor("#33FFFFFF")
+            }
+            canvas.drawCircle(cx, cy, 30f, circlePaint)
+
+            val playPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = Color.WHITE
+            }
+            val path = Path().apply {
+                moveTo(cx - 8f, cy - 13f)
+                lineTo(cx + 15f, cy)
+                lineTo(cx - 8f, cy + 13f)
+                close()
+            }
+            canvas.drawPath(path, playPaint)
+            return bmp
+        }
+
         fun formatVideoDurationAny(durationVal: Any?): String {
             return when (durationVal) {
                 is Long -> {
-                    val safeMs = if (durationVal < 36000L) durationVal * 1000L else durationVal
+                    val safeMs = if (durationVal in 1L..3600L) durationVal * 1000L else durationVal
                     val totalSecs = TimeUnit.MILLISECONDS.toSeconds(safeMs.coerceAtLeast(0L))
                     val hrs = totalSecs / 3600
                     val mins = (totalSecs % 3600) / 60
@@ -163,6 +267,11 @@ class VideoAdapter(
 
     private var isMultiSelectMode = false
     private val selectedPaths = LinkedHashSet<String>()
+    private var highlightQuery: String = ""
+
+    fun setSearchHighlightQuery(query: String) {
+        highlightQuery = query.trim()
+    }
 
     fun isSelectionModeActive(): Boolean = isMultiSelectMode
 
@@ -256,24 +365,71 @@ class VideoAdapter(
         val accentColor = Color.parseColor(theme.accentHex)
         val isSelected = selectedPaths.contains(video.path)
 
-        holder.tvTitle.text = video.title
-        holder.tvTitle.setTextColor(if (isSelected) accentColor else Color.WHITE)
+        val cleanDisplayTitle = video.title.substringBeforeLast('.').replace("_", " ").trim().ifEmpty { video.title }
+        holder.tvTitle.maxLines = 2
+        holder.tvTitle.ellipsize = TextUtils.TruncateAt.END
+        holder.tvTitle.textSize = 14.5f
+        holder.tvTitle.typeface = Typeface.DEFAULT_BOLD
+
+        if (highlightQuery.isNotEmpty()) {
+            val span = SpannableString(cleanDisplayTitle)
+            val lowerTitle = cleanDisplayTitle.lowercase(Locale.US)
+            val lowerQ = highlightQuery.lowercase(Locale.US)
+            var startIdx = lowerTitle.indexOf(lowerQ)
+            while (startIdx >= 0) {
+                val endIdx = (startIdx + lowerQ.length).coerceAtMost(cleanDisplayTitle.length)
+                span.setSpan(
+                    ForegroundColorSpan(Color.parseColor("#FFD700")),
+                    startIdx,
+                    endIdx,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                startIdx = lowerTitle.indexOf(lowerQ, endIdx)
+            }
+            holder.tvTitle.text = span
+            holder.tvTitle.setTextColor(Color.WHITE)
+        } else {
+            holder.tvTitle.text = cleanDisplayTitle
+            holder.tvTitle.setTextColor(if (isSelected) accentColor else Color.WHITE)
+        }
+
+        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val watchedMs = prefs.getLong("watched_pos_${video.path}", 0L)
+        val totalDurMs = if (video.duration in 1L..3600L) video.duration * 1000L else video.duration.coerceAtLeast(1L)
+        val watchedRatio = if (watchedMs > 3000L && totalDurMs > 0L) {
+            (watchedMs.toFloat() / totalDurMs.toFloat()).coerceIn(0.04f, 1.0f)
+        } else {
+            0f
+        }
 
         val durStr = formatVideoDurationAny(video.duration)
         val resBadge = detectResolutionLabel(video.title, video.size)
         val sizeStr = formatVideoSize(video.size)
-        val ext = File(video.path).extension.uppercase(Locale.US).ifEmpty { "MP4" }
+        val resumeTag = when {
+            watchedRatio in 0.04f..0.94f -> "  •  RESUME ${(watchedRatio * 100).toInt()}%"
+            watchedRatio > 0.94f -> "  •  WATCHED"
+            else -> ""
+        }
 
         if (holder.tvMetaSub != null) {
             holder.tvDuration?.text = durStr
-            holder.tvMetaSub.text = "$resBadge  |  $sizeStr  |  $ext"
-            holder.tvMetaSub.setTextColor(accentColor)
+            holder.tvMetaSub.text = "$resBadge  •  $sizeStr$resumeTag"
+            holder.tvMetaSub.setTextColor(if (watchedRatio in 0.04f..0.94f) Color.parseColor("#00E676") else Color.parseColor("#9FB4CE"))
         } else {
-            holder.tvDuration?.text = "$durStr  •  $resBadge  •  $sizeStr"
-            holder.tvDuration?.setTextColor(Color.parseColor("#B0C4DE"))
+            holder.tvDuration?.text = "$durStr  •  $resBadge  •  $sizeStr$resumeTag"
+            holder.tvDuration?.setTextColor(if (watchedRatio in 0.04f..0.94f) Color.parseColor("#00E676") else Color.parseColor("#9FB4CE"))
         }
 
         loadGuaranteedVideoThumbnail(context, video.path, holder.imgThumbnail)
+
+        // Overlay sleek bottom Resume Progress Line on the video thumbnail
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            holder.imgThumbnail.foreground = if (watchedRatio > 0.03f) {
+                ThumbnailResumeProgressOverlay(d, watchedRatio)
+            } else {
+                null
+            }
+        }
 
         holder.btnMore?.let { rightIcon ->
             rightIcon.clearColorFilter()
@@ -285,6 +441,7 @@ class VideoAdapter(
             } else {
                 rightIcon.setImageDrawable(ThreeDotsMenuDrawable(d))
                 rightIcon.setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     val pos = holder.adapterPosition
                     if (pos in videoList.indices) {
                         showVideoItemMenu(pos)
@@ -293,8 +450,8 @@ class VideoAdapter(
             }
         }
 
-        // Holding a video row activates Multi-Select Mode (Select All / Delete / Hybrid Share / Other Apps Share)
         holder.itemView.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             val pos = holder.adapterPosition
             if (pos in videoList.indices) {
                 val item = videoList[pos]
@@ -358,16 +515,16 @@ class VideoAdapter(
         val isFav = prefs.getBoolean("fav_${item.path}", false)
 
         val options = arrayOf(
-            "Play Video Now (Instant 8K Engine)",
-            "Select Multiple Videos (Batch Delete / Share)",
+            "Play Video Now",
+            "Select Multiple Videos (Batch Share / Delete)",
             "Play in Background Audio Bar",
-            "Extract / Convert Video to MP3",
+            "Convert Video to MP3 Audio",
             if (isFav) "Remove from Favorites" else "Add to Favorites",
-            "Lock Video into Secret Privacy Vault",
-            "Share via Hybrid Turbo Share",
-            "Share via Other Apps (WhatsApp / Bluetooth)",
-            "Video Resolution & File Path",
-            "Delete Video Permanently (From Phone)"
+            "Lock Video in Privacy Vault",
+            "Share via Turbo Share",
+            "Share via Other Apps",
+            "Video Resolution & File Details",
+            "Move to Recycle Bin / Delete"
         )
 
         VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
@@ -389,7 +546,6 @@ class VideoAdapter(
                         }
                         context.startActivity(intent)
                     } catch (_: Exception) {
-                        Toast.makeText(context, "Opening MP3 Extractor...", Toast.LENGTH_SHORT).show()
                     }
                 }
                 4 -> {
@@ -461,16 +617,16 @@ class VideoAdapter(
     private fun detectResolutionLabel(title: String, sizeBytes: Long): String {
         val u = title.uppercase(Locale.US)
         return when {
-            u.contains("8K") || u.contains("4320P") -> "8K ULTRA"
-            u.contains("4K") || u.contains("2160P") -> "4K UHD"
-            u.contains("2K") || u.contains("1440P") -> "2K QHD"
+            u.contains("8K") || u.contains("4320P") -> "8K"
+            u.contains("4K") || u.contains("2160P") -> "4K"
+            u.contains("2K") || u.contains("1440P") -> "2K"
             u.contains("1080P") || u.contains("FHD") -> "1080p"
             u.contains("720P") || u.contains("HD") -> "720p"
             u.contains("360P") -> "360p"
-            sizeBytes > 250L * 1024L * 1024L -> "4K / 1080p"
+            sizeBytes > 250L * 1024L * 1024L -> "4K / FHD"
             sizeBytes > 50L * 1024L * 1024L -> "1080p"
             sizeBytes > 12L * 1024L * 1024L -> "720p"
-            else -> "480p / 360p"
+            else -> "HD"
         }
     }
 
@@ -481,6 +637,34 @@ class VideoAdapter(
         } else {
             String.format(Locale.US, "%.1f MB", mb)
         }
+    }
+
+    private class ThumbnailResumeProgressOverlay(
+        private val d: Float,
+        private val progressFraction: Float
+    ) : Drawable() {
+        private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#88000000")
+        }
+        private val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#FF1744")
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+            val barH = 3.2f * d
+            canvas.drawRect(0f, h - barH, w, h, trackPaint)
+            canvas.drawRect(0f, h - barH, w * progressFraction.coerceIn(0f, 1f), h, progressPaint)
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     private class SelectionCheckCircleDrawable(
@@ -526,7 +710,7 @@ class VideoAdapter(
     private class ThreeDotsMenuDrawable(private val d: Float) : Drawable() {
         private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.WHITE
+            color = Color.parseColor("#B0C4DE")
         }
 
         override fun draw(canvas: Canvas) {
