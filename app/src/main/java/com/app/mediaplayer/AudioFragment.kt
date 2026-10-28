@@ -21,6 +21,7 @@ import android.provider.MediaStore
 import android.text.TextUtils
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -90,6 +91,7 @@ class AudioFragment : Fragment() {
     private lateinit var masterHostFrame: FrameLayout
     private lateinit var rootAudioLayout: LinearLayout
     private lateinit var pullRefreshCard: CardView
+
     private lateinit var topTabsScroll: HorizontalScrollView
     private lateinit var tabSongs: TextView
     private lateinit var tabFolders: TextView
@@ -98,7 +100,6 @@ class AudioFragment : Fragment() {
     private lateinit var tabFavorites: TextView
     private lateinit var tvSongsTotalCount: TextView
 
-    // Multi-Select Top Header & Bottom Action Dock (2-Second Hold on Any Song)
     private lateinit var multiSelectTopBar: LinearLayout
     private lateinit var tvMultiSelectCount: TextView
     private lateinit var btnSelectAllToggle: TextView
@@ -110,7 +111,6 @@ class AudioFragment : Fragment() {
     private lateinit var rvAudioList: RecyclerView
     private lateinit var tvEmptyAudio: TextView
 
-    // Upgraded Bottom Mini-Player Bar with Larger Pure-White Controls & 3-Dot Button (Instead of Cross 'X')
     private lateinit var miniPlayerCard: CardView
     private lateinit var imgMiniCover: ImageView
     private lateinit var tvMiniTitle: TextView
@@ -169,7 +169,7 @@ class AudioFragment : Fragment() {
             )
             setBackgroundColor(Color.parseColor(theme.bgHex))
         }
-        // Applies user's selected theme / custom gallery wallpaper while keeping all audio icons Pure White
+
         ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, masterHostFrame)
 
         rootAudioLayout = LinearLayout(ctx).apply {
@@ -180,15 +180,15 @@ class AudioFragment : Fragment() {
             )
         }
 
-        // 1. Pull-to-Refresh Circular Spinner Card (Pure White)
+        // 1. Pull-to-Refresh Circular Spinner Card
         pullRefreshCard = CardView(ctx).apply {
             radius = 22f * d
             cardElevation = 10f * d
             setCardBackgroundColor(Color.parseColor("#182234"))
             visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
-                (44 * d).toInt(),
-                (44 * d).toInt()
+                (42 * d).toInt(),
+                (42 * d).toInt()
             ).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
                 topMargin = (8 * d).toInt()
@@ -198,27 +198,29 @@ class AudioFragment : Fragment() {
         val spinner = ProgressBar(ctx, null, android.R.attr.progressBarStyleSmall).apply {
             indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             layoutParams = FrameLayout.LayoutParams(
-                (26 * d).toInt(),
-                (26 * d).toInt(),
+                (24 * d).toInt(),
+                (24 * d).toInt(),
                 Gravity.CENTER
             )
         }
         pullRefreshCard.addView(spinner)
         rootAudioLayout.addView(pullRefreshCard)
 
-        // 2. Multi-Selection Top Header Bar (Activated on 2s Hold)
+        // 2. Multi-Selection Top Header Bar
         buildMultiSelectTopHeaderBar(ctx, d)
         rootAudioLayout.addView(multiSelectTopBar)
 
-        // 3. Top Category Tabs + Larger Pure-White Equalizer & 3-Dot Buttons
+        // 3. Sleek Category Tabs with Horizontal Fade Edge + Borderless Equalizer & 3-Dot Icons
         val topHeaderRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+            setPadding((12 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
         }
 
         topTabsScroll = HorizontalScrollView(ctx).apply {
             isHorizontalScrollBarEnabled = false
+            isHorizontalFadingEdgeEnabled = true
+            setFadingEdgeLength((28 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
 
@@ -241,25 +243,27 @@ class AudioFragment : Fragment() {
         topTabsScroll.addView(tabsRow)
 
         val btnTopEqualizer = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
-                marginStart = (8 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt()).apply {
+                marginStart = (6 * d).toInt()
             }
-            setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
+            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("EQUALIZER", d))
-            background = makePureWhiteGlassCircle(d)
+            background = makeSubtleIconRippleCircle()
             setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 EqualizerHelper.showEqualizerDialog(ctx, sharedAudioSessionIdVal)
             }
         }
 
         val btnTopThreeDotMenu = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
-                marginStart = (8 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt()).apply {
+                marginStart = (4 * d).toInt()
             }
-            setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
+            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("THREE_DOTS", d))
-            background = makePureWhiteGlassCircle(d)
+            background = makeSubtleIconRippleCircle()
             setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 showAudioSortAndToolsMenu()
             }
         }
@@ -269,90 +273,61 @@ class AudioFragment : Fragment() {
         topHeaderRow.addView(btnTopThreeDotMenu)
         rootAudioLayout.addView(topHeaderRow)
 
-        // 4. Larger Pure-White Studio Control Bar: Shuffle Play, Random Song, Equalizer, Pitch Lab & Song Counter
+        // 4. Minimal Action Bar: Single Unified "Shuffle Play" Button + Total Song Counter
         val studioActionRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (8 * d).toInt())
+            setPadding((14 * d).toInt(), (4 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
         }
 
         val btnShuffleAll = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((14 * d).toInt(), (9 * d).toInt(), (16 * d).toInt(), (9 * d).toInt())
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (8 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 20f * d
+                cornerRadius = 18f * d
             }
             setOnClickListener {
-                val list = if (displayedSongsList.isNotEmpty()) displayedSongsList else allSongsList
-                if (list.isNotEmpty()) {
-                    launchFullAudioPlayer(0, list)
-                }
-            }
-        }
-        val iconShuffle = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((22 * d).toInt(), (22 * d).toInt()).apply {
-                marginEnd = (8 * d).toInt()
-            }
-            setImageDrawable(PureWhiteAudioStudioIcon("SHUFFLE_DARK", d))
-        }
-        val tvShuffleText = TextView(ctx).apply {
-            text = "Shuffle All"
-            setTextColor(Color.parseColor("#0A0A10"))
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-        }
-        btnShuffleAll.addView(iconShuffle)
-        btnShuffleAll.addView(tvShuffleText)
-
-        val btnRandomPlay = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((14 * d).toInt(), (9 * d).toInt(), (14 * d).toInt(), (9 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = (8 * d).toInt() }
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#24FFFFFF"))
-                cornerRadius = 20f * d
-                setStroke((1.3f * d).toInt(), Color.WHITE)
-            }
-            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 val list = if (displayedSongsList.isNotEmpty()) displayedSongsList else allSongsList
                 if (list.isNotEmpty()) {
                     val randIdx = Random.nextInt(list.size)
+                    currentMiniIndex = randIdx
+                    isSharedPlayingVal = true
+                    syncMiniBarWithSong(list[randIdx])
                     launchFullAudioPlayer(randIdx, list)
                 }
             }
         }
-        val iconRandom = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((20 * d).toInt(), (20 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+
+        val iconShuffle = ImageView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams((18 * d).toInt(), (18 * d).toInt()).apply {
+                marginEnd = (8 * d).toInt()
             }
-            setImageDrawable(PureWhiteAudioStudioIcon("SHUFFLE", d))
+            setImageDrawable(PureWhiteAudioStudioIcon("SHUFFLE_DARK", d))
         }
-        val tvRandomText = TextView(ctx).apply {
-            text = "Random"
-            setTextColor(Color.WHITE)
+
+        val tvShuffleText = TextView(ctx).apply {
+            text = "Shuffle Play"
+            setTextColor(Color.parseColor("#0A0A10"))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
         }
-        btnRandomPlay.addView(iconRandom)
-        btnRandomPlay.addView(tvRandomText)
+
+        btnShuffleAll.addView(iconShuffle)
+        btnShuffleAll.addView(tvShuffleText)
 
         tvSongsTotalCount = TextView(ctx).apply {
             text = "0 Songs"
-            setTextColor(Color.WHITE)
-            textSize = 13.5f
+            setTextColor(Color.parseColor("#9FB4CE"))
+            textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
 
         studioActionRow.addView(btnShuffleAll)
-        studioActionRow.addView(btnRandomPlay)
         studioActionRow.addView(tvSongsTotalCount)
         rootAudioLayout.addView(studioActionRow)
 
@@ -362,13 +337,13 @@ class AudioFragment : Fragment() {
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
             setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
-            setBackgroundColor(Color.parseColor("#182436"))
+            setBackgroundColor(Color.parseColor("#141E30"))
         }
 
         val btnBackGroup = TextView(ctx).apply {
             text = "<-  Back"
             setTextColor(Color.WHITE)
-            textSize = 14.5f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((6 * d).toInt(), (4 * d).toInt(), (16 * d).toInt(), (4 * d).toInt())
             setOnClickListener {
@@ -380,7 +355,7 @@ class AudioFragment : Fragment() {
         tvGroupHeaderTitle = TextView(ctx).apply {
             text = ""
             setTextColor(Color.WHITE)
-            textSize = 14.5f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -405,6 +380,7 @@ class AudioFragment : Fragment() {
             itemAnimator = null
         }
         rvAudioList.layoutManager = LinearLayoutManager(ctx)
+
         audioAdapter = AudioAdapter(
             context = ctx,
             audioList = displayedSongsList,
@@ -426,8 +402,8 @@ class AudioFragment : Fragment() {
 
         tvEmptyAudio = TextView(ctx).apply {
             text = "No songs found in this category"
-            setTextColor(Color.WHITE)
-            textSize = 14.5f
+            setTextColor(Color.parseColor("#9FB4CE"))
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             visibility = View.GONE
@@ -439,11 +415,11 @@ class AudioFragment : Fragment() {
         }
         rootAudioLayout.addView(tvEmptyAudio)
 
-        // 7. Multi-Select Bottom Action Dock (Hybrid Share / Share Apps / Permanent Delete)
+        // 7. Multi-Select Bottom Action Dock
         buildMultiSelectBottomActionDock(ctx, d)
         rootAudioLayout.addView(multiSelectBottomDock)
 
-        // 8. Upgraded Bottom Mini-Player Bar with 3-Dot Button Instead of Cross 'X'
+        // 8. Sleek Floating Bottom Mini-Player Dock
         buildUpgradedBottomMiniPlayer(ctx, d)
         rootAudioLayout.addView(miniPlayerCard)
 
@@ -451,7 +427,6 @@ class AudioFragment : Fragment() {
         updateTabVisuals(d)
         registerMiniReceiver(ctx)
 
-        // Instant < 0.1s Snapshot Load so switching from Video to Audio shows songs & photos immediately
         val cachedSongs = getCachedSongsInstant(ctx)
         if (cachedSongs.isNotEmpty()) {
             allSongsList.clear()
@@ -466,57 +441,56 @@ class AudioFragment : Fragment() {
 
     private fun buildUpgradedBottomMiniPlayer(ctx: Context, d: Float) {
         miniPlayerCard = CardView(ctx).apply {
-            radius = 20f * d
-            cardElevation = 14f * d
-            setCardBackgroundColor(Color.parseColor("#121C2E"))
+            radius = 16f * d
+            cardElevation = 10f * d
+            setCardBackgroundColor(Color.parseColor("#141E30"))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (8 * d).toInt())
+                setMargins((10 * d).toInt(), (2 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
             }
         }
 
         val miniRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+            setPadding((10 * d).toInt(), (8 * d).toInt(), (10 * d).toInt(), (8 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#121C2E"))
-                cornerRadius = 20f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#55FFFFFF"))
+                setColor(Color.parseColor("#141E30"))
+                cornerRadius = 16f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#22FFFFFF"))
             }
         }
 
         imgMiniCover = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((50 * d).toInt(), (50 * d).toInt()).apply {
-                marginEnd = (12 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
+                marginEnd = (10 * d).toInt()
             }
             scaleType = ImageView.ScaleType.CENTER_CROP
         }
-        AudioAdapter.loadAlbumArtOrFallbackInto(ctx, "", "Hybrid Studio Music", imgMiniCover)
+        AudioAdapter.loadAlbumArtOrFallbackInto(ctx, "", "Studio Music", imgMiniCover)
 
         val miniTextCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = (8 * d).toInt()
+                marginEnd = (6 * d).toInt()
             }
         }
 
         tvMiniTitle = TextView(ctx).apply {
             text = "Tap any song to play"
             setTextColor(Color.WHITE)
-            textSize = 14.5f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }
 
         tvMiniArtist = TextView(ctx).apply {
-            text = "Hi-Res Studio Audio"
-            setTextColor(Color.parseColor("#D8E2F0"))
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
+            text = "Ready to Play"
+            setTextColor(Color.parseColor("#9FB4CE"))
+            textSize = 11.5f
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             setPadding(0, (2 * d).toInt(), 0, 0)
@@ -526,14 +500,15 @@ class AudioFragment : Fragment() {
         miniTextCol.addView(tvMiniArtist)
 
         btnMiniPrev = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt()).apply {
+                marginEnd = (4 * d).toInt()
             }
-            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("PREV", d))
-            background = makePureWhiteGlassCircle(d)
+            background = makeSubtleIconRippleCircle()
             setOnClickListener {
                 if (allSongsList.isEmpty()) return@setOnClickListener
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 currentMiniIndex = (currentMiniIndex - 1 + allSongsList.size) % allSongsList.size
                 isSharedPlayingVal = true
                 syncMiniBarWithSong(allSongsList[currentMiniIndex])
@@ -542,14 +517,18 @@ class AudioFragment : Fragment() {
         }
 
         btnMiniPlayPause = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((46 * d).toInt(), (46 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt()).apply {
+                marginEnd = (4 * d).toInt()
             }
             setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("PLAY", d))
-            background = makePureWhiteGlassCircle(d)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#24FFFFFF"))
+            }
             setOnClickListener {
                 if (allSongsList.isEmpty()) return@setOnClickListener
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 if (currentPlayingPathVal.isEmpty()) {
                     isSharedPlayingVal = true
                     syncMiniBarWithSong(allSongsList[currentMiniIndex.coerceIn(0, allSongsList.size - 1)])
@@ -562,14 +541,15 @@ class AudioFragment : Fragment() {
         }
 
         btnMiniNext = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt()).apply {
-                marginEnd = (6 * d).toInt()
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt()).apply {
+                marginEnd = (4 * d).toInt()
             }
-            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("NEXT", d))
-            background = makePureWhiteGlassCircle(d)
+            background = makeSubtleIconRippleCircle()
             setOnClickListener {
                 if (allSongsList.isEmpty()) return@setOnClickListener
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 currentMiniIndex = (currentMiniIndex + 1) % allSongsList.size
                 isSharedPlayingVal = true
                 syncMiniBarWithSong(allSongsList[currentMiniIndex])
@@ -577,13 +557,13 @@ class AudioFragment : Fragment() {
             }
         }
 
-        // Bottom 3-Dot Button (Replaces any bottom Cross 'X' button)
         btnMiniThreeDots = ImageView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams((42 * d).toInt(), (42 * d).toInt())
-            setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt())
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageDrawable(PureWhiteAudioStudioIcon("THREE_DOTS", d))
-            background = makePureWhiteGlassCircle(d)
+            background = makeSubtleIconRippleCircle()
             setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 if (displayedSongsList.isNotEmpty()) {
                     val safeIdx = currentMiniIndex.coerceIn(0, displayedSongsList.size - 1)
                     audioAdapter.showSongThreeDotMenu(safeIdx)
@@ -617,14 +597,14 @@ class AudioFragment : Fragment() {
             setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#162438"))
-                setStroke((1 * d).toInt(), Color.parseColor("#44FFFFFF"))
+                setStroke((1 * d).toInt(), Color.parseColor("#33FFFFFF"))
             }
         }
 
         tvMultiSelectCount = TextView(ctx).apply {
             text = "1 Selected"
             setTextColor(Color.WHITE)
-            textSize = 15.5f
+            textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
@@ -632,7 +612,7 @@ class AudioFragment : Fragment() {
         btnSelectAllToggle = TextView(ctx).apply {
             text = "Select All"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
@@ -640,7 +620,7 @@ class AudioFragment : Fragment() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginEnd = (8 * d).toInt() }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#28FFFFFF"))
+                setColor(Color.parseColor("#24FFFFFF"))
                 cornerRadius = 14f * d
             }
             setOnClickListener {
@@ -651,7 +631,7 @@ class AudioFragment : Fragment() {
         btnCancelMultiSelect = TextView(ctx).apply {
             text = "Done"
             setTextColor(Color.parseColor("#0A0A10"))
-            textSize = 13f
+            textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
             background = GradientDrawable().apply {
@@ -678,28 +658,28 @@ class AudioFragment : Fragment() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins((8 * d).toInt(), (4 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+                setMargins((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
             }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#121C2D"))
-                cornerRadius = 20f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#44FFFFFF"))
+                setColor(Color.parseColor("#141E30"))
+                cornerRadius = 16f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#33FFFFFF"))
             }
         }
 
         val btnHybridShare = TextView(ctx).apply {
-            text = "Hybrid Share"
+            text = "Turbo Share"
             setTextColor(Color.parseColor("#0A0A10"))
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            setPadding((10 * d).toInt(), (11 * d).toInt(), (10 * d).toInt(), (11 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginEnd = (6 * d).toInt()
             }
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 14f * d
+                cornerRadius = 12f * d
             }
             setOnClickListener {
                 val selected = audioAdapter.getSelectedSongs()
@@ -725,14 +705,13 @@ class AudioFragment : Fragment() {
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            setPadding((10 * d).toInt(), (11 * d).toInt(), (10 * d).toInt(), (11 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginEnd = (6 * d).toInt()
             }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#24FFFFFF"))
-                cornerRadius = 14f * d
-                setStroke((1 * d).toInt(), Color.WHITE)
+                setColor(Color.parseColor("#22FFFFFF"))
+                cornerRadius = 12f * d
             }
             setOnClickListener {
                 val selected = audioAdapter.getSelectedSongs()
@@ -761,11 +740,11 @@ class AudioFragment : Fragment() {
             textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding((10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt())
+            setPadding((10 * d).toInt(), (11 * d).toInt(), (10 * d).toInt(), (11 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.9f)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#FF1744"))
-                cornerRadius = 14f * d
+                cornerRadius = 12f * d
             }
             setOnClickListener {
                 val selected = audioAdapter.getSelectedSongs()
@@ -814,15 +793,15 @@ class AudioFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         val ctx = context ?: return
-        // Re-apply user's chosen theme / custom photo background when switching from Video to Audio
         ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, masterHostFrame)
+
         if (currentPlayingPathVal.isNotEmpty()) {
-            tvMiniTitle.text = currentPlayingTitleVal.substringBeforeLast('.')
-            tvMiniArtist.text = currentPlayingArtistVal.ifEmpty { "Hi-Res Studio Audio" }
+            tvMiniTitle.text = AudioThreeDotMenuHelper.formatCleanSongTitle(currentPlayingTitleVal)
+            tvMiniArtist.text = currentPlayingArtistVal.ifEmpty { "Unknown Artist" }
             AudioAdapter.loadAlbumArtOrFallbackInto(ctx, currentPlayingPathVal, currentPlayingTitleVal, imgMiniCover)
             updateMiniPlayerPlayIcon()
         }
-        // Force immediate re-render of visible song photos when switching tabs
+
         audioAdapter.notifyDataSetChanged()
         scanAllSongsInBackground(showRefreshToast = false)
 
@@ -886,31 +865,33 @@ class AudioFragment : Fragment() {
         currentPlayingTitleVal = song.title
         currentPlayingArtistVal = song.artist
 
-        tvMiniTitle.text = song.title.substringBeforeLast('.')
-        tvMiniArtist.text = song.artist.ifEmpty { "Hi-Res Studio Audio" }
+        tvMiniTitle.text = AudioThreeDotMenuHelper.formatCleanSongTitle(song.title)
+        tvMiniArtist.text = song.artist.ifEmpty { "Unknown Artist" }
         AudioAdapter.loadAlbumArtOrFallbackInto(requireContext(), song.path, song.title, imgMiniCover)
         updateMiniPlayerPlayIcon()
     }
 
-    private fun makePureWhiteGlassCircle(d: Float): GradientDrawable {
+    private fun makeSubtleIconRippleCircle(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.parseColor("#26FFFFFF"))
-            setStroke((1.3f * d).toInt(), Color.parseColor("#55FFFFFF"))
+            setColor(Color.parseColor("#14FFFFFF"))
         }
     }
 
     private fun createTopTabItem(title: String, index: Int, d: Float): TextView {
         return TextView(requireContext()).apply {
             text = title
-            textSize = 14f
+            textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding((16 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (8 * d).toInt())
+            setPadding((15 * d).toInt(), (7 * d).toInt(), (15 * d).toInt(), (7 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginEnd = (6 * d).toInt() }
-            setOnClickListener { switchAudioTab(index) }
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                switchAudioTab(index)
+            }
         }
     }
 
@@ -930,9 +911,8 @@ class AudioFragment : Fragment() {
             val isSel = idx == activeTab
             tv.setTextColor(if (isSel) Color.parseColor("#0A0A10") else Color.WHITE)
             tv.background = GradientDrawable().apply {
-                setColor(if (isSel) Color.WHITE else Color.parseColor("#22FFFFFF"))
-                cornerRadius = 18f * d
-                setStroke((1 * d).toInt(), Color.WHITE)
+                setColor(if (isSel) Color.WHITE else Color.parseColor("#18FFFFFF"))
+                cornerRadius = 16f * d
             }
             if (isSel) {
                 topTabsScroll.post {
@@ -1095,16 +1075,14 @@ class AudioFragment : Fragment() {
                         val path = if (dataCol != -1) cursor.getString(dataCol) ?: "" else ""
                         if (path.isEmpty() || !seenPaths.add(path)) continue
                         if (PermanentDeleteHelper.isMarkedDeleted(ctx, path)) continue
-
                         val f = File(path)
                         if (!f.exists() || f.length() < 1024L) continue
-
                         val dur = if (durCol != -1) cursor.getLong(durCol).coerceAtLeast(0L) else 0L
                         val title = (if (nameCol != -1) cursor.getString(nameCol) else null)
                             ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                             ?: f.name
                         val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                            ?.takeIf { it != "<unknown>" && it.isNotBlank() } ?: "Hi-Res Studio Audio"
+                            ?.takeIf { it != "<unknown>" && it.isNotBlank() } ?: "Unknown Artist"
 
                         list.add(
                             AudioModel(
@@ -1221,64 +1199,55 @@ class AudioFragment : Fragment() {
             tvEmptyAudio.visibility = View.VISIBLE
             return
         }
-
         tvEmptyAudio.visibility = View.GONE
         rvAudioList.visibility = View.VISIBLE
 
         rvAudioList.adapter = object : RecyclerView.Adapter<AudioGroupVH>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AudioGroupVH {
                 val card = CardView(ctx).apply {
-                    radius = 16f * d
-                    cardElevation = 4f * d
-                    setCardBackgroundColor(Color.parseColor("#142234"))
+                    radius = 14f * d
+                    cardElevation = 2f * d
+                    setCardBackgroundColor(Color.parseColor("#141E30"))
                     layoutParams = RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
                     ).apply {
-                        setMargins((5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt(), (5 * d).toInt())
+                        setMargins((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
                     }
                 }
-
                 val row = LinearLayout(ctx).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding((14 * d).toInt(), (12 * d).toInt(), (14 * d).toInt(), (12 * d).toInt())
+                    setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
                 }
-
                 val imgThumb = ImageView(ctx).apply {
-                    layoutParams = LinearLayout.LayoutParams((54 * d).toInt(), (54 * d).toInt()).apply {
-                        marginEnd = (14 * d).toInt()
+                    layoutParams = LinearLayout.LayoutParams((50 * d).toInt(), (50 * d).toInt()).apply {
+                        marginEnd = (12 * d).toInt()
                     }
                     scaleType = ImageView.ScaleType.CENTER_CROP
                 }
-
                 val col = LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 }
-
                 val tvName = TextView(ctx).apply {
                     setTextColor(Color.WHITE)
-                    textSize = 15.5f
+                    textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
                 }
-
                 val tvCount = TextView(ctx).apply {
-                    setTextColor(Color.parseColor("#D8E2F0"))
-                    textSize = 12.5f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setPadding(0, (3 * d).toInt(), 0, 0)
+                    setTextColor(Color.parseColor("#9FB4CE"))
+                    textSize = 12f
+                    setPadding(0, (2 * d).toInt(), 0, 0)
                 }
-
                 val tvArrow = TextView(ctx).apply {
                     text = ">"
-                    setTextColor(Color.WHITE)
-                    textSize = 18f
+                    setTextColor(Color.parseColor("#9FB4CE"))
+                    textSize = 16f
                     typeface = Typeface.DEFAULT_BOLD
                 }
-
                 col.addView(tvName)
                 col.addView(tvCount)
                 row.addView(imgThumb)
@@ -1293,12 +1262,10 @@ class AudioFragment : Fragment() {
                 val rawKey = entry.key
                 val songs = entry.value
                 val displayName = if (tabType == 1) File(rawKey).name.ifEmpty { "Storage" } else rawKey
-
                 holder.tvName.text = displayName
                 holder.tvCount.text = "${songs.size} Songs"
                 val firstSong = songs.first()
                 AudioAdapter.loadAlbumArtOrFallbackInto(ctx, firstSong.path, displayName, holder.imgThumb)
-
                 holder.itemView.setOnClickListener {
                     selectedGroupKey = rawKey
                     refreshAudioDisplay()
@@ -1324,6 +1291,7 @@ class AudioFragment : Fragment() {
         val paths = ArrayList<String>(sourceList.size)
         val titles = ArrayList<String>(sourceList.size)
         val artists = ArrayList<String>(sourceList.size)
+
         for (s in sourceList) {
             paths.add(s.path)
             titles.add(s.title)
@@ -1347,16 +1315,17 @@ class AudioFragment : Fragment() {
         val ctx = context ?: return
         val items = arrayOf(
             "Select Multiple Songs (Batch Delete / Share)",
-            if (sortOrder == 0) "[Active] Sort: Newest Downloaded Songs" else "Sort: Newest Downloaded Songs",
+            if (sortOrder == 0) "[Active] Sort: Newest Added" else "Sort: Newest Added",
             if (sortOrder == 1) "[Active] Sort: Song Name (A to Z)" else "Sort: Song Name (A to Z)",
-            if (sortOrder == 2) "[Active] Sort: Artist / Singer Name" else "Sort: Artist / Singer Name",
-            if (sortOrder == 3) "[Active] Sort: Longest Duration Songs" else "Sort: Longest Duration Songs",
+            if (sortOrder == 2) "[Active] Sort: Artist Name" else "Sort: Artist Name",
+            if (sortOrder == 3) "[Active] Sort: Longest Duration" else "Sort: Longest Duration",
             if (sortOrder == 4) "[Active] Sort: Largest File Size" else "Sort: Largest File Size",
-            "Open 5-Band Dolby Equalizer & Bass Boost",
-            "Open Sound & Pitch Lab (Lofi / Slowed + Reverb)",
-            "Convert Any Video to MP3 Audio"
+            "5-Band Dolby Equalizer & Bass Boost",
+            "Sound & Pitch Lab (Lofi / Slowed + Reverb)",
+            "Convert Video to MP3 Audio"
         )
-        AudioAdapter.showPureWhiteAudioMenuDialog(ctx, "Audio Studio Tools & Sort", items) { which ->
+
+        AudioAdapter.showPureWhiteAudioMenuDialog(ctx, "Audio Tools & Sort", items) { which ->
             when (which) {
                 0 -> audioAdapter.selectAllSongs()
                 1, 2, 3, 4, 5 -> {
@@ -1375,9 +1344,6 @@ class AudioFragment : Fragment() {
         }
     }
 
-    /**
-     * Unified Pure-White (#FFFFFF) Vector Drawable Engine for the Audio Main Screen & Mini-Player.
-     */
     private class PureWhiteAudioStudioIcon(
         private val type: String,
         private val d: Float
@@ -1385,7 +1351,7 @@ class AudioFragment : Fragment() {
 
         private val whiteStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 2.4f * d
+            strokeWidth = 2.2f * d
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
             color = Color.WHITE
@@ -1398,7 +1364,7 @@ class AudioFragment : Fragment() {
 
         private val darkStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 2.4f * d
+            strokeWidth = 2.2f * d
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
             color = Color.parseColor("#0A0A10")
@@ -1413,9 +1379,9 @@ class AudioFragment : Fragment() {
 
             when (type) {
                 "PLAY" -> {
-                    path.moveTo(cx - r * 0.32f, cy - r * 0.56f)
+                    path.moveTo(cx - r * 0.30f, cy - r * 0.56f)
                     path.lineTo(cx + r * 0.62f, cy)
-                    path.lineTo(cx - r * 0.32f, cy + r * 0.56f)
+                    path.lineTo(cx - r * 0.30f, cy + r * 0.56f)
                     path.close()
                     canvas.drawPath(path, whiteFill)
                 }
@@ -1455,9 +1421,9 @@ class AudioFragment : Fragment() {
                     canvas.drawLine(cx - r * 0.58f, cy - r * 0.72f, cx - r * 0.58f, cy + r * 0.72f, whiteStroke)
                     canvas.drawLine(cx, cy - r * 0.72f, cx, cy + r * 0.72f, whiteStroke)
                     canvas.drawLine(cx + r * 0.58f, cy - r * 0.72f, cx + r * 0.58f, cy + r * 0.72f, whiteStroke)
-                    canvas.drawCircle(cx - r * 0.58f, cy - r * 0.2f, 2.8f * d, whiteFill)
-                    canvas.drawCircle(cx, cy + r * 0.25f, 2.8f * d, whiteFill)
-                    canvas.drawCircle(cx + r * 0.58f, cy - r * 0.25f, 2.8f * d, whiteFill)
+                    canvas.drawCircle(cx - r * 0.58f, cy - r * 0.2f, 2.7f * d, whiteFill)
+                    canvas.drawCircle(cx, cy + r * 0.25f, 2.7f * d, whiteFill)
+                    canvas.drawCircle(cx + r * 0.58f, cy - r * 0.25f, 2.7f * d, whiteFill)
                 }
                 "SHUFFLE", "SHUFFLE_DARK" -> {
                     val p = if (type == "SHUFFLE_DARK") darkStroke else whiteStroke
@@ -1467,9 +1433,9 @@ class AudioFragment : Fragment() {
                     canvas.drawLine(cx + r * 0.35f, cy + r * 0.45f, cx + r * 0.7f, cy + r * 0.45f, p)
                 }
                 "THREE_DOTS" -> {
-                    canvas.drawCircle(cx, cy - r * 0.65f, 2.5f * d, whiteFill)
-                    canvas.drawCircle(cx, cy, 2.5f * d, whiteFill)
-                    canvas.drawCircle(cx, cy + r * 0.65f, 2.5f * d, whiteFill)
+                    canvas.drawCircle(cx, cy - r * 0.65f, 2.4f * d, whiteFill)
+                    canvas.drawCircle(cx, cy, 2.4f * d, whiteFill)
+                    canvas.drawCircle(cx, cy + r * 0.65f, 2.4f * d, whiteFill)
                 }
             }
         }
