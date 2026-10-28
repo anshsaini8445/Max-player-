@@ -1,11 +1,9 @@
 package com.app.mediaplayer
 
 import android.app.AlertDialog
-import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
@@ -25,10 +23,8 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.text.TextUtils
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -41,9 +37,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
-import java.util.ArrayList
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 object AudioThreeDotMenuHelper {
@@ -74,25 +68,27 @@ object AudioThreeDotMenuHelper {
     fun makeFrostedWhiteCircle(d: Float): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.parseColor("#28FFFFFF"))
-            setStroke((1.4f * d).toInt(), Color.parseColor("#66FFFFFF"))
+            setColor(Color.parseColor("#18FFFFFF"))
         }
     }
 
     fun makeFrostedWhitePill(d: Float): GradientDrawable {
         return GradientDrawable().apply {
             cornerRadius = 18f * d
-            setColor(Color.parseColor("#28FFFFFF"))
-            setStroke((1.4f * d).toInt(), Color.parseColor("#66FFFFFF"))
+            setColor(Color.parseColor("#1AFFFFFF"))
         }
     }
 
-    /**
-     * Opens the 100% Pure-White (#FFFFFF) 3-Dot Studio Menu for AudioPlayerActivity:
-     * - Touch-isolated ScrollView so all rows scroll smoothly.
-     * - All 12 Studio Tiles, Speed Slider, and Loop Mode Pills are strictly Pure White regardless of theme.
-     * - Uses a 3-Dot ("...") button in the header instead of any cross ("X") icon.
-     */
+    fun formatCleanSongTitle(rawTitle: String): String {
+        val withoutExt = rawTitle.substringBeforeLast('.')
+        return withoutExt
+            .replace("__", " - ")
+            .replace("_", " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .ifEmpty { rawTitle }
+    }
+
     fun showAudioThreeDotStudioDialog(
         context: Context,
         callbacks: AudioPlayerCallbacks
@@ -103,9 +99,9 @@ object AudioThreeDotMenuHelper {
             orientation = LinearLayout.VERTICAL
             setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (16 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#F50A0A10"))
-                cornerRadius = 26f * d
-                setStroke((1.6f * d).toInt(), Color.parseColor("#55FFFFFF"))
+                setColor(Color.parseColor("#F810141E"))
+                cornerRadius = 24f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#26FFFFFF"))
             }
         }
 
@@ -115,7 +111,7 @@ object AudioThreeDotMenuHelper {
         val headerRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((4 * d).toInt(), 0, (4 * d).toInt(), (12 * d).toInt())
+            setPadding((4 * d).toInt(), 0, (4 * d).toInt(), (14 * d).toInt())
         }
 
         val titleCol = LinearLayout(context).apply {
@@ -124,15 +120,15 @@ object AudioThreeDotMenuHelper {
         }
 
         val tvHeader = TextView(context).apply {
-            text = "Audio Studio & 3-Dot Controls"
+            text = "Audio Settings & Tools"
             setTextColor(Color.WHITE)
-            textSize = 17f
+            textSize = 16.5f
             typeface = Typeface.DEFAULT_BOLD
         }
 
         val tvSubSong = TextView(context).apply {
-            text = callbacks.getCurrentSongTitle().substringBeforeLast('.')
-            setTextColor(Color.parseColor("#D8E2F0"))
+            text = formatCleanSongTitle(callbacks.getCurrentSongTitle())
+            setTextColor(Color.parseColor("#9FB4CE"))
             textSize = 12f
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -143,7 +139,7 @@ object AudioThreeDotMenuHelper {
         titleCol.addView(tvSubSong)
 
         val btnThreeDotDismiss = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (40 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
             setPadding((9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt(), (9 * d).toInt())
             setImageDrawable(PureWhiteAudioVectorDrawable("THREE_DOTS", d))
             background = makeFrostedWhiteCircle(d)
@@ -167,7 +163,6 @@ object AudioThreeDotMenuHelper {
             orientation = LinearLayout.VERTICAL
         }
 
-        // 12 Larger Pure-White Modern Studio Tiles (3 Rows x 4 Columns)
         val grid = GridLayout(context).apply {
             columnCount = 4
             layoutParams = LinearLayout.LayoutParams(
@@ -217,11 +212,11 @@ object AudioThreeDotMenuHelper {
                 callbacks.onTriggerAbRepeat()
                 dialog.dismiss()
             },
-            StudioTileSpec("Disc / Box", "VINYL_DISC") {
+            StudioTileSpec("Disc / Cover", "VINYL_DISC") {
                 callbacks.onToggleVinylPhotoMode()
                 dialog.dismiss()
             },
-            StudioTileSpec("Hybrid Share", "SHARE") {
+            StudioTileSpec("Turbo Share", "SHARE") {
                 dialog.dismiss()
                 try {
                     val intent = Intent(context, FileTransferActivity::class.java).apply {
@@ -251,7 +246,7 @@ object AudioThreeDotMenuHelper {
                     callbacks.getCurrentSongTitle()
                 )
             },
-            StudioTileSpec("Delete Song", "DELETE") {
+            StudioTileSpec("Delete", "DELETE") {
                 dialog.dismiss()
                 callbacks.onDeleteCurrentSongPermanently()
             }
@@ -266,14 +261,13 @@ object AudioThreeDotMenuHelper {
                 setPadding((6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt())
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
-                    height = (82 * d).toInt()
+                    height = (78 * d).toInt()
                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                     setMargins((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
                 }
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#1AFFFFFF"))
-                    cornerRadius = 16f * d
-                    setStroke((1.1f * d).toInt(), Color.parseColor("#40FFFFFF"))
+                    setColor(Color.parseColor("#14FFFFFF"))
+                    cornerRadius = 14f * d
                 }
                 setOnClickListener { spec.onClick() }
             }
@@ -281,7 +275,7 @@ object AudioThreeDotMenuHelper {
             val iconView = ImageView(context).apply {
                 isClickable = false
                 isFocusable = false
-                layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams((26 * d).toInt(), (26 * d).toInt())
                 setImageDrawable(PureWhiteAudioVectorDrawable(spec.iconType, d))
             }
 
@@ -290,7 +284,7 @@ object AudioThreeDotMenuHelper {
                 isFocusable = false
                 text = spec.label
                 setTextColor(Color.WHITE)
-                textSize = 11.5f
+                textSize = 11f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 maxLines = 1
@@ -302,29 +296,28 @@ object AudioThreeDotMenuHelper {
             tileLayout.addView(tvLabel)
             grid.addView(tileLayout)
         }
+
         contentCol.addView(grid)
 
-        // Pure-White Playback Speed Control Row
         val speedRow = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((6 * d).toInt(), (6 * d).toInt(), (6 * d).toInt(), (10 * d).toInt())
+            setPadding((10 * d).toInt(), (8 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#14FFFFFF"))
-                cornerRadius = 16f * d
-                setStroke((1 * d).toInt(), Color.parseColor("#33FFFFFF"))
+                setColor(Color.parseColor("#12FFFFFF"))
+                cornerRadius = 14f * d
             }
         }
 
         val speedHeader = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((6 * d).toInt(), 0, (6 * d).toInt(), (4 * d).toInt())
+            setPadding((4 * d).toInt(), 0, (4 * d).toInt(), (4 * d).toInt())
         }
 
         val tvSpeedTitle = TextView(context).apply {
             text = String.format(Locale.US, "Playback Speed: %.2fx", callbacks.getPlaybackSpeed())
             setTextColor(Color.WHITE)
-            textSize = 13.5f
+            textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
@@ -332,12 +325,12 @@ object AudioThreeDotMenuHelper {
         val btnResetSpeed = TextView(context).apply {
             text = "Reset 1.0x"
             setTextColor(Color.parseColor("#0A0A10"))
-            textSize = 11.5f
+            textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding((12 * d).toInt(), (5 * d).toInt(), (12 * d).toInt(), (5 * d).toInt())
+            setPadding((10 * d).toInt(), (4 * d).toInt(), (10 * d).toInt(), (4 * d).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 12f * d
+                cornerRadius = 10f * d
             }
         }
 
@@ -376,7 +369,6 @@ object AudioThreeDotMenuHelper {
         speedRow.addView(sbSpeed)
         contentCol.addView(speedRow)
 
-        // Pure-White Loop / Shuffle Mode Selector Row
         val loopRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 4f
@@ -394,9 +386,8 @@ object AudioThreeDotMenuHelper {
                 val isSel = idx == activeMode
                 btn.setTextColor(if (isSel) Color.parseColor("#0A0A10") else Color.WHITE)
                 btn.background = GradientDrawable().apply {
-                    setColor(if (isSel) Color.WHITE else Color.parseColor("#18FFFFFF"))
-                    cornerRadius = 14f * d
-                    setStroke((1 * d).toInt(), Color.WHITE)
+                    setColor(if (isSel) Color.WHITE else Color.parseColor("#14FFFFFF"))
+                    cornerRadius = 12f * d
                 }
             }
         }
@@ -404,10 +395,10 @@ object AudioThreeDotMenuHelper {
         loopLabels.forEachIndexed { idx, text ->
             val btn = TextView(context).apply {
                 this.text = text
-                textSize = 12.5f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(0, (42 * d).toInt(), 1f).apply {
+                layoutParams = LinearLayout.LayoutParams(0, (40 * d).toInt(), 1f).apply {
                     setMargins((3 * d).toInt(), 0, (3 * d).toInt(), 0)
                 }
                 setOnClickListener {
@@ -418,6 +409,7 @@ object AudioThreeDotMenuHelper {
             loopButtons.add(btn)
             loopRow.addView(btn)
         }
+
         styleLoopButtons(callbacks.getLoopMode())
         contentCol.addView(loopRow)
 
@@ -426,9 +418,6 @@ object AudioThreeDotMenuHelper {
         dialog.show()
     }
 
-    /**
-     * Opens the Pure-White Playing Queue Dialog with song cover photos and instant track switching.
-     */
     fun showPlayingQueueDialog(
         context: Context,
         songPaths: MutableList<String>,
@@ -444,9 +433,9 @@ object AudioThreeDotMenuHelper {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (14 * d).toInt())
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#F50A0A10"))
+                setColor(Color.parseColor("#F810141E"))
                 cornerRadius = 24f * d
-                setStroke((1.5f * d).toInt(), Color.parseColor("#55FFFFFF"))
+                setStroke((1 * d).toInt(), Color.parseColor("#26FFFFFF"))
             }
         }
 
@@ -460,15 +449,15 @@ object AudioThreeDotMenuHelper {
         }
 
         val tvHeader = TextView(context).apply {
-            text = "Playing Queue (${(currentIndex + 1).coerceAtMost(songPaths.size)}/${songPaths.size})"
+            text = "Up Next Queue (${(currentIndex + 1).coerceAtMost(songPaths.size)}/${songPaths.size})"
             setTextColor(Color.WHITE)
-            textSize = 16.5f
+            textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
 
         val btnThreeDotClose = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt())
             setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
             setImageDrawable(PureWhiteAudioVectorDrawable("THREE_DOTS", d))
             background = makeFrostedWhiteCircle(d)
@@ -491,14 +480,14 @@ object AudioThreeDotMenuHelper {
         rvQueue.adapter = object : RecyclerView.Adapter<QueueSongVH>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QueueSongVH {
                 val card = CardView(context).apply {
-                    radius = 14f * d
-                    cardElevation = 2f * d
-                    setCardBackgroundColor(Color.parseColor("#162234"))
+                    radius = 12f * d
+                    cardElevation = 0f
+                    setCardBackgroundColor(Color.parseColor("#14FFFFFF"))
                     layoutParams = RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
                     ).apply {
-                        setMargins((3 * d).toInt(), (4 * d).toInt(), (3 * d).toInt(), (4 * d).toInt())
+                        setMargins((2 * d).toInt(), (4 * d).toInt(), (2 * d).toInt(), (4 * d).toInt())
                     }
                 }
 
@@ -509,7 +498,7 @@ object AudioThreeDotMenuHelper {
                 }
 
                 val img = ImageView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams((46 * d).toInt(), (46 * d).toInt()).apply {
+                    layoutParams = LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply {
                         marginEnd = (12 * d).toInt()
                     }
                     scaleType = ImageView.ScaleType.CENTER_CROP
@@ -522,14 +511,14 @@ object AudioThreeDotMenuHelper {
 
                 val tvTitle = TextView(context).apply {
                     setTextColor(Color.WHITE)
-                    textSize = 14f
+                    textSize = 13.5f
                     typeface = Typeface.DEFAULT_BOLD
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
                 }
 
                 val tvSub = TextView(context).apply {
-                    setTextColor(Color.parseColor("#D8E2F0"))
+                    setTextColor(Color.parseColor("#9FB4CE"))
                     textSize = 11.5f
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
@@ -541,9 +530,9 @@ object AudioThreeDotMenuHelper {
                     setTextColor(Color.WHITE)
                     textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD
-                    setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+                    setPadding((10 * d).toInt(), (5 * d).toInt(), (10 * d).toInt(), (5 * d).toInt())
                     background = GradientDrawable().apply {
-                        setColor(Color.parseColor("#24FFFFFF"))
+                        setColor(Color.parseColor("#22FFFFFF"))
                         cornerRadius = 10f * d
                     }
                 }
@@ -559,13 +548,15 @@ object AudioThreeDotMenuHelper {
 
             override fun onBindViewHolder(holder: QueueSongVH, position: Int) {
                 val path = songPaths[position]
-                val title = songTitles.getOrElse(position) { File(path).name }
-                val artist = songArtists.getOrElse(position) { "Studio Audio" }
+                val rawTitle = songTitles.getOrElse(position) { File(path).name }
+                val cleanTitle = formatCleanSongTitle(rawTitle)
+                val artist = songArtists.getOrElse(position) { "Unknown Artist" }
                 val isPlayingNow = position == currentIndex
 
-                holder.tvTitle.text = if (isPlayingNow) "Playing: ${title.substringBeforeLast('.')}" else title.substringBeforeLast('.')
+                holder.tvTitle.text = if (isPlayingNow) "Now Playing: $cleanTitle" else cleanTitle
+                holder.tvTitle.setTextColor(if (isPlayingNow) Color.parseColor("#00E5FF") else Color.WHITE)
                 holder.tvSub.text = artist
-                AudioAdapter.loadAlbumArtOrFallbackInto(context, path, title, holder.img)
+                AudioAdapter.loadAlbumArtOrFallbackInto(context, path, rawTitle, holder.img)
 
                 holder.itemView.setOnClickListener {
                     val pos = holder.adapterPosition
@@ -581,7 +572,7 @@ object AudioThreeDotMenuHelper {
                         onRemoveTrack(pos)
                         notifyItemRemoved(pos)
                         notifyItemRangeChanged(pos, songPaths.size)
-                        tvHeader.text = "Playing Queue (${songPaths.size} Songs)"
+                        tvHeader.text = "Up Next Queue (${songPaths.size} Songs)"
                     }
                 }
             }
@@ -623,7 +614,7 @@ object AudioThreeDotMenuHelper {
             val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
             if (uri != null) {
                 RingtoneManager.setActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE, uri)
-                Toast.makeText(context, "Phone Ringtone Set: $title", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Phone Ringtone Set: ${formatCleanSongTitle(title)}", Toast.LENGTH_LONG).show()
             }
         } catch (_: Exception) {
             Toast.makeText(context, "Unable to set ringtone", Toast.LENGTH_SHORT).show()
@@ -631,7 +622,8 @@ object AudioThreeDotMenuHelper {
     }
 
     /**
-     * Unified Pure-White (#FFFFFF) Vector Icon Drawable for the entire Audio Player & 3-Dot Studio.
+     * Precision Vector Icon Drawable Engine:
+     * Renders true Bezier Hearts, crisp Loop Arrows, Shuffle Arrows, and Studio Transport Icons.
      */
     class PureWhiteAudioVectorDrawable(
         private val type: String,
@@ -641,13 +633,18 @@ object AudioThreeDotMenuHelper {
         private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             style = Paint.Style.STROKE
-            strokeWidth = 2.5f * d
+            strokeWidth = 2.2f * d
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
 
         private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
+            style = Paint.Style.FILL
+        }
+
+        private val heartActiveFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#FF2E63")
             style = Paint.Style.FILL
         }
 
@@ -658,30 +655,30 @@ object AudioThreeDotMenuHelper {
             if (w <= 0f || h <= 0f) return
             val cx = b.exactCenterX()
             val cy = b.exactCenterY()
-            val r = w.coerceAtMost(h) * 0.38f
+            val r = w.coerceAtMost(h) * 0.40f
             val path = Path()
 
             when (type) {
                 "BACK_ARROW" -> {
-                    canvas.drawLine(cx + r * 0.72f, cy, cx - r * 0.65f, cy, strokePaint)
-                    canvas.drawLine(cx - r * 0.65f, cy, cx - r * 0.05f, cy - r * 0.58f, strokePaint)
-                    canvas.drawLine(cx - r * 0.65f, cy, cx - r * 0.05f, cy + r * 0.58f, strokePaint)
+                    canvas.drawLine(cx + r * 0.65f, cy, cx - r * 0.65f, cy, strokePaint)
+                    canvas.drawLine(cx - r * 0.65f, cy, cx - r * 0.08f, cy - r * 0.56f, strokePaint)
+                    canvas.drawLine(cx - r * 0.65f, cy, cx - r * 0.08f, cy + r * 0.56f, strokePaint)
                 }
                 "THREE_DOTS" -> {
-                    canvas.drawCircle(cx, cy - r * 0.66f, 2.6f * d, fillPaint)
-                    canvas.drawCircle(cx, cy, 2.6f * d, fillPaint)
-                    canvas.drawCircle(cx, cy + r * 0.66f, 2.6f * d, fillPaint)
+                    canvas.drawCircle(cx, cy - r * 0.65f, 2.3f * d, fillPaint)
+                    canvas.drawCircle(cx, cy, 2.3f * d, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.65f, 2.3f * d, fillPaint)
                 }
                 "PLAY" -> {
-                    path.moveTo(cx - r * 0.32f, cy - r * 0.58f)
+                    path.moveTo(cx - r * 0.30f, cy - r * 0.58f)
                     path.lineTo(cx + r * 0.64f, cy)
-                    path.lineTo(cx - r * 0.32f, cy + r * 0.58f)
+                    path.lineTo(cx - r * 0.30f, cy + r * 0.58f)
                     path.close()
                     canvas.drawPath(path, fillPaint)
                 }
                 "PAUSE" -> {
                     val bw = r * 0.32f
-                    val bh = r * 1.12f
+                    val bh = r * 1.10f
                     canvas.drawRoundRect(
                         RectF(cx - r * 0.48f, cy - bh / 2f, cx - r * 0.48f + bw, cy + bh / 2f),
                         2.5f * d,
@@ -696,57 +693,85 @@ object AudioThreeDotMenuHelper {
                     )
                 }
                 "PREV" -> {
-                    canvas.drawLine(cx - r * 0.55f, cy - r * 0.52f, cx - r * 0.55f, cy + r * 0.52f, strokePaint)
-                    path.moveTo(cx + r * 0.55f, cy - r * 0.52f)
-                    path.lineTo(cx - r * 0.38f, cy)
-                    path.lineTo(cx + r * 0.55f, cy + r * 0.52f)
+                    canvas.drawLine(cx - r * 0.56f, cy - r * 0.52f, cx - r * 0.56f, cy + r * 0.52f, strokePaint)
+                    path.moveTo(cx + r * 0.54f, cy - r * 0.52f)
+                    path.lineTo(cx - r * 0.36f, cy)
+                    path.lineTo(cx + r * 0.54f, cy + r * 0.52f)
                     path.close()
                     canvas.drawPath(path, fillPaint)
                 }
                 "NEXT" -> {
-                    canvas.drawLine(cx + r * 0.55f, cy - r * 0.52f, cx + r * 0.55f, cy + r * 0.52f, strokePaint)
-                    path.moveTo(cx - r * 0.55f, cy - r * 0.52f)
-                    path.lineTo(cx + r * 0.38f, cy)
-                    path.lineTo(cx - r * 0.55f, cy + r * 0.52f)
+                    canvas.drawLine(cx + r * 0.56f, cy - r * 0.52f, cx + r * 0.56f, cy + r * 0.52f, strokePaint)
+                    path.moveTo(cx - r * 0.54f, cy - r * 0.52f)
+                    path.lineTo(cx + r * 0.36f, cy)
+                    path.lineTo(cx - r * 0.54f, cy + r * 0.52f)
                     path.close()
                     canvas.drawPath(path, fillPaint)
                 }
                 "SHUFFLE" -> {
-                    canvas.drawLine(cx - r * 0.72f, cy - r * 0.45f, cx + r * 0.72f, cy + r * 0.45f, strokePaint)
-                    canvas.drawLine(cx - r * 0.72f, cy + r * 0.45f, cx + r * 0.72f, cy - r * 0.45f, strokePaint)
-                    canvas.drawLine(cx + r * 0.35f, cy - r * 0.45f, cx + r * 0.72f, cy - r * 0.45f, strokePaint)
-                    canvas.drawLine(cx + r * 0.35f, cy + r * 0.45f, cx + r * 0.72f, cy + r * 0.45f, strokePaint)
+                    canvas.drawLine(cx - r * 0.72f, cy - r * 0.44f, cx + r * 0.68f, cy + r * 0.44f, strokePaint)
+                    canvas.drawLine(cx - r * 0.72f, cy + r * 0.44f, cx + r * 0.68f, cy - r * 0.44f, strokePaint)
+                    canvas.drawLine(cx + r * 0.34f, cy - r * 0.46f, cx + r * 0.72f, cy - r * 0.44f, strokePaint)
+                    canvas.drawLine(cx + r * 0.72f, cy - r * 0.44f, cx + r * 0.52f, cy - r * 0.12f, strokePaint)
+                    canvas.drawLine(cx + r * 0.34f, cy + r * 0.46f, cx + r * 0.72f, cy + r * 0.44f, strokePaint)
+                    canvas.drawLine(cx + r * 0.72f, cy + r * 0.44f, cx + r * 0.52f, cy + r * 0.12f, strokePaint)
                 }
                 "REPEAT_ALL", "REPEAT_ONE", "AB_REPEAT" -> {
-                    val rect = RectF(cx - r * 0.75f, cy - r * 0.52f, cx + r * 0.75f, cy + r * 0.52f)
-                    canvas.drawRoundRect(rect, 5f * d, 5f * d, strokePaint)
+                    val topY = cy - r * 0.45f
+                    val botY = cy + r * 0.45f
+                    val leftX = cx - r * 0.72f
+                    val rightX = cx + r * 0.72f
+                    canvas.drawLine(leftX + r * 0.2f, topY, rightX, topY, strokePaint)
+                    canvas.drawLine(rightX, topY, rightX, cy + r * 0.05f, strokePaint)
+                    canvas.drawLine(rightX - r * 0.25f, topY - r * 0.22f, rightX, topY, strokePaint)
+                    canvas.drawLine(rightX - r * 0.25f, topY + r * 0.22f, rightX, topY, strokePaint)
+
+                    canvas.drawLine(rightX - r * 0.2f, botY, leftX, botY, strokePaint)
+                    canvas.drawLine(leftX, botY, leftX, cy - r * 0.05f, strokePaint)
+                    canvas.drawLine(leftX + r * 0.25f, botY - r * 0.22f, leftX, botY, strokePaint)
+                    canvas.drawLine(leftX + r * 0.25f, botY + r * 0.22f, leftX, botY, strokePaint)
+
                     if (type == "REPEAT_ONE") {
-                        canvas.drawLine(cx, cy - r * 0.25f, cx, cy + r * 0.25f, strokePaint)
+                        canvas.drawLine(cx, cy - r * 0.22f, cx, cy + r * 0.22f, strokePaint)
                     }
                 }
                 "EQUALIZER" -> {
-                    canvas.drawLine(cx - r * 0.58f, cy - r * 0.72f, cx - r * 0.58f, cy + r * 0.72f, strokePaint)
-                    canvas.drawLine(cx, cy - r * 0.72f, cx, cy + r * 0.72f, strokePaint)
-                    canvas.drawLine(cx + r * 0.58f, cy - r * 0.72f, cx + r * 0.58f, cy + r * 0.72f, strokePaint)
-                    canvas.drawCircle(cx - r * 0.58f, cy - r * 0.2f, 2.8f * d, fillPaint)
-                    canvas.drawCircle(cx, cy + r * 0.25f, 2.8f * d, fillPaint)
-                    canvas.drawCircle(cx + r * 0.58f, cy - r * 0.25f, 2.8f * d, fillPaint)
+                    canvas.drawLine(cx - r * 0.58f, cy - r * 0.70f, cx - r * 0.58f, cy + r * 0.70f, strokePaint)
+                    canvas.drawLine(cx, cy - r * 0.70f, cx, cy + r * 0.70f, strokePaint)
+                    canvas.drawLine(cx + r * 0.58f, cy - r * 0.70f, cx + r * 0.58f, cy + r * 0.70f, strokePaint)
+                    canvas.drawCircle(cx - r * 0.58f, cy - r * 0.20f, 2.7f * d, fillPaint)
+                    canvas.drawCircle(cx, cy + r * 0.24f, 2.7f * d, fillPaint)
+                    canvas.drawCircle(cx + r * 0.58f, cy - r * 0.24f, 2.7f * d, fillPaint)
                 }
                 "QUEUE_LIST" -> {
-                    canvas.drawLine(cx - r * 0.75f, cy - r * 0.55f, cx + r * 0.75f, cy - r * 0.55f, strokePaint)
-                    canvas.drawLine(cx - r * 0.75f, cy, cx + r * 0.75f, cy, strokePaint)
-                    canvas.drawLine(cx - r * 0.75f, cy + r * 0.55f, cx + r * 0.35f, cy + r * 0.55f, strokePaint)
+                    canvas.drawLine(cx - r * 0.72f, cy - r * 0.52f, cx + r * 0.72f, cy - r * 0.52f, strokePaint)
+                    canvas.drawLine(cx - r * 0.72f, cy, cx + r * 0.72f, cy, strokePaint)
+                    canvas.drawLine(cx - r * 0.72f, cy + r * 0.52f, cx + r * 0.32f, cy + r * 0.52f, strokePaint)
                 }
                 "HEART_ON", "HEART_OFF" -> {
-                    canvas.drawCircle(cx, cy, r * 0.76f, strokePaint)
+                    val hr = r * 0.85f
+                    path.moveTo(cx, cy + hr * 0.72f)
+                    path.cubicTo(
+                        cx - hr * 1.25f, cy + hr * 0.08f,
+                        cx - hr * 0.95f, cy - hr * 0.85f,
+                        cx, cy - hr * 0.30f
+                    )
+                    path.cubicTo(
+                        cx + hr * 0.95f, cy - hr * 0.85f,
+                        cx + hr * 1.25f, cy + hr * 0.08f,
+                        cx, cy + hr * 0.72f
+                    )
+                    path.close()
                     if (type == "HEART_ON") {
-                        canvas.drawCircle(cx, cy, r * 0.42f, fillPaint)
+                        canvas.drawPath(path, heartActiveFill)
+                    } else {
+                        canvas.drawPath(path, strokePaint)
                     }
                 }
                 "TIMER" -> {
                     canvas.drawCircle(cx, cy, r * 0.78f, strokePaint)
-                    canvas.drawLine(cx, cy, cx, cy - r * 0.45f, strokePaint)
-                    canvas.drawLine(cx, cy, cx + r * 0.35f, cy, strokePaint)
+                    canvas.drawLine(cx, cy, cx, cy - r * 0.44f, strokePaint)
+                    canvas.drawLine(cx, cy, cx + r * 0.34f, cy, strokePaint)
                 }
                 "PITCH_LAB", "BOOST" -> {
                     canvas.drawLine(cx - r * 0.6f, cy - r * 0.35f, cx - r * 0.6f, cy + r * 0.35f, strokePaint)
@@ -755,35 +780,35 @@ object AudioThreeDotMenuHelper {
                     canvas.drawLine(cx + r * 0.6f, cy - r * 0.25f, cx + r * 0.6f, cy + r * 0.25f, strokePaint)
                 }
                 "RINGTONE" -> {
-                    val bell = RectF(cx - r * 0.62f, cy - r * 0.65f, cx + r * 0.62f, cy + r * 0.45f)
+                    val bell = RectF(cx - r * 0.58f, cy - r * 0.62f, cx + r * 0.58f, cy + r * 0.42f)
                     canvas.drawRoundRect(bell, 6f * d, 6f * d, strokePaint)
-                    canvas.drawLine(cx - r * 0.78f, cy + r * 0.45f, cx + r * 0.78f, cy + r * 0.45f, strokePaint)
-                    canvas.drawCircle(cx, cy + r * 0.68f, 2.5f * d, fillPaint)
+                    canvas.drawLine(cx - r * 0.75f, cy + r * 0.42f, cx + r * 0.75f, cy + r * 0.42f, strokePaint)
+                    canvas.drawCircle(cx, cy + r * 0.66f, 2.4f * d, fillPaint)
                 }
                 "VINYL_DISC" -> {
-                    canvas.drawCircle(cx, cy, r * 0.8f, strokePaint)
-                    canvas.drawCircle(cx, cy, r * 0.26f, fillPaint)
+                    canvas.drawCircle(cx, cy, r * 0.80f, strokePaint)
+                    canvas.drawCircle(cx, cy, r * 0.25f, fillPaint)
                 }
                 "SHARE" -> {
-                    canvas.drawLine(cx - r * 0.5f, cy, cx + r * 0.5f, cy - r * 0.5f, strokePaint)
-                    canvas.drawLine(cx - r * 0.5f, cy, cx + r * 0.5f, cy + r * 0.5f, strokePaint)
-                    canvas.drawCircle(cx - r * 0.5f, cy, 3f * d, fillPaint)
-                    canvas.drawCircle(cx + r * 0.5f, cy - r * 0.5f, 3f * d, fillPaint)
-                    canvas.drawCircle(cx + r * 0.5f, cy + r * 0.5f, 3f * d, fillPaint)
+                    canvas.drawLine(cx - r * 0.48f, cy, cx + r * 0.48f, cy - r * 0.48f, strokePaint)
+                    canvas.drawLine(cx - r * 0.48f, cy, cx + r * 0.48f, cy + r * 0.48f, strokePaint)
+                    canvas.drawCircle(cx - r * 0.48f, cy, 2.8f * d, fillPaint)
+                    canvas.drawCircle(cx + r * 0.48f, cy - r * 0.48f, 2.8f * d, fillPaint)
+                    canvas.drawCircle(cx + r * 0.48f, cy + r * 0.48f, 2.8f * d, fillPaint)
                 }
                 "VAULT" -> {
-                    val body = RectF(cx - r * 0.68f, cy - r * 0.1f, cx + r * 0.68f, cy + r * 0.82f)
+                    val body = RectF(cx - r * 0.65f, cy - r * 0.08f, cx + r * 0.65f, cy + r * 0.80f)
                     canvas.drawRoundRect(body, 3.5f * d, 3.5f * d, strokePaint)
-                    val shackle = RectF(cx - r * 0.45f, cy - r * 0.78f, cx + r * 0.45f, cy - r * 0.05f)
+                    val shackle = RectF(cx - r * 0.42f, cy - r * 0.76f, cx + r * 0.42f, cy - r * 0.04f)
                     canvas.drawArc(shackle, 180f, 180f, false, strokePaint)
                 }
                 "DELETE" -> {
-                    canvas.drawLine(cx - r * 0.75f, cy - r * 0.52f, cx + r * 0.75f, cy - r * 0.52f, strokePaint)
-                    val bin = RectF(cx - r * 0.55f, cy - r * 0.52f, cx + r * 0.55f, cy + r * 0.78f)
+                    canvas.drawLine(cx - r * 0.72f, cy - r * 0.50f, cx + r * 0.72f, cy - r * 0.50f, strokePaint)
+                    val bin = RectF(cx - r * 0.52f, cy - r * 0.50f, cx + r * 0.52f, cy + r * 0.76f)
                     canvas.drawRoundRect(bin, 3f * d, 3f * d, strokePaint)
                 }
                 else -> {
-                    canvas.drawCircle(cx, cy, r * 0.72f, strokePaint)
+                    canvas.drawCircle(cx, cy, r * 0.70f, strokePaint)
                 }
             }
         }
