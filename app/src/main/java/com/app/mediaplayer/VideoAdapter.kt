@@ -16,6 +16,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.media.MediaMetadataRetriever
 import android.media.ThumbnailUtils
 import android.net.Uri
@@ -27,13 +28,16 @@ import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
 import android.util.LruCache
 import android.util.Size
+import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -56,16 +60,12 @@ class VideoAdapter(
 ) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
 
     companion object {
-        private val frameMemoryCache = object : LruCache<String, Bitmap>(160) {}
+        private const val VIEW_TYPE_LIST = 0
+        private const val VIEW_TYPE_GRID = 1
+
+        private val frameMemoryCache = object : LruCache<String, Bitmap>(180) {}
         private val frameExtractorPool = Executors.newFixedThreadPool(4)
 
-        /**
-         * 4-Stage Guaranteed Video Frame Photo Loader:
-         * 1. Instant LruCache RAM hit (< 1ms).
-         * 2. Immediate HD Cinema Placeholder so no card ever flashes dark/empty while scrolling.
-         * 3. Glide Hardware Video Frame decoding at 1.5s offset.
-         * 4. Multi-stage MediaMetadataRetriever + Android ThumbnailUtils fallback for MKV/HEVC/10-bit/8K videos.
-         */
         fun loadGuaranteedVideoThumbnail(
             context: Context,
             path: String,
@@ -123,9 +123,11 @@ class VideoAdapter(
                             isFirstResource: Boolean
                         ): Boolean {
                             frameMemoryCache.put(safeKey, resource)
-                            if (imageView.tag == safeKey) {
-                                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-                                imageView.setImageBitmap(resource)
+                            (context as? Activity)?.runOnUiThread {
+                                if (imageView.tag == safeKey) {
+                                    imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                                    imageView.setImageBitmap(resource)
+                                }
                             }
                             return true
                         }
@@ -145,7 +147,6 @@ class VideoAdapter(
             frameExtractorPool.execute {
                 var bmp: Bitmap? = null
 
-                // Stage A: MediaMetadataRetriever across multiple timestamps
                 val retriever = MediaMetadataRetriever()
                 try {
                     if (path.startsWith("content://")) {
@@ -165,7 +166,6 @@ class VideoAdapter(
                     }
                 }
 
-                // Stage B: Native OS ThumbnailUtils fallback for stubborn HEVC/MKV files
                 if (bmp == null && !path.startsWith("content://")) {
                     try {
                         val file = File(path)
@@ -208,10 +208,10 @@ class VideoAdapter(
             val canvas = Canvas(bmp)
 
             val palettes = arrayOf(
-                intArrayOf(Color.parseColor("#0F2027"), Color.parseColor("#203A43"), Color.parseColor("#2C5364")),
-                intArrayOf(Color.parseColor("#141E30"), Color.parseColor("#243B55"), Color.parseColor("#1B3B6F")),
-                intArrayOf(Color.parseColor("#1F1C2C"), Color.parseColor("#4A4063"), Color.parseColor("#2C3E50")),
-                intArrayOf(Color.parseColor("#093028"), Color.parseColor("#1B4332"), Color.parseColor("#2D6A4F"))
+                intArrayOf(Color.parseColor("#0C2434"), Color.parseColor("#133B54"), Color.parseColor("#0A1924")),
+                intArrayOf(Color.parseColor("#182232"), Color.parseColor("#243B55"), Color.parseColor("#101622")),
+                intArrayOf(Color.parseColor("#1D1B2C"), Color.parseColor("#352F44"), Color.parseColor("#12101B")),
+                intArrayOf(Color.parseColor("#0D2822"), Color.parseColor("#1B4332"), Color.parseColor("#081C15"))
             )
             val colors = palettes[abs(title.hashCode()) % palettes.size]
 
@@ -225,23 +225,12 @@ class VideoAdapter(
 
             val cx = w / 2f
             val cy = h / 2f
-            val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-                color = Color.parseColor("#33FFFFFF")
+            val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = 6f
+                color = Color.parseColor("#3300E5FF")
             }
-            canvas.drawCircle(cx, cy, 30f, circlePaint)
-
-            val playPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-                color = Color.WHITE
-            }
-            val path = Path().apply {
-                moveTo(cx - 8f, cy - 13f)
-                lineTo(cx + 15f, cy)
-                lineTo(cx - 8f, cy + 13f)
-                close()
-            }
-            canvas.drawPath(path, playPaint)
+            canvas.drawCircle(cx, cy, 44f, ringPaint)
             return bmp
         }
 
@@ -265,9 +254,14 @@ class VideoAdapter(
         }
     }
 
+    private var isGridMode = false
     private var isMultiSelectMode = false
     private val selectedPaths = LinkedHashSet<String>()
     private var highlightQuery: String = ""
+
+    fun setGridMode(grid: Boolean) {
+        isGridMode = grid
+    }
 
     fun setSearchHighlightQuery(query: String) {
         highlightQuery = query.trim()
@@ -299,87 +293,375 @@ class VideoAdapter(
         onSelectionChanged?.invoke(false, 0)
     }
 
-    class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvTitle: TextView
-        val tvDuration: TextView?
-        val tvMetaSub: TextView?
-        val imgThumbnail: ImageView
-        val btnMore: ImageView?
+    override fun getItemViewType(position: Int): Int {
+        return if (isGridMode) VIEW_TYPE_GRID else VIEW_TYPE_LIST
+    }
 
-        init {
-            val textViews = mutableListOf<TextView>()
-            val imageViews = mutableListOf<ImageView>()
-            collectViews(view, textViews, imageViews)
+    class VideoViewHolder(
+        view: View,
+        val imgThumbnail: ImageView,
+        val tvDurationPill: TextView,
+        val tvUltraBadge: TextView,
+        val imgCornerFolderBadge: ImageView,
+        val progressLineView: View,
+        val tvTitle: TextView,
+        val tvMetaSub: TextView?,
+        val folderChipLayout: LinearLayout?,
+        val imgFolderChipIcon: ImageView?,
+        val tvFolderChipName: TextView?,
+        val btnMore: ImageView
+    ) : RecyclerView.ViewHolder(view)
 
-            val pkg = view.context.packageName
-            val res = view.resources
-
-            val titleId = res.getIdentifier("tvVideoTitle", "id", pkg)
-            val durId = res.getIdentifier("tvVideoDuration", "id", pkg)
-            val thumbId = res.getIdentifier("imgVideoThumbnail", "id", pkg)
-
-            tvTitle = (if (titleId != 0) view.findViewById<TextView?>(titleId) else null)
-                ?: textViews.firstOrNull()
-                ?: TextView(view.context)
-
-            tvDuration = (if (durId != 0) view.findViewById<TextView?>(durId) else null)
-                ?: textViews.getOrNull(1)
-
-            tvMetaSub = textViews.firstOrNull { it !== tvTitle && it !== tvDuration }
-
-            imgThumbnail = (if (thumbId != 0) view.findViewById<ImageView?>(thumbId) else null)
-                ?: imageViews.firstOrNull()
-                ?: ImageView(view.context)
-
-            btnMore = if (imageViews.size > 1) imageViews.lastOrNull { it !== imgThumbnail } else null
-        }
-
-        companion object {
-            private fun collectViews(
-                v: View,
-                textOut: MutableList<TextView>,
-                imgOut: MutableList<ImageView>
-            ) {
-                when (v) {
-                    is TextView -> textOut.add(v)
-                    is ImageView -> imgOut.add(v)
-                    is ViewGroup -> {
-                        for (i in 0 until v.childCount) {
-                            collectViews(v.getChildAt(i), textOut, imgOut)
-                        }
-                    }
-                }
-            }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
+        val d = context.resources.displayMetrics.density
+        return if (viewType == VIEW_TYPE_GRID) {
+            buildPlayItGridViewHolder(d)
+        } else {
+            buildPlayItListViewHolder(d)
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
-        val view = LayoutInflater.from(context).inflate(R.layout.item_video, parent, false)
-        return VideoViewHolder(view)
+    private fun buildPlayItListViewHolder(d: Float): VideoViewHolder {
+        val rootRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((12 * d).toInt(), (8 * d).toInt(), (6 * d).toInt(), (8 * d).toInt())
+            layoutParams = RecyclerView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val thumbCard = CardView(context).apply {
+            radius = 6f * d
+            cardElevation = 0f
+            setCardBackgroundColor(Color.parseColor("#161B22"))
+            layoutParams = LinearLayout.LayoutParams((146 * d).toInt(), (84 * d).toInt()).apply {
+                marginEnd = (12 * d).toInt()
+            }
+        }
+
+        val thumbFrame = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val imgThumb = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val tvUltraBadge = TextView(context).apply {
+            text = "8k"
+            setTextColor(Color.parseColor("#FFD54F"))
+            textSize = 10f
+            typeface = Typeface.DEFAULT_BOLD
+            visibility = View.GONE
+            setPadding((5 * d).toInt(), (1 * d).toInt(), (5 * d).toInt(), (1 * d).toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.START
+            ).apply {
+                marginStart = (5 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#BB1A160B"))
+                cornerRadius = 3f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#FFD54F"))
+            }
+        }
+
+        val imgCornerFolderBadge = ImageView(context).apply {
+            visibility = View.GONE
+            layoutParams = FrameLayout.LayoutParams((16 * d).toInt(), (16 * d).toInt(), Gravity.BOTTOM or Gravity.START).apply {
+                marginStart = (5 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+        }
+
+        val tvDurationPill = TextView(context).apply {
+            text = "▶ 00:00"
+            setTextColor(Color.WHITE)
+            textSize = 10.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((6 * d).toInt(), (2 * d).toInt(), (6 * d).toInt(), (2 * d).toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.END
+            ).apply {
+                marginEnd = (5 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#B3000000"))
+                cornerRadius = 4f * d
+            }
+        }
+
+        val progressLineView = View(context).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.parseColor("#2ECC71"))
+            layoutParams = FrameLayout.LayoutParams(
+                0,
+                (2.5f * d).toInt(),
+                Gravity.BOTTOM or Gravity.START
+            )
+        }
+
+        thumbFrame.addView(imgThumb)
+        thumbFrame.addView(tvUltraBadge)
+        thumbFrame.addView(imgCornerFolderBadge)
+        thumbFrame.addView(tvDurationPill)
+        thumbFrame.addView(progressLineView)
+        thumbCard.addView(thumbFrame)
+
+        val centerCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val tvTitle = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            textSize = 14.5f
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+        }
+
+        val tvMetaSub = TextView(context).apply {
+            setTextColor(Color.parseColor("#8A929A"))
+            textSize = 12f
+            maxLines = 1
+            setPadding(0, (4 * d).toInt(), 0, (4 * d).toInt())
+        }
+
+        val folderChipLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((6 * d).toInt(), (2.5f * d).toInt(), (8 * d).toInt(), (2.5f * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#181C20"))
+                cornerRadius = 4f * d
+            }
+        }
+
+        val imgFolderChipIcon = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams((13 * d).toInt(), (13 * d).toInt()).apply {
+                marginEnd = (5 * d).toInt()
+            }
+        }
+
+        val tvFolderChipName = TextView(context).apply {
+            setTextColor(Color.parseColor("#9BA2AA"))
+            textSize = 11f
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+
+        folderChipLayout.addView(imgFolderChipIcon)
+        folderChipLayout.addView(tvFolderChipName)
+
+        centerCol.addView(tvTitle)
+        centerCol.addView(tvMetaSub)
+        centerCol.addView(folderChipLayout)
+
+        val btnMore = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams((34 * d).toInt(), (44 * d).toInt())
+            setPadding((7 * d).toInt(), (10 * d).toInt(), (7 * d).toInt(), (10 * d).toInt())
+        }
+
+        rootRow.addView(thumbCard)
+        rootRow.addView(centerCol)
+        rootRow.addView(btnMore)
+
+        return VideoViewHolder(
+            view = rootRow,
+            imgThumbnail = imgThumb,
+            tvDurationPill = tvDurationPill,
+            tvUltraBadge = tvUltraBadge,
+            imgCornerFolderBadge = imgCornerFolderBadge,
+            progressLineView = progressLineView,
+            tvTitle = tvTitle,
+            tvMetaSub = tvMetaSub,
+            folderChipLayout = folderChipLayout,
+            imgFolderChipIcon = imgFolderChipIcon,
+            tvFolderChipName = tvFolderChipName,
+            btnMore = btnMore
+        )
+    }
+
+    private fun buildPlayItGridViewHolder(d: Float): VideoViewHolder {
+        val rootCol = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((5 * d).toInt(), (6 * d).toInt(), (5 * d).toInt(), (10 * d).toInt())
+            layoutParams = RecyclerView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val thumbCard = CardView(context).apply {
+            radius = 6f * d
+            cardElevation = 0f
+            setCardBackgroundColor(Color.parseColor("#161B22"))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (100 * d).toInt()
+            )
+        }
+
+        val thumbFrame = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val imgThumb = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val imgCornerFolderBadge = ImageView(context).apply {
+            layoutParams = FrameLayout.LayoutParams((16 * d).toInt(), (16 * d).toInt(), Gravity.BOTTOM or Gravity.START).apply {
+                marginStart = (5 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+        }
+
+        val tvUltraBadge = TextView(context).apply {
+            text = "8k"
+            setTextColor(Color.parseColor("#FFD54F"))
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT_BOLD
+            visibility = View.GONE
+            setPadding((5 * d).toInt(), (1 * d).toInt(), (5 * d).toInt(), (1 * d).toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.START
+            ).apply {
+                marginStart = (24 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#BB1A160B"))
+                cornerRadius = 3f * d
+                setStroke((1 * d).toInt(), Color.parseColor("#FFD54F"))
+            }
+        }
+
+        val tvDurationPill = TextView(context).apply {
+            text = "▶ 00:00"
+            setTextColor(Color.WHITE)
+            textSize = 10f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((6 * d).toInt(), (2 * d).toInt(), (6 * d).toInt(), (2 * d).toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.END
+            ).apply {
+                marginEnd = (5 * d).toInt()
+                bottomMargin = (5 * d).toInt()
+            }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#B3000000"))
+                cornerRadius = 4f * d
+            }
+        }
+
+        val progressLineView = View(context).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.parseColor("#2ECC71"))
+            layoutParams = FrameLayout.LayoutParams(
+                0,
+                (2.5f * d).toInt(),
+                Gravity.BOTTOM or Gravity.START
+            )
+        }
+
+        thumbFrame.addView(imgThumb)
+        thumbFrame.addView(imgCornerFolderBadge)
+        thumbFrame.addView(tvUltraBadge)
+        thumbFrame.addView(tvDurationPill)
+        thumbFrame.addView(progressLineView)
+        thumbCard.addView(thumbFrame)
+
+        val bottomTitleRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
+            setPadding(0, (6 * d).toInt(), 0, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val tvTitle = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            textSize = 13.5f
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val btnMore = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams((26 * d).toInt(), (32 * d).toInt())
+            setPadding((4 * d).toInt(), (4 * d).toInt(), (2 * d).toInt(), (4 * d).toInt())
+        }
+
+        bottomTitleRow.addView(tvTitle)
+        bottomTitleRow.addView(btnMore)
+
+        rootCol.addView(thumbCard)
+        rootCol.addView(bottomTitleRow)
+
+        return VideoViewHolder(
+            view = rootCol,
+            imgThumbnail = imgThumb,
+            tvDurationPill = tvDurationPill,
+            tvUltraBadge = tvUltraBadge,
+            imgCornerFolderBadge = imgCornerFolderBadge,
+            progressLineView = progressLineView,
+            tvTitle = tvTitle,
+            tvMetaSub = null,
+            folderChipLayout = null,
+            imgFolderChipIcon = null,
+            tvFolderChipName = null,
+            btnMore = btnMore
+        )
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
         val d = context.resources.displayMetrics.density
         val video = videoList[position]
-        val theme = ThemeStudioHelper.getCurrentTheme(context)
-        val accentColor = Color.parseColor(theme.accentHex)
         val isSelected = selectedPaths.contains(video.path)
 
-        val cleanDisplayTitle = video.title.substringBeforeLast('.').replace("_", " ").trim().ifEmpty { video.title }
-        holder.tvTitle.maxLines = 2
-        holder.tvTitle.ellipsize = TextUtils.TruncateAt.END
-        holder.tvTitle.textSize = 14.5f
-        holder.tvTitle.typeface = Typeface.DEFAULT_BOLD
-
+        val displayTitle = video.title.substringBeforeLast('.')
         if (highlightQuery.isNotEmpty()) {
-            val span = SpannableString(cleanDisplayTitle)
-            val lowerTitle = cleanDisplayTitle.lowercase(Locale.US)
+            val span = SpannableString(displayTitle)
+            val lowerTitle = displayTitle.lowercase(Locale.US)
             val lowerQ = highlightQuery.lowercase(Locale.US)
             var startIdx = lowerTitle.indexOf(lowerQ)
             while (startIdx >= 0) {
-                val endIdx = (startIdx + lowerQ.length).coerceAtMost(cleanDisplayTitle.length)
+                val endIdx = (startIdx + lowerQ.length).coerceAtMost(displayTitle.length)
                 span.setSpan(
-                    ForegroundColorSpan(Color.parseColor("#FFD700")),
+                    ForegroundColorSpan(Color.parseColor("#2ECC71")),
                     startIdx,
                     endIdx,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -389,63 +671,76 @@ class VideoAdapter(
             holder.tvTitle.text = span
             holder.tvTitle.setTextColor(Color.WHITE)
         } else {
-            holder.tvTitle.text = cleanDisplayTitle
-            holder.tvTitle.setTextColor(if (isSelected) accentColor else Color.WHITE)
-        }
-
-        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
-        val watchedMs = prefs.getLong("watched_pos_${video.path}", 0L)
-        val totalDurMs = if (video.duration in 1L..3600L) video.duration * 1000L else video.duration.coerceAtLeast(1L)
-        val watchedRatio = if (watchedMs > 3000L && totalDurMs > 0L) {
-            (watchedMs.toFloat() / totalDurMs.toFloat()).coerceIn(0.04f, 1.0f)
-        } else {
-            0f
+            holder.tvTitle.text = displayTitle
+            holder.tvTitle.setTextColor(if (isSelected) Color.parseColor("#2ECC71") else Color.WHITE)
         }
 
         val durStr = formatVideoDurationAny(video.duration)
-        val resBadge = detectResolutionLabel(video.title, video.size)
-        val sizeStr = formatVideoSize(video.size)
-        val resumeTag = when {
-            watchedRatio in 0.04f..0.94f -> "  •  RESUME ${(watchedRatio * 100).toInt()}%"
-            watchedRatio > 0.94f -> "  •  WATCHED"
-            else -> ""
+        holder.tvDurationPill.text = "▶ $durStr"
+
+        val resTag = detectPlayItResolutionTag(video.title, video.size)
+        val sizeStr = formatPlayItVideoSize(video.size)
+        holder.tvMetaSub?.text = "$resTag | $sizeStr"
+
+        // Show Golden 8k badge on thumbnail when 8K
+        if (resTag.equals("8k", ignoreCase = true)) {
+            holder.tvUltraBadge.text = "8k"
+            holder.tvUltraBadge.visibility = View.VISIBLE
+        } else {
+            holder.tvUltraBadge.visibility = View.GONE
         }
 
-        if (holder.tvMetaSub != null) {
-            holder.tvDuration?.text = durStr
-            holder.tvMetaSub.text = "$resBadge  •  $sizeStr$resumeTag"
-            holder.tvMetaSub.setTextColor(if (watchedRatio in 0.04f..0.94f) Color.parseColor("#00E676") else Color.parseColor("#9FB4CE"))
+        val folderName = File(video.path).parentFile?.name?.ifEmpty { "Videos" } ?: "Videos"
+        val isBlueFolder = abs(folderName.hashCode()) % 2 == 1
+        val folderIconDrawable = MiniSourceFolderIconDrawable(
+            d = d,
+            bgColor = if (isBlueFolder) Color.parseColor("#1E88E5") else Color.parseColor("#FBC02D"),
+            isCircle = isBlueFolder
+        )
+
+        holder.tvFolderChipName?.text = folderName
+        holder.imgFolderChipIcon?.setImageDrawable(folderIconDrawable)
+
+        if (isGridMode) {
+            holder.imgCornerFolderBadge.visibility = View.VISIBLE
+            holder.imgCornerFolderBadge.setImageDrawable(folderIconDrawable)
         } else {
-            holder.tvDuration?.text = "$durStr  •  $resBadge  •  $sizeStr$resumeTag"
-            holder.tvDuration?.setTextColor(if (watchedRatio in 0.04f..0.94f) Color.parseColor("#00E676") else Color.parseColor("#9FB4CE"))
+            holder.imgCornerFolderBadge.visibility = View.GONE
+        }
+
+        // Watched progress bar at bottom of thumbnail
+        val prefs = context.getSharedPreferences("MAX_PLAYER_PREFS", Context.MODE_PRIVATE)
+        val watchedMs = prefs.getLong("watched_pos_${video.path}", 0L)
+        val totalDurMs = if (video.duration in 1L..3600L) video.duration * 1000L else video.duration.coerceAtLeast(1L)
+        if (watchedMs > 3000L && totalDurMs > 0L) {
+            val ratio = (watchedMs.toFloat() / totalDurMs.toFloat()).coerceIn(0.08f, 1.0f)
+            holder.progressLineView.visibility = View.VISIBLE
+            holder.progressLineView.post {
+                val parentW = (holder.progressLineView.parent as? View)?.width ?: 0
+                holder.progressLineView.layoutParams = holder.progressLineView.layoutParams.apply {
+                    width = (parentW * ratio).toInt()
+                }
+                holder.progressLineView.requestLayout()
+            }
+        } else {
+            holder.progressLineView.visibility = View.GONE
         }
 
         loadGuaranteedVideoThumbnail(context, video.path, holder.imgThumbnail)
 
-        // Overlay sleek bottom Resume Progress Line on the video thumbnail
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            holder.imgThumbnail.foreground = if (watchedRatio > 0.03f) {
-                ThumbnailResumeProgressOverlay(d, watchedRatio)
-            } else {
-                null
+        holder.btnMore.clearColorFilter()
+        if (isMultiSelectMode) {
+            holder.btnMore.setImageDrawable(SelectionCheckCircleDrawable(d, isSelected, Color.parseColor("#2ECC71")))
+            holder.btnMore.setOnClickListener {
+                toggleItemSelection(video.path, holder.adapterPosition)
             }
-        }
-
-        holder.btnMore?.let { rightIcon ->
-            rightIcon.clearColorFilter()
-            if (isMultiSelectMode) {
-                rightIcon.setImageDrawable(SelectionCheckCircleDrawable(d, isSelected, accentColor))
-                rightIcon.setOnClickListener {
-                    toggleItemSelection(video.path, holder.adapterPosition)
-                }
-            } else {
-                rightIcon.setImageDrawable(ThreeDotsMenuDrawable(d))
-                rightIcon.setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    val pos = holder.adapterPosition
-                    if (pos in videoList.indices) {
-                        showVideoItemMenu(pos)
-                    }
+        } else {
+            holder.btnMore.setImageDrawable(ThreeDotsMenuDrawable(d))
+            holder.btnMore.setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                val pos = holder.adapterPosition
+                if (pos in videoList.indices) {
+                    showVideoItemMenu(pos)
                 }
             }
         }
@@ -517,14 +812,14 @@ class VideoAdapter(
         val options = arrayOf(
             "Play Video Now",
             "Select Multiple Videos (Batch Share / Delete)",
-            "Play in Background Audio Bar",
-            "Convert Video to MP3 Audio",
-            if (isFav) "Remove from Favorites" else "Add to Favorites",
-            "Lock Video in Privacy Vault",
+            "Play in Background Audio",
+            "Convert to MP3 Audio",
+            if (isFav) "Remove from Favorite Videos" else "Add to Favorite Videos",
+            "Lock in Privacy Vault",
             "Share via Turbo Share",
             "Share via Other Apps",
-            "Video Resolution & File Details",
-            "Move to Recycle Bin / Delete"
+            "Properties & File Path",
+            "Delete / Move to Recycle Bin"
         )
 
         VideoFragment.showBrightVideoMenuDialog(context, item.title, options) { which ->
@@ -552,7 +847,7 @@ class VideoAdapter(
                     prefs.edit().putBoolean("fav_${item.path}", !isFav).apply()
                     Toast.makeText(
                         context,
-                        if (!isFav) "Added to Favorites" else "Removed from Favorites",
+                        if (!isFav) "Added to Favorite Videos" else "Removed from Favorite Videos",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -579,15 +874,15 @@ class VideoAdapter(
                     }
                 }
                 8 -> {
-                    val res = detectResolutionLabel(item.title, item.size)
+                    val res = detectPlayItResolutionTag(item.title, item.size)
                     val durStr = formatVideoDurationAny(item.duration)
                     AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setTitle("Video Details & Info")
+                        .setTitle("Video Properties")
                         .setMessage(
                             "Title: ${item.title}\n\n" +
                                 "Quality: $res\n\n" +
                                 "Duration: $durStr\n\n" +
-                                "Size: ${formatVideoSize(item.size)}\n\n" +
+                                "Size: ${formatPlayItVideoSize(item.size)}\n\n" +
                                 "Location: ${item.path}"
                         )
                         .setPositiveButton("OK", null)
@@ -614,51 +909,58 @@ class VideoAdapter(
 
     override fun getItemCount(): Int = videoList.size
 
-    private fun detectResolutionLabel(title: String, sizeBytes: Long): String {
+    private fun detectPlayItResolutionTag(title: String, sizeBytes: Long): String {
         val u = title.uppercase(Locale.US)
         return when {
-            u.contains("8K") || u.contains("4320P") -> "8K"
-            u.contains("4K") || u.contains("2160P") -> "4K"
-            u.contains("2K") || u.contains("1440P") -> "2K"
+            u.contains("8K") || u.contains("4320P") -> "8k"
+            u.contains("4K") || u.contains("2160P") -> "4k"
+            u.contains("2K") || u.contains("1440P") -> "2k"
             u.contains("1080P") || u.contains("FHD") -> "1080p"
             u.contains("720P") || u.contains("HD") -> "720p"
+            u.contains("480P") -> "480p"
             u.contains("360P") -> "360p"
-            sizeBytes > 250L * 1024L * 1024L -> "4K / FHD"
-            sizeBytes > 50L * 1024L * 1024L -> "1080p"
-            sizeBytes > 12L * 1024L * 1024L -> "720p"
-            else -> "HD"
+            sizeBytes > 250L * 1024L * 1024L -> "4k"
+            sizeBytes > 90L * 1024L * 1024L -> "2k"
+            sizeBytes > 35L * 1024L * 1024L -> "1080p"
+            else -> "720p"
         }
     }
 
-    private fun formatVideoSize(bytes: Long): String {
+    private fun formatPlayItVideoSize(bytes: Long): String {
         val mb = bytes.coerceAtLeast(0L) / (1024.0 * 1024.0)
         return if (mb >= 1024.0) {
-            String.format(Locale.US, "%.2f GB", mb / 1024.0)
+            String.format(Locale.US, "%.2fGB", mb / 1024.0)
         } else {
-            String.format(Locale.US, "%.1f MB", mb)
+            String.format(Locale.US, "%.2fMB", mb)
         }
     }
 
-    private class ThumbnailResumeProgressOverlay(
+    private class MiniSourceFolderIconDrawable(
         private val d: Float,
-        private val progressFraction: Float
+        private val bgColor: Int,
+        private val isCircle: Boolean
     ) : Drawable() {
-        private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#88000000")
+            color = bgColor
         }
-        private val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#FF1744")
+            color = Color.WHITE
         }
 
         override fun draw(canvas: Canvas) {
             val b = bounds
             val w = b.width().toFloat()
             val h = b.height().toFloat()
-            val barH = 3.2f * d
-            canvas.drawRect(0f, h - barH, w, h, trackPaint)
-            canvas.drawRect(0f, h - barH, w * progressFraction.coerceIn(0f, 1f), h, progressPaint)
+            val cx = b.exactCenterX()
+            val cy = b.exactCenterY()
+            if (isCircle) {
+                canvas.drawCircle(cx, cy, w.coerceAtMost(h) * 0.48f, bgPaint)
+            } else {
+                canvas.drawRoundRect(RectF(0f, 0f, w, h), 3f * d, 3f * d, bgPaint)
+            }
+            canvas.drawCircle(cx, cy, w.coerceAtMost(h) * 0.20f, centerPaint)
         }
 
         override fun setAlpha(alpha: Int) {}
@@ -710,7 +1012,7 @@ class VideoAdapter(
     private class ThreeDotsMenuDrawable(private val d: Float) : Drawable() {
         private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#B0C4DE")
+            color = Color.parseColor("#8E959E")
         }
 
         override fun draw(canvas: Canvas) {
@@ -718,8 +1020,8 @@ class VideoAdapter(
             val cx = b.exactCenterX()
             val cy = b.exactCenterY()
             val r = b.width().coerceAtMost(b.height()) * 0.42f
-            val dotR = 2.0f * d
-            val gap = r * 0.45f
+            val dotR = 1.6f * d
+            val gap = r * 0.52f
             canvas.drawCircle(cx, cy - gap, dotR, dotPaint)
             canvas.drawCircle(cx, cy, dotR, dotPaint)
             canvas.drawCircle(cx, cy + gap, dotR, dotPaint)
