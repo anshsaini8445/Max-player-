@@ -13,7 +13,6 @@ import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Shader
@@ -30,6 +29,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.LruCache
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,8 +39,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.io.File
 import java.util.ArrayList
 import java.util.Locale
@@ -65,13 +63,6 @@ class AudioAdapter(
         private val artMemoryCache = object : LruCache<String, Bitmap>(160) {}
         private val artExtractorPool = Executors.newFixedThreadPool(4)
 
-        /**
-         * Guaranteed Instant Song Photo Loader:
-         * 1. Instant RAM LruCache lookup (< 1ms) so switching from Video to Audio shows photos immediately.
-         * 2. Extracts real embedded ID3 cover photo from the audio file or MediaStore Album Art URI.
-         * 3. Generates a realistic high-definition Studio Vinyl Cover Photo if a file has no embedded cover,
-         *    guaranteeing every single song always displays a crisp photo on screen.
-         */
         fun loadAlbumArtOrFallbackInto(
             context: Context,
             path: String,
@@ -88,7 +79,6 @@ class AudioAdapter(
                 return
             }
 
-            // Immediately display a crisp generated studio cover so the image box is never blank when switching tabs
             val fallbackStudioBmp = createRealisticStudioCoverBitmap(title)
             imageView.setImageBitmap(fallbackStudioBmp)
 
@@ -118,7 +108,6 @@ class AudioAdapter(
                     }
                 }
 
-                // Fallback to MediaStore Album Art if no embedded ID3 picture was found
                 if (extractedBitmap == null) {
                     extractedBitmap = queryMediaStoreAlbumArtBitmap(context, path)
                 }
@@ -176,7 +165,7 @@ class AudioAdapter(
             val palettes = arrayOf(
                 intArrayOf(Color.parseColor("#1D2B64"), Color.parseColor("#F8CDDA")),
                 intArrayOf(Color.parseColor("#0F2027"), Color.parseColor("#2C5364")),
-                intArrayOf(Color.parseColor("#3A1C71"), Color.parseColor("#D76Z77".replace('Z', 'D'))),
+                intArrayOf(Color.parseColor("#3A1C71"), Color.parseColor("#D76D77")),
                 intArrayOf(Color.parseColor("#134E5E"), Color.parseColor("#71B280")),
                 intArrayOf(Color.parseColor("#232526"), Color.parseColor("#414345")),
                 intArrayOf(Color.parseColor("#1A2980"), Color.parseColor("#26D0CE"))
@@ -199,7 +188,6 @@ class AudioAdapter(
             val cx = size / 2f
             val cy = size / 2f
 
-            // Realistic Studio Vinyl Disc & White Music Note
             val discPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = Color.parseColor("#CC0A0A10")
@@ -225,7 +213,6 @@ class AudioAdapter(
                 style = Paint.Style.FILL
                 color = Color.WHITE
             }
-
             canvas.drawLine(cx - 12f, cy + 16f, cx - 12f, cy - 22f, notePaint)
             canvas.drawLine(cx + 18f, cy + 12f, cx + 18f, cy - 26f, notePaint)
             canvas.drawLine(cx - 12f, cy - 22f, cx + 18f, cy - 26f, notePaint)
@@ -235,10 +222,6 @@ class AudioAdapter(
             return bmp
         }
 
-        /**
-         * Unified Pure-White (#FFFFFF) Menu Dialog for Audio 3-Dot Actions:
-         * Ignores theme accent colors so all text, icons, and borders stay strictly Pure White.
-         */
         fun showPureWhiteAudioMenuDialog(
             context: Context,
             headerTitle: String,
@@ -250,9 +233,9 @@ class AudioAdapter(
                 orientation = LinearLayout.VERTICAL
                 setPadding((18 * d).toInt(), (18 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#F50A0A10"))
-                    cornerRadius = 24f * d
-                    setStroke((1.5f * d).toInt(), Color.parseColor("#55FFFFFF"))
+                    setColor(Color.parseColor("#F810141E"))
+                    cornerRadius = 22f * d
+                    setStroke((1 * d).toInt(), Color.parseColor("#26FFFFFF"))
                 }
             }
 
@@ -262,13 +245,13 @@ class AudioAdapter(
             val headerRow = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding((8 * d).toInt(), (2 * d).toInt(), (4 * d).toInt(), (12 * d).toInt())
+                setPadding((6 * d).toInt(), (2 * d).toInt(), (4 * d).toInt(), (12 * d).toInt())
             }
 
             val tvHeader = TextView(context).apply {
-                text = headerTitle
+                text = AudioThreeDotMenuHelper.formatCleanSongTitle(headerTitle)
                 setTextColor(Color.WHITE)
-                textSize = 16.5f
+                textSize = 16f
                 typeface = Typeface.DEFAULT_BOLD
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -276,16 +259,15 @@ class AudioAdapter(
             }
 
             val btnDone = TextView(context).apply {
-                text = "..."
+                text = "Close"
                 setTextColor(Color.WHITE)
-                textSize = 16f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (36 * d).toInt())
+                setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
                 background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.parseColor("#28FFFFFF"))
-                    setStroke((1.2f * d).toInt(), Color.WHITE)
+                    cornerRadius = 12f * d
+                    setColor(Color.parseColor("#1EFFFFFF"))
                 }
                 setOnClickListener { dialog.dismiss() }
             }
@@ -299,7 +281,7 @@ class AudioAdapter(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     (1 * d).toInt()
                 )
-                setBackgroundColor(Color.parseColor("#33FFFFFF"))
+                setBackgroundColor(Color.parseColor("#22FFFFFF"))
             }
             rootCard.addView(topDivider)
 
@@ -313,7 +295,7 @@ class AudioAdapter(
                 val row = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding((12 * d).toInt(), (13 * d).toInt(), (12 * d).toInt(), (13 * d).toInt())
+                    setPadding((12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt(), (12 * d).toInt())
                     layoutParams = LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
@@ -322,9 +304,8 @@ class AudioAdapter(
                         bottomMargin = (3 * d).toInt()
                     }
                     background = GradientDrawable().apply {
-                        setColor(Color.parseColor("#18FFFFFF"))
-                        cornerRadius = 14f * d
-                        setStroke((1 * d).toInt(), Color.parseColor("#33FFFFFF"))
+                        setColor(Color.parseColor("#14FFFFFF"))
+                        cornerRadius = 12f * d
                     }
                     setOnClickListener {
                         dialog.dismiss()
@@ -333,7 +314,7 @@ class AudioAdapter(
                 }
 
                 val bulletDot = View(context).apply {
-                    layoutParams = LinearLayout.LayoutParams((8 * d).toInt(), (8 * d).toInt()).apply {
+                    layoutParams = LinearLayout.LayoutParams((6 * d).toInt(), (6 * d).toInt()).apply {
                         marginEnd = (12 * d).toInt()
                     }
                     background = GradientDrawable().apply {
@@ -345,7 +326,7 @@ class AudioAdapter(
                 val tvItem = TextView(context).apply {
                     text = label
                     setTextColor(Color.WHITE)
-                    textSize = 15f
+                    textSize = 14.5f
                     typeface = Typeface.DEFAULT_BOLD
                     layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 }
@@ -449,37 +430,36 @@ class AudioAdapter(
         val song = audioList[position]
         val isSelected = selectedPaths.contains(song.path)
 
-        holder.tvTitle.text = song.title.substringBeforeLast('.')
+        holder.tvTitle.text = AudioThreeDotMenuHelper.formatCleanSongTitle(song.title)
         holder.tvTitle.setTextColor(Color.WHITE)
-        holder.tvTitle.textSize = 15.5f
+        holder.tvTitle.textSize = 15f
         holder.tvTitle.typeface = Typeface.DEFAULT_BOLD
+        holder.tvTitle.maxLines = 1
+        holder.tvTitle.ellipsize = TextUtils.TruncateAt.END
 
         val durStr = formatAudioDuration(song.duration)
         val ext = File(song.path).extension.uppercase(Locale.US).ifEmpty { "MP3" }
-        val artistName = song.artist.ifEmpty { "Unknown Artist" }
+        val artistName = song.artist.takeIf {
+            it.isNotBlank() && !it.equals("Hi-Res Studio Audio", ignoreCase = true)
+        } ?: "Unknown Artist"
         holder.tvArtist?.text = "$artistName  •  $durStr  •  $ext"
-        holder.tvArtist?.setTextColor(Color.parseColor("#D8E2F0"))
-        holder.tvArtist?.textSize = 12.5f
+        holder.tvArtist?.setTextColor(Color.parseColor("#9FB4CE"))
+        holder.tvArtist?.textSize = 12f
 
-        // Enlarge photo thumbnail container slightly for a modern studio look
         holder.imgCover.layoutParams = holder.imgCover.layoutParams?.apply {
-            width = (56 * d).toInt()
-            height = (56 * d).toInt()
+            width = (52 * d).toInt()
+            height = (52 * d).toInt()
         }
         loadAlbumArtOrFallbackInto(context, song.path, song.title, holder.imgCover)
 
         holder.btnMore?.let { moreIcon ->
             moreIcon.clearColorFilter()
             moreIcon.layoutParams = moreIcon.layoutParams?.apply {
-                width = (44 * d).toInt()
-                height = (44 * d).toInt()
+                width = (40 * d).toInt()
+                height = (40 * d).toInt()
             }
             moreIcon.setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
-            moreIcon.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#22FFFFFF"))
-                setStroke((1 * d).toInt(), Color.parseColor("#44FFFFFF"))
-            }
+            moreIcon.background = null
 
             if (isMultiSelectMode) {
                 moreIcon.setImageDrawable(PureWhiteSelectionCheckDrawable(d, isSelected))
@@ -489,6 +469,7 @@ class AudioAdapter(
             } else {
                 moreIcon.setImageDrawable(PureWhiteThreeDotsDrawable(d))
                 moreIcon.setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     val pos = holder.adapterPosition
                     if (pos in audioList.indices) {
                         showSongThreeDotMenu(pos)
@@ -497,8 +478,8 @@ class AudioAdapter(
             }
         }
 
-        // 2-Second Long Hold activates Multi-Select Mode (Select All / Hybrid Share / Share Apps / Delete)
         holder.itemView.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             val pos = holder.adapterPosition
             if (pos in audioList.indices) {
                 val item = audioList[pos]
@@ -545,9 +526,11 @@ class AudioAdapter(
     private fun openSongInAudioPlayer(index: Int) {
         if (index !in audioList.indices) return
         val selected = audioList[index]
+
         val paths = ArrayList<String>(audioList.size)
         val titles = ArrayList<String>(audioList.size)
         val artists = ArrayList<String>(audioList.size)
+
         for (s in audioList) {
             paths.add(s.path)
             titles.add(s.title)
@@ -573,17 +556,17 @@ class AudioAdapter(
         val isFav = prefs.getBoolean("fav_audio_${song.path}", false)
 
         val options = arrayOf(
-            "Play Song Now (Hi-Res Studio Player)",
-            "Select Multiple Songs (Batch Delete / Share)",
+            "Play Song Now",
+            "Select Multiple Songs (Batch Share / Delete)",
             if (isFav) "Remove from Favorites" else "Add to Favorites",
             "5-Band Dolby Equalizer & Bass Boost",
             "Sound & Pitch Lab (Lofi / Slowed + Reverb)",
             "Set Song as Phone Ringtone",
-            "Share via Hybrid Turbo Share",
-            "Share via Other Apps (WhatsApp / Bluetooth)",
-            "Lock Song into Secret Privacy Vault",
+            "Share via Turbo Share",
+            "Share via Other Apps",
+            "Lock Song in Privacy Vault",
             "Song Details & File Path",
-            "Delete Song Permanently (From Phone)"
+            "Delete Song"
         )
 
         showPureWhiteAudioMenuDialog(context, song.title, options) { which ->
@@ -645,7 +628,7 @@ class AudioAdapter(
                     AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                         .setTitle("Audio Track Details")
                         .setMessage(
-                            "Title: ${song.title}\n\n" +
+                            "Title: ${AudioThreeDotMenuHelper.formatCleanSongTitle(song.title)}\n\n" +
                                 "Artist: ${song.artist}\n\n" +
                                 "Duration: ${formatAudioDuration(song.duration)}\n\n" +
                                 "Size: $sizeMb\n\n" +
@@ -703,7 +686,7 @@ class AudioAdapter(
                     RingtoneManager.TYPE_RINGTONE,
                     ringtoneUri
                 )
-                Toast.makeText(context, "Ringtone Set: ${song.title}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Ringtone Set: ${AudioThreeDotMenuHelper.formatCleanSongTitle(song.title)}", Toast.LENGTH_LONG).show()
             }
         } catch (_: Exception) {
             Toast.makeText(context, "Unable to set ringtone", Toast.LENGTH_SHORT).show()
@@ -767,7 +750,7 @@ class AudioAdapter(
     private class PureWhiteThreeDotsDrawable(private val d: Float) : Drawable() {
         private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.WHITE
+            color = Color.parseColor("#B0C4DE")
         }
 
         override fun draw(canvas: Canvas) {
@@ -775,7 +758,7 @@ class AudioAdapter(
             val cx = b.exactCenterX()
             val cy = b.exactCenterY()
             val r = b.width().coerceAtMost(b.height()) * 0.44f
-            val dotR = 2.3f * d
+            val dotR = 2.1f * d
             val gap = r * 0.48f
             canvas.drawCircle(cx, cy - gap, dotR, dotPaint)
             canvas.drawCircle(cx, cy, dotR, dotPaint)
