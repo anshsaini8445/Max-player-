@@ -4,14 +4,14 @@ import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.PixelFormat
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
@@ -55,25 +55,25 @@ object MascotCompanionHelper {
     )
 
     val characters = listOf(
-        MascotCharacter("PUPPY_GOLD", "Golden Puppy", "Real Walking Puppy"),
-        MascotCharacter("HUSKY_DOG", "Siberian Husky", "Snow Wolf Dog"),
-        MascotCharacter("POM_PUPPY", "Fluffy Pomeranian", "Cute Pocket Dog"),
-        MascotCharacter("TEDDY", "Dancing Teddy", "Full-Body Bear"),
-        MascotCharacter("BULL", "Power Bull", "Strong Bhaisa"),
-        MascotCharacter("CAT", "Neon Kitty", "Agile Walking Cat"),
-        MascotCharacter("PANDA", "Groove Panda", "Bamboo Panda"),
-        MascotCharacter("ROBOT", "Cyber Bot", "8K Mecha Companion")
+        MascotCharacter("PUPPY_GOLD", "Golden Retriever Puppy", "Lifelike Fluffy Puppy"),
+        MascotCharacter("HUSKY_DOG", "Siberian Husky Puppy", "Blue-Eyed Snow Puppy"),
+        MascotCharacter("POM_PUPPY", "Pomeranian Teddy Puppy", "Fluffy Cloud Coat"),
+        MascotCharacter("TEDDY", "Plush Cuddle Teddy", "Realistic Velvet Bear"),
+        MascotCharacter("BULL", "Royal Power Bull", "Muscular Horned Bull"),
+        MascotCharacter("CAT", "Persian Fur Kitten", "Whiskered Soft Kitty"),
+        MascotCharacter("PANDA", "Bamboo Baby Panda", "3D Plush Panda"),
+        MascotCharacter("ROBOT", "Cyber Mecha Puppy", "Glowing Visor Bot")
     )
 
     val colorOptions = listOf(
-        MascotColorOption("Golden Honey", "#FFB300", "#8D4E00", "#FFF8E1"),
-        MascotColorOption("Cyber Cyan", "#00E5FF", "#006064", "#E0F7FA"),
-        MascotColorOption("Snow White & Blue", "#ECEFF1", "#37474F", "#FFFFFF"),
-        MascotColorOption("Sakura Pink", "#FF4081", "#880E4F", "#FCE4EC"),
-        MascotColorOption("Emerald Neon", "#00E676", "#1B5E20", "#E8F5E9"),
-        MascotColorOption("Royal Purple", "#B388FF", "#4A148C", "#F3E5F5"),
-        MascotColorOption("Chocolate Brown", "#8D6E63", "#3E2723", "#D7CCC8"),
-        MascotColorOption("Crimson Flame", "#FF5252", "#B71C1C", "#FFEBEE")
+        MascotColorOption("Golden Honey Fur", "#F5A623", "#8B4513", "#FFF5E4"),
+        MascotColorOption("Creamy Biscuit", "#E6C29F", "#7E5232", "#FFFDF9"),
+        MascotColorOption("Arctic Husky Silver", "#CFD8DC", "#37474F", "#FFFFFF"),
+        MascotColorOption("Chocolate Velvet", "#8D6E63", "#3E2723", "#EFEBE9"),
+        MascotColorOption("Sakura Plush Pink", "#F48FB1", "#880E4F", "#FCE4EC"),
+        MascotColorOption("Cyber Neon Cyan", "#00E5FF", "#006064", "#E0F7FA"),
+        MascotColorOption("Emerald Mint", "#00E676", "#1B5E20", "#E8F5E9"),
+        MascotColorOption("Royal Lavender", "#B388FF", "#4A148C", "#F3E5F5")
     )
 
     fun isMascotEnabled(context: Context): Boolean {
@@ -108,14 +108,6 @@ object MascotCompanionHelper {
         hiddenOnVideoScreenForSession = false
     }
 
-    /**
-     * Full-Body Physics & Autonomous Walking Mascot Engine:
-     * 1. Has a complete articulated body: Head (Sar), Belly/Torso (Pet), 2 Arms (Do Hath), 2 Legs (Do Tang), and Tail.
-     * 2. Real Gravity & Fling Physics: Falls down to the bottom floor, can be thrown up/down/left/right and bounces off walls.
-     * 3. Autonomous Walking: Walks left and right along the floor on its two legs when idle.
-     * 4. Beat Dancing: Dances with arms, legs, and head when music or background video audio plays.
-     * 5. 2-Second Hold: Holding for 2 seconds over a song/video plays it, or holding stationary for 2 seconds dismisses it.
-     */
     fun attachInteractiveMascot(
         context: Context,
         hostContainer: ViewGroup,
@@ -129,13 +121,12 @@ object MascotCompanionHelper {
             if (existing != null) {
                 hostContainer.removeView(existing)
             }
-
             if (!isMascotEnabled(context)) return null
             if (isVideoScreen && hiddenOnVideoScreenForSession) return null
 
             val d = context.resources.displayMetrics.density
-            val widthPx = (86 * d).toInt()
-            val heightPx = (104 * d).toInt()
+            val widthPx = (90 * d).toInt()
+            val heightPx = (108 * d).toInt()
             val colorOpt = getSelectedColor(context)
 
             val mascotView = FullBodyArticulatedMascotView(
@@ -170,7 +161,6 @@ object MascotCompanionHelper {
             var touchDownRawY = 0f
             var lastMoveRawY = 0f
 
-            // Physics & Autonomous Walking state
             var posX = -1f
             var posY = -1f
             var velX = 0f
@@ -208,14 +198,12 @@ object MascotCompanionHelper {
                     mascotView.setDancingState(dancingNow)
 
                     if (!isDragging) {
-                        // Apply gravity when above the floor or moving vertically
                         if (posY < floorY - 1f || abs(velY) > 0.5f) {
                             velY += gravityAccel
                             posY += velY
                             posX += velX
                             mascotView.setAirborneState(true)
 
-                            // Bounce off left/right screen edges
                             if (posX <= 0f) {
                                 posX = 0f
                                 velX = abs(velX) * 0.7f
@@ -226,13 +214,11 @@ object MascotCompanionHelper {
                                 walkDir = -1f
                             }
 
-                            // Bounce off top ceiling
                             if (posY <= 0f) {
                                 posY = 0f
                                 velY = abs(velY) * 0.6f
                             }
 
-                            // Land on bottom floor
                             if (posY >= floorY) {
                                 posY = floorY
                                 if (abs(velY) > 6f * d) {
@@ -244,7 +230,6 @@ object MascotCompanionHelper {
                                 }
                             }
                         } else {
-                            // Standing on the bottom floor
                             posY = floorY
                             velY = 0f
                             mascotView.setAirborneState(false)
@@ -256,7 +241,6 @@ object MascotCompanionHelper {
                                 mascotView.setWalkingState(true)
                             } else {
                                 velX = 0f
-                                // Autonomous floor walking when not dancing
                                 if (dancingNow) {
                                     mascotView.setWalkingState(false)
                                 } else {
@@ -287,16 +271,13 @@ object MascotCompanionHelper {
                                 }
                             }
                         }
-
                         mascotView.x = posX
                         mascotView.y = posY
                     } else {
-                        // Currently being held/dragged by user
                         if (recyclerView != null && autoScrollVelocityPx != 0) {
                             recyclerView.scrollBy(0, autoScrollVelocityPx)
                         }
 
-                        // Check if held stationary to either trigger item playback or dismiss after 2.0 seconds
                         val movedDist = abs(mascotView.x - (touchDownRawX + dX)) + abs(mascotView.y - (touchDownRawY + dY))
                         if (movedDist < 14f * d && abs(autoScrollVelocityPx) < (6 * d).toInt()) {
                             var hoveredIndex = RecyclerView.NO_POSITION
@@ -334,7 +315,6 @@ object MascotCompanionHelper {
                                     mascotView.setHoldProgress(0f)
                                 }
                             } else {
-                                // Stationary 2-second hold on empty space removes the mascot for the session
                                 stationaryHoldMs += 20L
                                 mascotView.setHoldProgress((stationaryHoldMs / 2000f).coerceIn(0f, 1f))
                                 if (stationaryHoldMs >= 2000L) {
@@ -344,7 +324,7 @@ object MascotCompanionHelper {
                                     hostContainer.removeView(mascotView)
                                     Toast.makeText(
                                         context,
-                                        "Puppy hidden for this session (Re-enable anytime in Me -> Dancing Mascot)",
+                                        "Puppy hidden for this session",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     return
@@ -359,7 +339,6 @@ object MascotCompanionHelper {
 
                     animPhase += if (dancingNow) 0.24f else 0.16f
                     mascotView.stepAnimationPhase(animPhase)
-
                     mainHandler.postDelayed(this, 20L)
                 }
             }
@@ -423,7 +402,6 @@ object MascotCompanionHelper {
                         velocityTracker?.recycle()
                         velocityTracker = null
 
-                        // Convert finger fling velocity into physics throw velocity
                         velX = (vx / 48f).coerceIn(-34f * d, 34f * d)
                         velY = (vy / 48f).coerceIn(-40f * d, 36f * d)
 
@@ -460,7 +438,7 @@ object MascotCompanionHelper {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0A0A10"))
                 cornerRadius = 24f * d
-                setStroke((1.6f * d).toInt(), accentColor)
+                setStroke((1.4f * d).toInt(), accentColor)
             }
         }
 
@@ -474,7 +452,7 @@ object MascotCompanionHelper {
         }
 
         val tvHeader = TextView(context).apply {
-            text = "Real Walking & Dancing Puppy Studio"
+            text = "Realistic Puppy & Companion Studio"
             setTextColor(Color.WHITE)
             textSize = 16.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -482,18 +460,19 @@ object MascotCompanionHelper {
         }
 
         val btnClose = TextView(context).apply {
-            text = "X"
+            text = "Done"
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = 12.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams((30 * d).toInt(), (30 * d).toInt())
+            setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#26FFFFFF"))
+                cornerRadius = 14f * d
+                setColor(Color.parseColor("#22FFFFFF"))
             }
             setOnClickListener { dialog.dismiss() }
         }
+
         headerRow.addView(tvHeader)
         headerRow.addView(btnClose)
         root.addView(headerRow)
@@ -512,7 +491,7 @@ object MascotCompanionHelper {
         }
 
         val tvSwitchLabel = TextView(context).apply {
-            text = "Enable Walking & Gravity Puppy Companion\n(Walks on floor • Throw anywhere • Hold 2s to play or hide)"
+            text = "Enable Realistic Walking Puppy\n(Walks on floor • Throw anywhere • Hold 2s)"
             setTextColor(Color.WHITE)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -526,12 +505,13 @@ object MascotCompanionHelper {
                 onSettingsChanged()
             }
         }
+
         switchRow.addView(tvSwitchLabel)
         switchRow.addView(swEnable)
         col.addView(switchRow)
 
         val tvCharTitle = TextView(context).apply {
-            text = "CHOOSE FULL-BODY PUPPY / COMPANION"
+            text = "SELECT REALISTIC PUPPY BREED"
             setTextColor(Color.WHITE)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -558,7 +538,7 @@ object MascotCompanionHelper {
                 setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt())
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
-                    height = (78 * d).toInt()
+                    height = (82 * d).toInt()
                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                     setMargins((4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt(), (4 * d).toInt())
                 }
@@ -587,7 +567,7 @@ object MascotCompanionHelper {
                 secondaryColor = Color.parseColor(currentColor.secondaryHex),
                 bellyColor = Color.parseColor(currentColor.bellyHex)
             ).apply {
-                layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (58 * d).toInt()).apply {
+                layoutParams = LinearLayout.LayoutParams((52 * d).toInt(), (64 * d).toInt()).apply {
                     marginEnd = (6 * d).toInt()
                 }
             }
@@ -598,7 +578,7 @@ object MascotCompanionHelper {
             val tvName = TextView(context).apply {
                 text = character.name
                 setTextColor(Color.WHITE)
-                textSize = 12f
+                textSize = 11.5f
                 typeface = Typeface.DEFAULT_BOLD
             }
             val tvBadge = TextView(context).apply {
@@ -608,6 +588,7 @@ object MascotCompanionHelper {
             }
             txtCol.addView(tvName)
             txtCol.addView(tvBadge)
+
             card.addView(previewView)
             card.addView(txtCol)
             charGrid.addView(card)
@@ -615,7 +596,7 @@ object MascotCompanionHelper {
         col.addView(charGrid)
 
         val tvColorTitle = TextView(context).apply {
-            text = "CHOOSE PUPPY COAT & COLOR PALETTE"
+            text = "CHOOSE FUR COAT SHADING"
             setTextColor(Color.WHITE)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -668,8 +649,9 @@ object MascotCompanionHelper {
     }
 
     /**
-     * Full-Body Articulated Mascot View with:
-     * - Head (Sar), Torso/Belly (Pet), 2 Swingable Arms (Do Hath), 2 Walking/Dancing Legs (Do Tang), and Wagging Tail.
+     * Realistic 3D-Shaded Plush & Fur Puppy Renderer:
+     * Uses RadialGradient 3D fur shading, glossy multi-catchlight eyes, shaded 3D snout,
+     * realistic nose shine, soft blush cheeks, paw pads, and smooth articulated limbs.
      */
     class FullBodyArticulatedMascotView(
         context: Context,
@@ -697,6 +679,11 @@ object MascotCompanionHelper {
             color = primaryColor
         }
 
+        private val head3dPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = primaryColor
+        }
+
         private val secondaryPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
             color = secondaryColor
@@ -707,20 +694,35 @@ object MascotCompanionHelper {
             color = bellyColor
         }
 
-        private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val furOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 1.6f * d
-            color = Color.parseColor("#22000000")
+            strokeWidth = 1.4f * d
+            color = Color.parseColor("#2A000000")
         }
 
-        private val darkFeaturePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val darkEyePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#14141F")
+            color = Color.parseColor("#11131A")
+        }
+
+        private val huskyIrisPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#29B6F6")
+        }
+
+        private val nosePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#1B1412")
         }
 
         private val tonguePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#FF5252")
+            color = Color.parseColor("#FF6B81")
+        }
+
+        private val cheekBlushPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.parseColor("#44FF5252")
         }
 
         private val whitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -730,7 +732,7 @@ object MascotCompanionHelper {
 
         private val collarPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.parseColor("#FF1744")
+            color = Color.parseColor("#D32F2F")
         }
 
         private val bellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -740,16 +742,16 @@ object MascotCompanionHelper {
 
         private val holdRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 3.5f * d
+            strokeWidth = 3.2f * d
             strokeCap = Paint.Cap.ROUND
             color = Color.parseColor("#00E676")
         }
 
-        private val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-            color = Color.parseColor("#00FFFF")
-            textSize = 12f * d
-            typeface = Typeface.DEFAULT_BOLD
+        private val mouthStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1.6f * d
+            strokeCap = Paint.Cap.ROUND
+            color = Color.parseColor("#2B1D19")
         }
 
         fun setHoldProgress(progress: Float) {
@@ -786,12 +788,11 @@ object MascotCompanionHelper {
 
             val cx = w / 2f
             val bounceY = when {
-                isDancing -> abs(sin(phase * 1.5f)) * (-5.5f * d)
-                isWalking -> abs(sin(phase)) * (-2.5f * d)
-                else -> sin(phase * 0.4f) * (-1.2f * d)
+                isDancing -> abs(sin(phase * 1.5f)) * (-5.2f * d)
+                isWalking -> abs(sin(phase)) * (-2.4f * d)
+                else -> sin(phase * 0.45f) * (-1.2f * d)
             }
 
-            // 1. Ground Shadow under the two feet
             if (!isAirborne) {
                 val shadowRect = RectF(cx - w * 0.28f, h - 7f * d, cx + w * 0.28f, h - 2f * d)
                 canvas.drawOval(shadowRect, shadowPaint)
@@ -802,167 +803,221 @@ object MascotCompanionHelper {
                 canvas.scale(-1f, 1f, cx, h / 2f)
             }
 
-            val headCenterY = h * 0.30f + bounceY
-            val headR = w * 0.27f
-            val torsoTopY = headCenterY + headR * 0.72f
+            val headCenterY = h * 0.31f + bounceY
+            val headR = w * 0.28f
+            val torsoTopY = headCenterY + headR * 0.68f
             val torsoBottomY = h * 0.77f + bounceY
             val torsoHalfW = w * 0.22f
 
-            // 2. Wagging Tail behind the torso
-            val tailAngle = sin(phase * 2.2f) * 28f
-            canvas.save()
-            canvas.rotate(tailAngle, cx + torsoHalfW * 0.8f, torsoBottomY - 6f * d)
-            val tailRect = RectF(
-                cx + torsoHalfW * 0.5f,
-                torsoBottomY - 16f * d,
-                cx + torsoHalfW * 1.55f,
-                torsoBottomY - 6f * d
+            bodyPaint.shader = LinearGradient(
+                cx - torsoHalfW,
+                torsoTopY,
+                cx + torsoHalfW,
+                torsoBottomY,
+                primaryColor,
+                secondaryColor,
+                Shader.TileMode.CLAMP
             )
-            canvas.drawRoundRect(tailRect, 6f * d, 6f * d, secondaryPaint)
+
+            // 1. Fluffy Wagging Tail
+            val tailAngle = sin(phase * 2.4f) * 30f
+            canvas.save()
+            canvas.rotate(tailAngle, cx + torsoHalfW * 0.75f, torsoBottomY - 7f * d)
+            val tailPath = Path().apply {
+                moveTo(cx + torsoHalfW * 0.55f, torsoBottomY - 6f * d)
+                quadTo(
+                    cx + torsoHalfW * 1.65f,
+                    torsoBottomY - 22f * d,
+                    cx + torsoHalfW * 1.45f,
+                    torsoBottomY - 5f * d
+                )
+                close()
+            }
+            canvas.drawPath(tailPath, bodyPaint)
+            canvas.drawPath(tailPath, furOutlinePaint)
             canvas.restore()
 
-            // 3. TWO LEGS (Do Tang) with Walking / Dancing / Jumping articulation
+            // 2. Articulated Hind Legs & Soft Paw Pads
             val leftLegAngle = when {
-                isAirborne -> 24f
-                isDancing -> sin(phase * 1.5f) * 26f
-                isWalking -> sin(phase) * 30f
+                isAirborne -> 22f
+                isDancing -> sin(phase * 1.5f) * 25f
+                isWalking -> sin(phase) * 28f
                 else -> 0f
             }
             val rightLegAngle = when {
-                isAirborne -> -24f
-                isDancing -> -sin(phase * 1.5f) * 26f
-                isWalking -> -sin(phase) * 30f
+                isAirborne -> -22f
+                isDancing -> -sin(phase * 1.5f) * 25f
+                isWalking -> -sin(phase) * 28f
                 else -> 0f
             }
 
-            val legWidth = 10.5f * d
-            val legHeight = 20f * d
+            val legWidth = 11f * d
+            val legHeight = 19f * d
             val leftHipX = cx - torsoHalfW * 0.48f
             val rightHipX = cx + torsoHalfW * 0.48f
             val hipY = torsoBottomY - 4f * d
 
-            // Left Leg + Paw
+            // Left Leg
             canvas.save()
             canvas.rotate(leftLegAngle, leftHipX, hipY)
             val leftLegRect = RectF(leftHipX - legWidth / 2f, hipY, leftHipX + legWidth / 2f, hipY + legHeight)
-            canvas.drawRoundRect(leftLegRect, 5f * d, 5f * d, bodyPaint)
-            canvas.drawRoundRect(leftLegRect, 5f * d, 5f * d, outlinePaint)
-            val leftPawRect = RectF(leftHipX - legWidth * 0.7f, hipY + legHeight - 5f * d, leftHipX + legWidth * 0.6f, hipY + legHeight + 2f * d)
-            canvas.drawRoundRect(leftPawRect, 4f * d, 4f * d, secondaryPaint)
+            canvas.drawRoundRect(leftLegRect, 6f * d, 6f * d, bodyPaint)
+            canvas.drawRoundRect(leftLegRect, 6f * d, 6f * d, furOutlinePaint)
+            val leftPawRect = RectF(
+                leftHipX - legWidth * 0.68f,
+                hipY + legHeight - 5.5f * d,
+                leftHipX + legWidth * 0.62f,
+                hipY + legHeight + 2f * d
+            )
+            canvas.drawOval(leftPawRect, bellyPaint)
+            canvas.drawOval(leftPawRect, furOutlinePaint)
             canvas.restore()
 
-            // Right Leg + Paw
+            // Right Leg
             canvas.save()
             canvas.rotate(rightLegAngle, rightHipX, hipY)
             val rightLegRect = RectF(rightHipX - legWidth / 2f, hipY, rightHipX + legWidth / 2f, hipY + legHeight)
-            canvas.drawRoundRect(rightLegRect, 5f * d, 5f * d, bodyPaint)
-            canvas.drawRoundRect(rightLegRect, 5f * d, 5f * d, outlinePaint)
-            val rightPawRect = RectF(rightHipX - legWidth * 0.7f, hipY + legHeight - 5f * d, rightHipX + legWidth * 0.6f, hipY + legHeight + 2f * d)
-            canvas.drawRoundRect(rightPawRect, 4f * d, 4f * d, secondaryPaint)
+            canvas.drawRoundRect(rightLegRect, 6f * d, 6f * d, bodyPaint)
+            canvas.drawRoundRect(rightLegRect, 6f * d, 6f * d, furOutlinePaint)
+            val rightPawRect = RectF(
+                rightHipX - legWidth * 0.68f,
+                hipY + legHeight - 5.5f * d,
+                rightHipX + legWidth * 0.62f,
+                hipY + legHeight + 2f * d
+            )
+            canvas.drawOval(rightPawRect, bellyPaint)
+            canvas.drawOval(rightPawRect, furOutlinePaint)
             canvas.restore()
 
-            // 4. TORSO / BELLY (Pet)
+            // 3. Plush Torso & Soft Cream Chest/Belly Fur
             val torsoRect = RectF(cx - torsoHalfW, torsoTopY, cx + torsoHalfW, torsoBottomY)
-            canvas.drawRoundRect(torsoRect, 14f * d, 14f * d, bodyPaint)
-            canvas.drawRoundRect(torsoRect, 14f * d, 14f * d, outlinePaint)
+            canvas.drawRoundRect(torsoRect, 15f * d, 15f * d, bodyPaint)
+            canvas.drawRoundRect(torsoRect, 15f * d, 15f * d, furOutlinePaint)
 
-            // Cute soft belly patch (Pet)
             val bellyRect = RectF(
-                cx - torsoHalfW * 0.65f,
-                torsoTopY + 5f * d,
-                cx + torsoHalfW * 0.65f,
-                torsoBottomY - 4f * d
+                cx - torsoHalfW * 0.68f,
+                torsoTopY + 4f * d,
+                cx + torsoHalfW * 0.68f,
+                torsoBottomY - 3.5f * d
             )
-            canvas.drawRoundRect(bellyRect, 10f * d, 10f * d, bellyPaint)
+            canvas.drawOval(bellyRect, bellyPaint)
 
-            // 5. TWO ARMS (Do Hath) with Dancing / Walking / Airborne wave
+            // 4. Articulated Front Paws / Arms
             val leftArmAngle = when {
-                isAirborne -> -125f
-                isDancing -> -110f + sin(phase * 1.8f) * 35f
-                isWalking -> -sin(phase) * 28f
-                else -> 14f + sin(phase * 0.5f) * 6f
+                isAirborne -> -120f
+                isDancing -> -105f + sin(phase * 1.8f) * 34f
+                isWalking -> -sin(phase) * 26f
+                else -> 14f + sin(phase * 0.5f) * 5f
             }
             val rightArmAngle = when {
-                isAirborne -> 125f
-                isDancing -> 110f - cos(phase * 1.8f) * 35f
-                isWalking -> sin(phase) * 28f
-                else -> -14f - sin(phase * 0.5f) * 6f
+                isAirborne -> 120f
+                isDancing -> 105f - cos(phase * 1.8f) * 34f
+                isWalking -> sin(phase) * 26f
+                else -> -14f - sin(phase * 0.5f) * 5f
             }
 
-            val armW = 9f * d
-            val armH = 19f * d
+            val armW = 9.5f * d
+            val armH = 18.5f * d
             val shoulderY = torsoTopY + 5f * d
-            val leftShoulderX = cx - torsoHalfW * 0.92f
-            val rightShoulderX = cx + torsoHalfW * 0.92f
+            val leftShoulderX = cx - torsoHalfW * 0.90f
+            val rightShoulderX = cx + torsoHalfW * 0.90f
 
-            // Left Arm + Hand Paw
             canvas.save()
             canvas.rotate(leftArmAngle, leftShoulderX, shoulderY)
             val leftArmRect = RectF(leftShoulderX - armW / 2f, shoulderY, leftShoulderX + armW / 2f, shoulderY + armH)
             canvas.drawRoundRect(leftArmRect, 5f * d, 5f * d, bodyPaint)
-            canvas.drawRoundRect(leftArmRect, 5f * d, 5f * d, outlinePaint)
-            canvas.drawCircle(leftShoulderX, shoulderY + armH - 2f * d, armW * 0.52f, secondaryPaint)
+            canvas.drawRoundRect(leftArmRect, 5f * d, 5f * d, furOutlinePaint)
+            canvas.drawCircle(leftShoulderX, shoulderY + armH - 2f * d, armW * 0.52f, bellyPaint)
             canvas.restore()
 
-            // Right Arm + Hand Paw
             canvas.save()
             canvas.rotate(rightArmAngle, rightShoulderX, shoulderY)
             val rightArmRect = RectF(rightShoulderX - armW / 2f, shoulderY, rightShoulderX + armW / 2f, shoulderY + armH)
             canvas.drawRoundRect(rightArmRect, 5f * d, 5f * d, bodyPaint)
-            canvas.drawRoundRect(rightArmRect, 5f * d, 5f * d, outlinePaint)
-            canvas.drawCircle(rightShoulderX, shoulderY + armH - 2f * d, armW * 0.52f, secondaryPaint)
+            canvas.drawRoundRect(rightArmRect, 5f * d, 5f * d, furOutlinePaint)
+            canvas.drawCircle(rightShoulderX, shoulderY + armH - 2f * d, armW * 0.52f, bellyPaint)
             canvas.restore()
 
-            // Collar & Golden Bell around neck
-            val collarRect = RectF(cx - torsoHalfW * 0.78f, torsoTopY - 2f * d, cx + torsoHalfW * 0.78f, torsoTopY + 4.5f * d)
-            canvas.drawRoundRect(collarRect, 3f * d, 3f * d, collarPaint)
-            canvas.drawCircle(cx, torsoTopY + 4f * d, 3.8f * d, bellPaint)
+            // 5. Leather Red Collar & Metallic Gold Bell
+            val collarRect = RectF(
+                cx - torsoHalfW * 0.78f,
+                torsoTopY - 2.5f * d,
+                cx + torsoHalfW * 0.78f,
+                torsoTopY + 4.2f * d
+            )
+            canvas.drawRoundRect(collarRect, 3.5f * d, 3.5f * d, collarPaint)
+            canvas.drawCircle(cx, torsoTopY + 4.2f * d, 4.2f * d, bellPaint)
+            canvas.drawCircle(cx - 1f * d, torsoTopY + 3.2f * d, 1.2f * d, whitePaint)
 
-            // 6. HEAD (Sar) & Breed Ears
-            val headTilt = if (isDancing) sin(phase * 1.5f) * 8f else 0f
+            // 6. 3D-Shaded Puppy Head, Breed Ears, Muzzle, Glossy Eyes & Tongue
+            val headTilt = if (isDancing) sin(phase * 1.5f) * 8f else sin(phase * 0.6f) * 2.5f
             canvas.save()
             canvas.rotate(headTilt, cx, headCenterY)
 
+            head3dPaint.shader = RadialGradient(
+                cx - headR * 0.25f,
+                headCenterY - headR * 0.28f,
+                headR * 1.35f,
+                bellyColor,
+                primaryColor,
+                Shader.TileMode.CLAMP
+            )
+
+            // Breed-Specific Realistic Ears (Behind Head)
             when (characterId) {
                 "PUPPY_GOLD", "POM_PUPPY" -> {
-                    // Floppy realistic puppy ears that bounce when walking/dancing
                     val earBounce = sin(phase * 1.5f) * 6f
                     canvas.save()
-                    canvas.rotate(18f + earBounce, cx - headR * 0.8f, headCenterY - headR * 0.3f)
-                    canvas.drawRoundRect(
-                        RectF(cx - headR * 1.22f, headCenterY - headR * 0.45f, cx - headR * 0.68f, headCenterY + headR * 0.55f),
-                        8f * d,
-                        8f * d,
-                        secondaryPaint
+                    canvas.rotate(22f + earBounce, cx - headR * 0.78f, headCenterY - headR * 0.35f)
+                    val leftEar = RectF(
+                        cx - headR * 1.28f,
+                        headCenterY - headR * 0.45f,
+                        cx - headR * 0.62f,
+                        headCenterY + headR * 0.68f
                     )
+                    canvas.drawOval(leftEar, secondaryPaint)
+                    canvas.drawOval(leftEar, furOutlinePaint)
                     canvas.restore()
 
                     canvas.save()
-                    canvas.rotate(-18f - earBounce, cx + headR * 0.8f, headCenterY - headR * 0.3f)
-                    canvas.drawRoundRect(
-                        RectF(cx + headR * 0.68f, headCenterY - headR * 0.45f, cx + headR * 1.22f, headCenterY + headR * 0.55f),
-                        8f * d,
-                        8f * d,
-                        secondaryPaint
+                    canvas.rotate(-22f - earBounce, cx + headR * 0.78f, headCenterY - headR * 0.35f)
+                    val rightEar = RectF(
+                        cx + headR * 0.62f,
+                        headCenterY - headR * 0.45f,
+                        cx + headR * 1.28f,
+                        headCenterY + headR * 0.68f
                     )
+                    canvas.drawOval(rightEar, secondaryPaint)
+                    canvas.drawOval(rightEar, furOutlinePaint)
                     canvas.restore()
                 }
                 "HUSKY_DOG", "CAT" -> {
-                    // Pointed upright wolf/husky/cat ears
-                    val earPath = Path().apply {
-                        moveTo(cx - headR * 0.82f, headCenterY - headR * 0.25f)
-                        lineTo(cx - headR * 0.75f, headCenterY - headR * 1.22f)
-                        lineTo(cx - headR * 0.18f, headCenterY - headR * 0.75f)
+                    val outerEarPath = Path().apply {
+                        moveTo(cx - headR * 0.82f, headCenterY - headR * 0.22f)
+                        lineTo(cx - headR * 0.78f, headCenterY - headR * 1.28f)
+                        lineTo(cx - headR * 0.16f, headCenterY - headR * 0.76f)
                         close()
-                        moveTo(cx + headR * 0.82f, headCenterY - headR * 0.25f)
-                        lineTo(cx + headR * 0.75f, headCenterY - headR * 1.22f)
-                        lineTo(cx + headR * 0.18f, headCenterY - headR * 0.75f)
+                        moveTo(cx + headR * 0.82f, headCenterY - headR * 0.22f)
+                        lineTo(cx + headR * 0.78f, headCenterY - headR * 1.28f)
+                        lineTo(cx + headR * 0.16f, headCenterY - headR * 0.76f)
                         close()
                     }
-                    canvas.drawPath(earPath, secondaryPaint)
+                    canvas.drawPath(outerEarPath, secondaryPaint)
+                    canvas.drawPath(outerEarPath, furOutlinePaint)
+
+                    val innerPinkEar = Path().apply {
+                        moveTo(cx - headR * 0.70f, headCenterY - headR * 0.36f)
+                        lineTo(cx - headR * 0.68f, headCenterY - headR * 1.05f)
+                        lineTo(cx - headR * 0.30f, headCenterY - headR * 0.72f)
+                        close()
+                        moveTo(cx + headR * 0.70f, headCenterY - headR * 0.36f)
+                        lineTo(cx + headR * 0.68f, headCenterY - headR * 1.05f)
+                        lineTo(cx + headR * 0.30f, headCenterY - headR * 0.72f)
+                        close()
+                    }
+                    canvas.drawPath(innerPinkEar, tonguePaint)
                 }
                 "BULL" -> {
-                    // Curved Bull Horns (Bhaisa)
                     val hornPath = Path().apply {
                         moveTo(cx - headR * 0.6f, headCenterY - headR * 0.55f)
                         quadTo(cx - headR * 1.3f, headCenterY - headR * 0.95f, cx - headR * 0.92f, headCenterY - headR * 1.3f)
@@ -974,54 +1029,135 @@ object MascotCompanionHelper {
                         close()
                     }
                     canvas.drawPath(hornPath, whitePaint)
+                    canvas.drawPath(hornPath, furOutlinePaint)
                 }
                 else -> {
-                    // Round Bear / Panda ears
                     canvas.drawCircle(cx - headR * 0.76f, headCenterY - headR * 0.72f, headR * 0.34f, secondaryPaint)
                     canvas.drawCircle(cx + headR * 0.76f, headCenterY - headR * 0.72f, headR * 0.34f, secondaryPaint)
+                    canvas.drawCircle(cx - headR * 0.76f, headCenterY - headR * 0.72f, headR * 0.18f, bellyPaint)
+                    canvas.drawCircle(cx + headR * 0.76f, headCenterY - headR * 0.72f, headR * 0.18f, bellyPaint)
                 }
             }
 
-            // Head circle (Sar)
-            val headOval = RectF(cx - headR * 1.06f, headCenterY - headR * 0.95f, cx + headR * 1.06f, headCenterY + headR * 0.95f)
-            canvas.drawOval(headOval, bodyPaint)
-            canvas.drawOval(headOval, outlinePaint)
-
-            // Puppy Muzzle / Snout patch
-            val muzzleRect = RectF(cx - headR * 0.52f, headCenterY + headR * 0.02f, cx + headR * 0.52f, headCenterY + headR * 0.68f)
-            canvas.drawOval(muzzleRect, bellyPaint)
-
-            // Expressive Eyes with white sparkle
-            val eyeY = headCenterY - headR * 0.14f
-            val leftEyeX = cx - headR * 0.38f
-            val rightEyeX = cx + headR * 0.38f
-            canvas.drawCircle(leftEyeX, eyeY, headR * 0.17f, darkFeaturePaint)
-            canvas.drawCircle(rightEyeX, eyeY, headR * 0.17f, darkFeaturePaint)
-            canvas.drawCircle(leftEyeX - headR * 0.05f, eyeY - headR * 0.05f, headR * 0.06f, whitePaint)
-            canvas.drawCircle(rightEyeX - headR * 0.05f, eyeY - headR * 0.05f, headR * 0.06f, whitePaint)
-
-            // Cute Nose & Happy Puppy Tongue
-            canvas.drawOval(
-                RectF(cx - headR * 0.18f, headCenterY + headR * 0.10f, cx + headR * 0.18f, headCenterY + headR * 0.30f),
-                darkFeaturePaint
+            // Rounded Fluffy Cheek Silhouette
+            val headRect = RectF(
+                cx - headR * 1.06f,
+                headCenterY - headR * 0.95f,
+                cx + headR * 1.06f,
+                headCenterY + headR * 0.95f
             )
-            val tongueRect = RectF(cx - headR * 0.14f, headCenterY + headR * 0.32f, cx + headR * 0.14f, headCenterY + headR * 0.62f)
-            canvas.drawRoundRect(tongueRect, 4f * d, 4f * d, tonguePaint)
+            canvas.drawOval(headRect, head3dPaint)
+            canvas.drawOval(headRect, furOutlinePaint)
 
-            canvas.restore()
-            canvas.restore()
-
-            // Floating Music Notes when Dancing
-            if (isDancing) {
-                val noteOffset = sin(phase) * 4f * d
-                canvas.drawText("♪", w * 0.78f, h * 0.22f + noteOffset, notePaint)
-                canvas.drawText("♫", w * 0.10f, h * 0.18f - noteOffset, notePaint)
+            // Husky Forehead Fur Mask or Panda Eye Patches
+            if (characterId == "HUSKY_DOG") {
+                val maskRect = RectF(
+                    cx - headR * 0.85f,
+                    headCenterY - headR * 0.85f,
+                    cx + headR * 0.85f,
+                    headCenterY + headR * 0.15f
+                )
+                canvas.drawArc(maskRect, 180f, 180f, true, secondaryPaint)
+            } else if (characterId == "PANDA") {
+                canvas.drawOval(
+                    RectF(cx - headR * 0.68f, headCenterY - headR * 0.32f, cx - headR * 0.18f, headCenterY + headR * 0.16f),
+                    nosePaint
+                )
+                canvas.drawOval(
+                    RectF(cx + headR * 0.18f, headCenterY - headR * 0.32f, cx + headR * 0.68f, headCenterY + headR * 0.16f),
+                    nosePaint
+                )
             }
 
-            // 2-Second Hold Circular Progress Ring
+            // Soft Rosy Cheek Blush
+            canvas.drawOval(
+                RectF(cx - headR * 0.82f, headCenterY + headR * 0.04f, cx - headR * 0.44f, headCenterY + headR * 0.30f),
+                cheekBlushPaint
+            )
+            canvas.drawOval(
+                RectF(cx + headR * 0.44f, headCenterY + headR * 0.04f, cx + headR * 0.82f, headCenterY + headR * 0.30f),
+                cheekBlushPaint
+            )
+
+            // 3D Raised Snout / Muzzle
+            val snoutRect = RectF(
+                cx - headR * 0.46f,
+                headCenterY - headR * 0.02f,
+                cx + headR * 0.46f,
+                headCenterY + headR * 0.58f
+            )
+            canvas.drawOval(snoutRect, bellyPaint)
+            canvas.drawOval(snoutRect, furOutlinePaint)
+
+            // Expressive Glossy Puppy Eyes with Dual Specular Catchlights
+            val leftEyeX = cx - headR * 0.42f
+            val rightEyeX = cx + headR * 0.42f
+            val eyeY = headCenterY - headR * 0.14f
+            val eyeR = headR * 0.18f
+
+            canvas.drawCircle(leftEyeX, eyeY, eyeR, darkEyePaint)
+            canvas.drawCircle(rightEyeX, eyeY, eyeR, darkEyePaint)
+
+            if (characterId == "HUSKY_DOG") {
+                canvas.drawCircle(leftEyeX, eyeY, eyeR * 0.65f, huskyIrisPaint)
+                canvas.drawCircle(rightEyeX, eyeY, eyeR * 0.65f, huskyIrisPaint)
+                canvas.drawCircle(leftEyeX, eyeY, eyeR * 0.35f, darkEyePaint)
+                canvas.drawCircle(rightEyeX, eyeY, eyeR * 0.35f, darkEyePaint)
+            }
+
+            // Primary & Secondary Eye Shine Catchlights
+            canvas.drawCircle(leftEyeX - eyeR * 0.30f, eyeY - eyeR * 0.30f, eyeR * 0.34f, whitePaint)
+            canvas.drawCircle(rightEyeX - eyeR * 0.30f, eyeY - eyeR * 0.30f, eyeR * 0.34f, whitePaint)
+            canvas.drawCircle(leftEyeX + eyeR * 0.25f, eyeY + eyeR * 0.25f, eyeR * 0.16f, whitePaint)
+            canvas.drawCircle(rightEyeX + eyeR * 0.25f, eyeY + eyeR * 0.25f, eyeR * 0.16f, whitePaint)
+
+            // Cute Pink Puppy Tongue (Pops out happily when walking or dancing)
+            if (isDancing || isWalking) {
+                val tongueLen = headR * 0.34f + abs(sin(phase * 2f)) * (2.5f * d)
+                val tongueRect = RectF(
+                    cx - headR * 0.16f,
+                    headCenterY + headR * 0.30f,
+                    cx + headR * 0.16f,
+                    headCenterY + headR * 0.30f + tongueLen
+                )
+                canvas.drawRoundRect(tongueRect, 5f * d, 5f * d, tonguePaint)
+            }
+
+            // Realistic Curved W-Smile Mouth
+            val mouthY = headCenterY + headR * 0.26f
+            canvas.drawArc(
+                RectF(cx - headR * 0.26f, mouthY - headR * 0.08f, cx, mouthY + headR * 0.14f),
+                0f,
+                180f,
+                false,
+                mouthStrokePaint
+            )
+            canvas.drawArc(
+                RectF(cx, mouthY - headR * 0.08f, cx + headR * 0.26f, mouthY + headR * 0.14f),
+                0f,
+                180f,
+                false,
+                mouthStrokePaint
+            )
+
+            // Glossy Triangular Puppy Nose with Highlight
+            val noseW = headR * 0.22f
+            val noseH = headR * 0.16f
+            val noseTopY = headCenterY + headR * 0.06f
+            val noseRect = RectF(cx - noseW, noseTopY, cx + noseW, noseTopY + noseH)
+            canvas.drawRoundRect(noseRect, 5f * d, 5f * d, nosePaint)
+            canvas.drawOval(
+                RectF(cx - noseW * 0.5f, noseTopY + 1.5f * d, cx + noseW * 0.2f, noseTopY + noseH * 0.45f),
+                whitePaint
+            )
+
+            canvas.restore()
+            canvas.restore()
+
+            // 7. 2-Second Hold Progress Ring
             if (holdProgress > 0.02f) {
-                val arcRect = RectF(3f * d, 3f * d, w - 3f * d, h - 3f * d)
-                canvas.drawArc(arcRect, -90f, 360f * holdProgress, false, holdRingPaint)
+                val ringRect = RectF(4f * d, 4f * d, w - 4f * d, h - 4f * d)
+                canvas.drawArc(ringRect, -90f, 360f * holdProgress, false, holdRingPaint)
             }
         }
     }
