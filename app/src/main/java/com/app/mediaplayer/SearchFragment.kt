@@ -10,11 +10,15 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -27,12 +31,23 @@ import kotlin.math.abs
 
 class SearchFragment : Fragment() {
 
+    companion object {
+        private const val PREF_SEARCH_HISTORY = "HYBRID_RECENT_SEARCHES_PREFS"
+        private const val KEY_RECENT_LIST = "recent_queries_v1"
+    }
+
     private lateinit var rootSearchLayout: LinearLayout
-    private lateinit var rvSearchResults: RecyclerView
-    private lateinit var tvEmptySearch: TextView
+    private lateinit var searchBoxRow: LinearLayout
+    private lateinit var etSearchInput: EditText
+    private lateinit var btnClearSearch: TextView
+
+    private lateinit var recentSearchesContainer: LinearLayout
+    private lateinit var recentChipsRow: LinearLayout
     private lateinit var pillSearchVideos: TextView
     private lateinit var pillSearchAudio: TextView
-    private lateinit var etSearchInput: EditText
+
+    private lateinit var rvSearchResults: RecyclerView
+    private lateinit var tvEmptySearch: TextView
 
     private val allVideos = mutableListOf<VideoModel>()
     private val filteredVideos = mutableListOf<VideoModel>()
@@ -64,10 +79,184 @@ class SearchFragment : Fragment() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
+            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
         }
         ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, rootSearchLayout)
 
+        // 1. Sleek Top Search Input Bar
+        searchBoxRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((16 * d).toInt(), (4 * d).toInt(), (12 * d).toInt(), (4 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (48 * d).toInt()
+            ).apply { bottomMargin = (10 * d).toInt() }
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#141E30"))
+                cornerRadius = 24f * d
+                setStroke((1.2f * d).toInt(), Color.parseColor("#38FFFFFF"))
+            }
+        }
+
+        etSearchInput = EditText(ctx).apply {
+            hint = "Search videos, movies, songs, artists..."
+            setHintTextColor(Color.parseColor("#7F92A8"))
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            setSingleLine(true)
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            background = null
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            setOnEditorActionListener { _, actionId, event ->
+                if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                    (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER)
+                ) {
+                    saveRecentSearchQuery(ctx, currentQuery)
+                    refreshRecentSearchesUi(ctx, d)
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+
+        btnClearSearch = TextView(ctx).apply {
+            text = "Clear"
+            setTextColor(Color.parseColor("#0A0A10"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((10 * d).toInt(), (5 * d).toInt(), (10 * d).toInt(), (5 * d).toInt())
+            visibility = View.GONE
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 12f * d
+            }
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                saveRecentSearchQuery(ctx, currentQuery)
+                etSearchInput.setText("")
+                refreshRecentSearchesUi(ctx, d)
+            }
+        }
+
+        etSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentQuery = s?.toString()?.trim() ?: ""
+                btnClearSearch.visibility = if (currentQuery.isEmpty()) View.GONE else View.VISIBLE
+                applyInstantFilterNow()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        searchBoxRow.addView(etSearchInput)
+        searchBoxRow.addView(btnClearSearch)
+        rootSearchLayout.addView(searchBoxRow)
+
+        // 2. Clean Recent Searches History Section with 1-Tap Clear
+        recentSearchesContainer = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (10 * d).toInt() }
+        }
+
+        val recentHeaderRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((4 * d).toInt(), 0, (4 * d).toInt(), (6 * d).toInt())
+        }
+
+        val tvRecentLabel = TextView(ctx).apply {
+            text = "RECENT SEARCHES"
+            setTextColor(Color.parseColor("#9FB4CE"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val btnClearAllRecent = TextView(ctx).apply {
+            text = "Clear History"
+            setTextColor(Color.parseColor("#FF5252"))
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((8 * d).toInt(), (3 * d).toInt(), (8 * d).toInt(), (3 * d).toInt())
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                clearRecentSearchHistory(ctx)
+                refreshRecentSearchesUi(ctx, d)
+            }
+        }
+
+        recentHeaderRow.addView(tvRecentLabel)
+        recentHeaderRow.addView(btnClearAllRecent)
+        recentSearchesContainer.addView(recentHeaderRow)
+
+        val recentScroll = HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false
+        }
+        recentChipsRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        recentScroll.addView(recentChipsRow)
+        recentSearchesContainer.addView(recentScroll)
+        rootSearchLayout.addView(recentSearchesContainer)
+
+        // 3. Clean Category Tabs Row (Videos vs Music/Audio)
+        val pillsRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (8 * d).toInt() }
+        }
+
+        pillSearchVideos = TextView(ctx).apply {
+            text = "Videos (0)"
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((14 * d).toInt(), (9 * d).toInt(), (14 * d).toInt(), (9 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                if (currentQuery.length >= 2) saveRecentSearchQuery(ctx, currentQuery)
+                isVideoTabActive = true
+                updateTabPillVisuals(d)
+                applyInstantFilterNow()
+            }
+        }
+
+        pillSearchAudio = TextView(ctx).apply {
+            text = "Music / Audio (0)"
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding((14 * d).toInt(), (9 * d).toInt(), (14 * d).toInt(), (9 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (6 * d).toInt()
+            }
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                if (currentQuery.length >= 2) saveRecentSearchQuery(ctx, currentQuery)
+                isVideoTabActive = false
+                updateTabPillVisuals(d)
+                applyInstantFilterNow()
+            }
+        }
+
+        pillsRow.addView(pillSearchVideos)
+        pillsRow.addView(pillSearchAudio)
+        rootSearchLayout.addView(pillsRow)
+
+        // 4. Instant Highlighting Results RecyclerView
         rvSearchResults = RecyclerView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -87,7 +276,7 @@ class SearchFragment : Fragment() {
 
         tvEmptySearch = TextView(ctx).apply {
             text = "No matching media found"
-            setTextColor(Color.parseColor("#B0C4DE"))
+            setTextColor(Color.parseColor("#9FB4CE"))
             textSize = 14.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -100,114 +289,8 @@ class SearchFragment : Fragment() {
         }
         rootSearchLayout.addView(tvEmptySearch)
 
-        val bottomDockContainer = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((4 * d).toInt(), (8 * d).toInt(), (4 * d).toInt(), (2 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val pillsRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = (10 * d).toInt() }
-        }
-
-        pillSearchVideos = TextView(ctx).apply {
-            text = "Videos (0)"
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = (6 * d).toInt()
-            }
-            setOnClickListener {
-                isVideoTabActive = true
-                updateTabPillVisuals(d)
-                applyInstantFilterNow()
-            }
-        }
-
-        pillSearchAudio = TextView(ctx).apply {
-            text = "Music / Audio (0)"
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding((14 * d).toInt(), (10 * d).toInt(), (14 * d).toInt(), (10 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = (6 * d).toInt()
-            }
-            setOnClickListener {
-                isVideoTabActive = false
-                updateTabPillVisuals(d)
-                applyInstantFilterNow()
-            }
-        }
-
-        pillsRow.addView(pillSearchVideos)
-        pillsRow.addView(pillSearchAudio)
-        bottomDockContainer.addView(pillsRow)
-
-        val searchBoxRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((16 * d).toInt(), (4 * d).toInt(), (12 * d).toInt(), (4 * d).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (48 * d).toInt()
-            )
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#101826"))
-                cornerRadius = 24f * d
-                setStroke((1.5f * d).toInt(), Color.WHITE)
-            }
-        }
-
-        etSearchInput = EditText(ctx).apply {
-            hint = "Search videos, movies, songs, artists..."
-            setHintTextColor(Color.parseColor("#7F92A8"))
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setSingleLine(true)
-            background = null
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val btnClearSearch = TextView(ctx).apply {
-            text = "X"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding((10 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
-            visibility = View.GONE
-            setOnClickListener {
-                etSearchInput.setText("")
-            }
-        }
-
-        etSearchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                currentQuery = s?.toString()?.trim() ?: ""
-                btnClearSearch.visibility = if (currentQuery.isEmpty()) View.GONE else View.VISIBLE
-                applyInstantFilterNow()
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        searchBoxRow.addView(etSearchInput)
-        searchBoxRow.addView(btnClearSearch)
-        bottomDockContainer.addView(searchBoxRow)
-
-        rootSearchLayout.addView(bottomDockContainer)
-
         updateTabPillVisuals(d)
+        refreshRecentSearchesUi(ctx, d)
 
         val cachedVids = DeepMediaScanner.getCachedVideosInstant(ctx)
         if (cachedVids.isNotEmpty()) {
@@ -224,7 +307,77 @@ class SearchFragment : Fragment() {
         super.onResume()
         val ctx = context ?: return
         ThemeStudioHelper.applyThemeAndOneHandModeToRoot(ctx, rootSearchLayout)
+        refreshRecentSearchesUi(ctx, resources.displayMetrics.density)
         loadVideosAndAudioInBackground()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val ctx = context ?: return
+        if (currentQuery.length >= 2) {
+            saveRecentSearchQuery(ctx, currentQuery)
+        }
+    }
+
+    private fun getRecentSearchQueries(context: Context): List<String> {
+        val raw = context.getSharedPreferences(PREF_SEARCH_HISTORY, Context.MODE_PRIVATE)
+            .getString(KEY_RECENT_LIST, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return raw.split("||").filter { it.isNotBlank() }.take(12)
+    }
+
+    private fun saveRecentSearchQuery(context: Context, query: String) {
+        val clean = query.trim().replace("||", " ")
+        if (clean.length < 2) return
+        val list = getRecentSearchQueries(context).toMutableList()
+        list.removeAll { it.equals(clean, ignoreCase = true) }
+        list.add(0, clean)
+        val joined = list.take(12).joinToString("||")
+        context.getSharedPreferences(PREF_SEARCH_HISTORY, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_RECENT_LIST, joined)
+            .apply()
+    }
+
+    private fun clearRecentSearchHistory(context: Context) {
+        context.getSharedPreferences(PREF_SEARCH_HISTORY, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_RECENT_LIST)
+            .apply()
+    }
+
+    private fun refreshRecentSearchesUi(context: Context, d: Float) {
+        val recents = getRecentSearchQueries(context)
+        if (recents.isEmpty()) {
+            recentSearchesContainer.visibility = View.GONE
+            return
+        }
+        recentSearchesContainer.visibility = View.VISIBLE
+        recentChipsRow.removeAllViews()
+
+        for (q in recents) {
+            val chip = TextView(context).apply {
+                text = q
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (6 * d).toInt() }
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#18FFFFFF"))
+                    cornerRadius = 14f * d
+                }
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    etSearchInput.setText(q)
+                    etSearchInput.setSelection(q.length)
+                }
+            }
+            recentChipsRow.addView(chip)
+        }
     }
 
     private fun attachHorizontalSwipeToSwitchSearchTabs(context: Context) {
@@ -269,16 +422,16 @@ class SearchFragment : Fragment() {
             if (isVideoTabActive) Color.parseColor("#0A0A10") else Color.WHITE
         )
         pillSearchVideos.background = GradientDrawable().apply {
-            setColor(if (isVideoTabActive) Color.WHITE else Color.parseColor("#182232"))
-            cornerRadius = 20f * d
+            setColor(if (isVideoTabActive) Color.WHITE else Color.parseColor("#16FFFFFF"))
+            cornerRadius = 18f * d
         }
 
         pillSearchAudio.setTextColor(
             if (!isVideoTabActive) Color.parseColor("#0A0A10") else Color.WHITE
         )
         pillSearchAudio.background = GradientDrawable().apply {
-            setColor(if (!isVideoTabActive) Color.WHITE else Color.parseColor("#182232"))
-            cornerRadius = 20f * d
+            setColor(if (!isVideoTabActive) Color.WHITE else Color.parseColor("#16FFFFFF"))
+            cornerRadius = 18f * d
         }
     }
 
@@ -303,6 +456,8 @@ class SearchFragment : Fragment() {
         if (!isAdded) return
         val d = resources.displayMetrics.density
         val q = currentQuery.lowercase(Locale.US)
+
+        videoAdapter.setSearchHighlightQuery(currentQuery)
 
         val matchedVids = if (q.isEmpty()) {
             allVideos
@@ -402,7 +557,7 @@ class SearchFragment : Fragment() {
                         ?: (if (titleCol != -1) cursor.getString(titleCol) else null)
                         ?: File(path).name
                     val artist = (if (artistCol != -1) cursor.getString(artistCol) else null)
-                        ?.takeIf { it != "<unknown>" } ?: "Hybrid Player Audio"
+                        ?.takeIf { it != "<unknown>" } ?: "Unknown Artist"
 
                     list.add(
                         AudioModel(
